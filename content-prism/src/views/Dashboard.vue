@@ -51,13 +51,15 @@ export default {
   },
   async created() {
     try {
-      const response = await axios.get("http://localhost:3000/api/records");
+      const baseURL =
+        process.env.VUE_APP_API_BASE_URL || "http://localhost:3000";
+      const response = await axios.get(`${baseURL}/api/records`);
       this.records = response.data;
       console.log("Fetched records:", this.records); // Console log the records data
     } catch (error) {
       console.error("Error fetching records:", error.message);
     } finally {
-      this.loading = false; // Set loading to false after data is fetched
+      this.loading = false;
     }
   },
   methods: {

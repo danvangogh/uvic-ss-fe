@@ -57,15 +57,16 @@ export default {
   },
   async created() {
     try {
-      console.log("Fetching record...", this.$route.params.id);
-      const id = this.$route.params.id;
-      const response = await axios.get(
-        `http://localhost:3000/api/records/${id}`
-      );
-      this.record = response.data.fields; // Assuming the record data is in the 'fields' property
+      const baseURL =
+        process.env.VUE_APP_API_BASE_URL || "http://localhost:3000";
+      const recordId = this.$route.params.id; // Assuming you're using Vue Router
+      const response = await axios.get(`${baseURL}/api/records/${recordId}`);
+      this.record = response.data;
       console.log("Fetched record:", this.record); // Console log the record data
     } catch (error) {
       console.error("Error fetching record:", error.message);
+    } finally {
+      this.loading = false;
     }
   },
   methods: {

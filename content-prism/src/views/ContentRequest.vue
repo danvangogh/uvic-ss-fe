@@ -88,10 +88,9 @@ export default {
     async submitRequest() {
       try {
         console.log("Before axios post: ", this.formData);
-        await axios.post(
-          "http://localhost:3000/api/content-request",
-          this.formData
-        );
+        const baseURL =
+          process.env.VUE_APP_API_BASE_URL || "http://localhost:3000";
+        await axios.post(`${baseURL}/api/content-request`, this.formData);
         // Clear the form data
         this.formData = {
           url: "",
