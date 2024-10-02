@@ -28,3 +28,6 @@ pnpm-debug.log*
 # Build artifacts
 coverage/
 build/
+
+# Ignore build script
+build.sh
