@@ -3,10 +3,12 @@ const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
 const axios = require("axios");
+const path = require("path");
 
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
+app.use(express.static(path.join(__dirname, "client/dist")));
 
 const MAKE_WEBHOOK_SCRAPEURLADDRECORD =
   process.env.MAKE_WEBHOOK_SCRAPEURLADDRECORD;
