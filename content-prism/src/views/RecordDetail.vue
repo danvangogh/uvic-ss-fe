@@ -1,8 +1,12 @@
 <template>
   <div class="body-container">
     <div class="main-content">
-      <a v-if="record" :href="record['Dropbox Folder URL']" target="_blank">
-        <h3>{{ record.Name }} - {{ contentType }}</h3>
+      <a
+        v-if="record"
+        :href="record.fields['Dropbox Folder URL']"
+        target="_blank"
+      >
+        <h3>{{ record.fields.Name }} - {{ contentType }}</h3>
       </a>
       <h3 v-if="record" style="font-weight: 300">
         <strong>Status:</strong> {{ userFriendlyStatus }}
@@ -39,9 +43,12 @@ export default {
   },
   computed: {
     contentType() {
-      return Array.isArray(this.record["Name (from Content type)"])
-        ? this.record["Name (from Content type)"][0]
-        : this.record["Name (from Content type)"];
+      if (!this.record || !this.record.fields) return "";
+      const contentTypeField = this.record.fields["Name (from Content type)"];
+      console.log("Content Type Field:", contentTypeField); // Debug log
+      return Array.isArray(contentTypeField)
+        ? contentTypeField[0]
+        : contentTypeField;
     },
     userFriendlyStatus() {
       if (!this.record) return "";

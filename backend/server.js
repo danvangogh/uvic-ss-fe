@@ -4,11 +4,20 @@ const cors = require("cors");
 const bodyParser = require("body-parser");
 const axios = require("axios");
 const path = require("path");
+const history = require("connect-history-api-fallback");
 
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, "../content-prism/dist")));
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
+
+// Use the history middleware before static middleware
+app.use(history());
 
 const MAKE_WEBHOOK_SCRAPEURLADDRECORD =
   process.env.MAKE_WEBHOOK_SCRAPEURLADDRECORD;
@@ -29,12 +38,7 @@ const airtableApi = axios.create({
   },
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
-
-// Define your routes here
+// API Routes
 
 app.get("/api/records", async (req, res) => {
   try {
