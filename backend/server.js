@@ -9,15 +9,16 @@ const history = require("connect-history-api-fallback");
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
+
+// Use the history middleware before static middleware
+app.use(history());
+
 app.use(express.static(path.join(__dirname, "../content-prism/dist")));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
-
-// Use the history middleware before static middleware
-app.use(history());
 
 const MAKE_WEBHOOK_SCRAPEURLADDRECORD =
   process.env.MAKE_WEBHOOK_SCRAPEURLADDRECORD;
