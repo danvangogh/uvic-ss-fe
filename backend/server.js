@@ -52,6 +52,7 @@ const airtableApi = axios.create({
 // API Routes
 
 app.get("/api/records", async (req, res) => {
+  console.log("Fetching records...", req.body);
   try {
     let allRecords = [];
     let offset = null;

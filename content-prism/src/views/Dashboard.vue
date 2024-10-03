@@ -51,6 +51,7 @@ export default {
   },
   async created() {
     try {
+      console.log("Fetching records...", process.env.VUE_APP_API_BASE_URL);
       const baseURL =
         process.env.VUE_APP_API_BASE_URL || "http://localhost:3000";
       const response = await axios.get(`${baseURL}/api/records`);
