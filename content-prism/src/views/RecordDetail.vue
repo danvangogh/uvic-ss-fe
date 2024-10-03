@@ -79,11 +79,12 @@ export default {
   methods: {
     async approveRecord() {
       try {
+        const baseURL =
+          process.env.VUE_APP_API_BASE_URL || "http://localhost:3000";
         const id = this.$route.params.id;
-        const response = await axios.patch(
-          `http://localhost:3000/api/records/${id}`,
-          { Status: "Approved" }
-        );
+        const response = await axios.patch(`${baseURL}/api/records/${id}`, {
+          Status: "Approved",
+        });
         this.record = response.data.fields;
         console.log("Approved:", this.record);
       } catch (error) {
@@ -94,11 +95,13 @@ export default {
       this.$router.push({ name: "dashboard" }); // Navigate to the dashboard
 
       try {
+        const baseURL =
+          process.env.VUE_APP_API_BASE_URL || "http://localhost:3000";
         const id = this.$route.params.id;
-        const response = await axios.patch(
-          `http://localhost:3000/api/records/${id}`,
-          { Status: "Regenerate", Revisions: this.feedback }
-        );
+        const response = await axios.patch(`${baseURL}/api/records/${id}`, {
+          Status: "Regenerate",
+          Revisions: this.feedback,
+        });
         this.record = response.data.fields;
         this.feedback = ""; // Clear the feedback form
         console.log("Feedback submitted:", this.feedback);
