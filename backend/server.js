@@ -4,12 +4,11 @@ const bodyParser = require("body-parser");
 const axios = require("axios");
 const cors = require("cors");
 const path = require("path");
-const history = require("connect-history-api-fallback");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
-
+const history = require("connect-history-api-fallback");
 app.use(history());
 
 // app.use(cors());
