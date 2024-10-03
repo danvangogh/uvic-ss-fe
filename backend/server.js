@@ -10,10 +10,6 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 
-app.use(history());
-
-// app.use(cors());
-
 app.use(
   cors({
     origin: BASE_URL, // Allow requests from this origin
@@ -131,3 +127,5 @@ app.post("/api/content-request", async (req, res) => {
     res.status(500).send(error.message);
   }
 });
+
+app.use(history());
