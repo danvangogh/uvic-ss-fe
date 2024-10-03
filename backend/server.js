@@ -1,21 +1,31 @@
 require("dotenv").config();
 const express = require("express");
-const cors = require("cors");
 const bodyParser = require("body-parser");
 const axios = require("axios");
+const cors = require("cors");
 const path = require("path");
 const history = require("connect-history-api-fallback");
 
 const app = express();
-app.use(cors());
-app.use(bodyParser.json());
+const PORT = process.env.PORT || 3000;
+const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 
-// Use the history middleware before static middleware
 app.use(history());
+
+// app.use(cors());
+
+app.use(
+  cors({
+    origin: BASE_URL, // Allow requests from this origin
+    methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+    credentials: true, // Allow cookies to be sent
+  })
+);
+
+app.use(bodyParser.json());
 
 app.use(express.static(path.join(__dirname, "../content-prism/dist")));
 
-const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
