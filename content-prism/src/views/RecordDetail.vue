@@ -6,13 +6,14 @@
         :href="record.fields['Dropbox Folder URL']"
         target="_blank"
       >
-        <h3>{{ record.fields.Name }} - {{ contentType }}</h3>
+        <h3>{{ record.fields.Name }} - {{ formattedContentType }}</h3>
       </a>
       <h3 v-if="record" style="font-weight: 300">
         <strong>Status:</strong> {{ userFriendlyStatus }}
       </h3>
       <h3 v-if="record" style="font-weight: 300">
-        <strong>Original Article URL:</strong> {{ record["Article URL"] }}
+        <strong>Original Article URL: </strong>
+        <span style="font-size: 12px">{{ record.fields["Article URL"] }}</span>
       </h3>
       <div v-if="record">
         <textarea
@@ -37,22 +38,15 @@ export default {
   data() {
     return {
       record: null,
-      feedback: "", // Added feedback data property
-      message: "", // Added message data property
+      feedback: "",
+      message: "",
+      loading: true, // Added loading state
     };
   },
   computed: {
-    contentType() {
-      if (!this.record || !this.record.fields) return "";
-      const contentTypeField = this.record.fields["Name (from Content type)"];
-      console.log("Content Type Field:", contentTypeField); // Debug log
-      return Array.isArray(contentTypeField)
-        ? contentTypeField[0]
-        : contentTypeField;
-    },
     userFriendlyStatus() {
       if (!this.record) return "";
-      switch (this.record.Status) {
+      switch (this.record.fields.Status) {
         case "Uploaded to Dropbox":
           return "Ready";
         case "Approved":
@@ -60,6 +54,12 @@ export default {
         default:
           return "Processing";
       }
+    },
+    formattedContentType() {
+      if (this.record && this.record.fields["Name (from Content type)"]) {
+        return this.record.fields["Name (from Content type)"].join(", ");
+      }
+      return "";
     },
   },
   async created() {
@@ -91,6 +91,8 @@ export default {
       }
     },
     async submitFeedback() {
+      this.$router.push({ name: "dashboard" }); // Navigate to the dashboard
+
       try {
         const id = this.$route.params.id;
         const response = await axios.patch(
@@ -99,8 +101,6 @@ export default {
         );
         this.record = response.data.fields;
         this.feedback = ""; // Clear the feedback form
-        this.message =
-          "Thanks for the feedback - you'll be notified soon with the new version";
         console.log("Feedback submitted:", this.feedback);
       } catch (error) {
         console.error("Error submitting feedback:", error.message);
