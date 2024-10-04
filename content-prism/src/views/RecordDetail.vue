@@ -1,33 +1,39 @@
 <template>
-  <div class="body-container">
-    <div class="main-content">
+  <div class="main-content">
+    <a
+      v-if="record"
+      :href="record.fields['Dropbox Folder URL']"
+      target="_blank"
+    >
+      <h3>{{ record.fields.Name }} - {{ formattedContentType }}</h3>
+    </a>
+    <h3 v-if="record" style="font-weight: 300">
+      <strong>Status:</strong> {{ userFriendlyStatus }}
+    </h3>
+    <h3 v-if="record" style="font-weight: 300">
+      <strong>Original Article URL: </strong>
       <a
-        v-if="record"
-        :href="record.fields['Dropbox Folder URL']"
+        :href="record.fields['Article URL']"
         target="_blank"
+        rel="noopener noreferrer"
       >
-        <h3>{{ record.fields.Name }} - {{ formattedContentType }}</h3>
+        <span style="font-size: 12px; display: block; line-height: 1.5">
+          {{ record.fields["Article URL"] }}
+        </span>
       </a>
-      <h3 v-if="record" style="font-weight: 300">
-        <strong>Status:</strong> {{ userFriendlyStatus }}
-      </h3>
-      <h3 v-if="record" style="font-weight: 300">
-        <strong>Original Article URL: </strong>
-        <span style="font-size: 12px">{{ record.fields["Article URL"] }}</span>
-      </h3>
-      <div v-if="record">
-        <textarea
-          v-model="feedback"
-          class="styled-input"
-          placeholder="Enter feedback"
-        ></textarea>
-        <div class="buttons">
-          <button @click="approveRecord">Approve</button>
-          <button @click="submitFeedback">Submit Feedback</button>
-        </div>
+    </h3>
+    <div v-if="record">
+      <textarea
+        v-model="feedback"
+        class="styled-input"
+        placeholder="Enter feedback"
+      ></textarea>
+      <div class="buttons">
+        <button @click="approveRecord">Approve</button>
+        <button @click="submitFeedback">Submit Feedback</button>
       </div>
-      <p v-if="message">{{ message }}</p>
     </div>
+    <p v-if="message">{{ message }}</p>
   </div>
 </template>
 

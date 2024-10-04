@@ -22,15 +22,18 @@
 nav {
   padding: 30px;
   text-align: center; /* Center-align nav items */
+  background-color: #002754; /* Set nav background color */
+  color: #fff;
 }
 
 nav a {
   font-weight: bold;
-  color: #000; /* Set link color to black */
+  color: #86819a; /* Set link color to black */
+  text-decoration: none;
 }
 
 nav a.router-link-exact-active {
-  color: #000; /* Set active link color to black */
+  color: #e6eef7; /* Set active link color to black */
 }
 
 /* Global styles for headings and paragraphs */
@@ -98,6 +101,9 @@ table th {
   border-radius: 15px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   background-color: #fff;
+  word-wrap: break-word; /* Ensure long URLs wrap within the container */
+  overflow-wrap: break-word; /* Ensure long URLs wrap within the container */
+  white-space: pre-wrap; /* Preserve whitespace and wrap text */
 }
 
 .styled-input {
@@ -125,5 +131,52 @@ button {
   border: none; /* Remove default border */
   outline: none; /* Remove default outline */
   box-shadow: none; /* Remove default box-shadow */
+}
+
+/* Media queries for mobile responsiveness */
+@media (max-width: 768px) {
+  .main-content {
+    padding: 0;
+    box-shadow: none;
+    width: 80%;
+  }
+
+  .styled-input {
+    padding: 8px;
+  }
+
+  button {
+    padding: 12px 30px;
+    font-size: 16px;
+  }
+
+  form > * {
+    margin-bottom: 25px;
+  }
+}
+
+@media (max-width: 480px) {
+  .body-container {
+    padding-top: 0; /* Remove padding-top on mobile devices */
+  }
+
+  .main-content {
+    /* padding: 10px; */
+    border-radius: 10px;
+    width: 90%;
+  }
+
+  .styled-input {
+    padding: 6px;
+  }
+
+  button {
+    padding: 10px 20px;
+    font-size: 14px;
+  }
+
+  form > * {
+    margin-bottom: 20px;
+  }
 }
 </style>

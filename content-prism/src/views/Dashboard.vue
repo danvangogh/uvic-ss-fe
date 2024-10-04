@@ -1,41 +1,37 @@
 <template>
-  <div class="body-container">
-    <div class="main-content">
-      <h1>Dashboard</h1>
-      <div v-if="loading">
-        <p>Content is loading...</p>
-      </div>
-      <div v-else-if="records.length">
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Content Type</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="record in records" :key="record.id">
-              <td>
-                <template
-                  v-if="getUserFriendlyStatus(record.status) === 'Ready'"
-                >
-                  <router-link :to="`/record/${record.id}`">{{
-                    record.name
-                  }}</router-link>
-                </template>
-                <template v-else>
-                  {{ record.name }}
-                </template>
-              </td>
-              <td>{{ record.contentType }}</td>
-              <td>{{ getUserFriendlyStatus(record.status) }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <p v-else>No records found.</p>
+  <div class="main-content">
+    <h1>Dashboard</h1>
+    <div v-if="loading">
+      <p>Content is loading...</p>
     </div>
+    <div v-else-if="records.length">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Content Type</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="record in records" :key="record.id">
+            <td>
+              <template v-if="getUserFriendlyStatus(record.status) === 'Ready'">
+                <router-link :to="`/record/${record.id}`">{{
+                  record.name
+                }}</router-link>
+              </template>
+              <template v-else>
+                {{ record.name }}
+              </template>
+            </td>
+            <td>{{ record.contentType }}</td>
+            <td>{{ getUserFriendlyStatus(record.status) }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p v-else>No records found.</p>
   </div>
 </template>
 
@@ -79,7 +75,20 @@ export default {
 </script>
 
 <style scoped>
-.main-content {
-  width: 80%;
+/* Apply .main-content styles only on desktop screens */
+@media (min-width: 1024px) {
+  .main-content {
+    width: 80%;
+    max-width: 1000px;
+  }
+}
+
+/* Apply .main-content styles on smaller screens */
+@media (max-width: 1023px) {
+  td,
+  a,
+  p {
+    font-size: 12px;
+  }
 }
 </style>

@@ -1,51 +1,49 @@
 <template>
-  <div class="body-container">
-    <div class="main-content">
-      <h1>Content Request</h1>
-      <form @submit.prevent="submitRequest">
-        <div>
-          <input
-            v-model="formData.url"
-            placeholder="URL"
-            required
-            class="styled-input"
-          />
-        </div>
-        <div>
-          <textarea
-            v-model="formData.instructions"
-            placeholder="Specific Instructions"
-            class="styled-input"
-          ></textarea>
-        </div>
-        <div>
-          <label>Social Media Platforms:</label>
-          <select v-model="formData.platforms" multiple required>
-            <option value="Instagram">Instagram</option>
-            <option value="Facebook">Facebook</option>
-            <option value="Twitter">Twitter</option>
-            <option value="LinkedIn">LinkedIn</option>
-          </select>
-        </div>
-        <div>
-          <label>Template:</label>
-          <select v-model="formData.template" required>
-            <option
-              v-for="type in contentTypes"
-              :key="type.recordId"
-              :value="type.recordId"
-            >
-              {{ type.name }}
-            </option>
-          </select>
-        </div>
-        <div>
-          <button type="submit">Submit</button>
-        </div>
-      </form>
-      <div v-if="successMessage" class="success-message">
-        {{ successMessage }}
+  <div class="main-content">
+    <h1>Content Request</h1>
+    <form @submit.prevent="submitRequest">
+      <div>
+        <input
+          v-model="formData.url"
+          placeholder="URL"
+          required
+          class="styled-input"
+        />
       </div>
+      <div>
+        <textarea
+          v-model="formData.instructions"
+          placeholder="Specific Instructions"
+          class="styled-input"
+        ></textarea>
+      </div>
+      <div>
+        <label>Social Media Platforms:</label>
+        <select v-model="formData.platforms" multiple required>
+          <option value="Instagram">Instagram</option>
+          <option value="Facebook">Facebook</option>
+          <option value="Twitter">Twitter</option>
+          <option value="LinkedIn">LinkedIn</option>
+        </select>
+      </div>
+      <div>
+        <label>Template:</label>
+        <select v-model="formData.template" required>
+          <option
+            v-for="type in contentTypes"
+            :key="type.recordId"
+            :value="type.recordId"
+          >
+            {{ type.name }}
+          </option>
+        </select>
+      </div>
+      <div>
+        <button type="submit">Submit</button>
+      </div>
+    </form>
+    <div v-if="successMessage" class="success-message">
+      {{ successMessage }}
     </div>
   </div>
 </template>
