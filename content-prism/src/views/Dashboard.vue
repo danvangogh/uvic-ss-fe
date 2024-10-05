@@ -17,12 +17,12 @@
           <tr v-for="record in records" :key="record.id">
             <td>
               <template v-if="getUserFriendlyStatus(record.status) === 'Ready'">
-                <router-link :to="`/record/${record.id}`">{{
-                  record.name
-                }}</router-link>
+                <router-link :to="`/record/${record.id}`">
+                  {{ record.name || "Fetching article name..." }}
+                </router-link>
               </template>
               <template v-else>
-                {{ record.name }}
+                {{ record.name || "Fetching article name..." }}
               </template>
             </td>
             <td>{{ record.contentType }}</td>
