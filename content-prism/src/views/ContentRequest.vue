@@ -78,6 +78,8 @@ export default {
           name: "Quote over image (text right)",
           recordId: "recQDBzsUDjEqwIhW",
         },
+        { name: "Question and Answer", recordId: "recT5iP1egEwH5z5O" },
+        { name: "Image Feature", recordId: "rechcwCYlQzarNwVB" },
       ],
       successMessage: "",
     };
