@@ -1,24 +1,29 @@
 <template>
   <div class="main-content">
     <a
-      v-if="record"
+      v-if="record && record.fields && record.fields['Dropbox Folder URL']"
       :href="record.fields['Dropbox Folder URL']"
       target="_blank"
+      rel="noopener noreferrer"
     >
-      <h3>{{ record.fields.Name }} - {{ formattedContentType }}</h3>
+      <h3>
+        {{ record.fields.Name || "Fetching article name..." }} -
+        {{ formattedContentType }}
+      </h3>
     </a>
-    <h3 v-if="record" style="font-weight: 300">
+    <h3 v-if="record && record.fields" style="font-weight: 300">
       <strong>Status:</strong> {{ userFriendlyStatus }}
     </h3>
-    <h3 v-if="record" style="font-weight: 300">
+    <h3 v-if="record && record.fields" style="font-weight: 300">
       <strong>Original Article URL: </strong>
       <a
+        v-if="record.fields['Article URL']"
         :href="record.fields['Article URL']"
         target="_blank"
         rel="noopener noreferrer"
       >
         <span style="font-size: 12px; display: block; line-height: 1.5">
-          {{ record.fields["Article URL"] }}
+          {{ record.fields["Article URL"] || "Fetching article name..." }}
         </span>
       </a>
     </h3>
@@ -29,8 +34,12 @@
         placeholder="Enter feedback"
       ></textarea>
       <div class="buttons">
-        <button @click="approveRecord">Approve</button>
-        <button @click="submitFeedback">Submit Feedback</button>
+        <!-- <button @click="approveRecord" :disabled="loading">
+          {{ loading ? "Approving..." : "Approve" }}
+        </button> -->
+        <button @click="submitFeedback" :disabled="loading">
+          {{ loading ? "Submitting..." : "Submit Feedback" }}
+        </button>
       </div>
     </div>
     <p v-if="message">{{ message }}</p>
@@ -83,20 +92,20 @@ export default {
     }
   },
   methods: {
-    async approveRecord() {
-      try {
-        const baseURL =
-          process.env.VUE_APP_API_BASE_URL || "http://localhost:3000";
-        const id = this.$route.params.id;
-        const response = await axios.patch(`${baseURL}/api/records/${id}`, {
-          Status: "Approved",
-        });
-        this.record = response.data.fields;
-        console.log("Approved:", this.record);
-      } catch (error) {
-        console.error("Error approving record:", error.message);
-      }
-    },
+    // async approveRecord() {
+    //   try {
+    //     const baseURL =
+    //       process.env.VUE_APP_API_BASE_URL || "http://localhost:3000";
+    //     const id = this.$route.params.id;
+    //     const response = await axios.patch(`${baseURL}/api/records/${id}`, {
+    //       Status: "Approved",
+    //     });
+    //     this.record = response.data.fields;
+    //     window.location.reload(); // Refresh the page after the request is made
+    //   } catch (error) {
+    //     console.error("Error approving record:", error.message);
+    //   }
+    // },
     async submitFeedback() {
       this.$router.push({ name: "dashboard" }); // Navigate to the dashboard
 

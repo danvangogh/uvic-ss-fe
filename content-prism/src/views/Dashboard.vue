@@ -16,7 +16,12 @@
         <tbody>
           <tr v-for="record in records" :key="record.id">
             <td>
-              <template v-if="getUserFriendlyStatus(record.status) === 'Ready'">
+              <template
+                v-if="
+                  getUserFriendlyStatus(record.status) === 'Ready' ||
+                  getUserFriendlyStatus(record.status) === 'Approved'
+                "
+              >
                 <router-link :to="`/record/${record.id}`">
                   {{ record.name || "Fetching article name..." }}
                 </router-link>
