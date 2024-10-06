@@ -63,16 +63,12 @@ export default {
       contentTypes: [
         { name: "Listicle Carousel", recordId: "recXXGDxTqF6YirP7" },
         {
-          name: "Generic Question Carousel Horizontal",
+          name: "Generic Question Carousel",
           recordId: "recAj9nl0R6Vk01zW",
         },
-        {
-          name: "Generic Question Carousel Vertical",
-          recordId: "rec5CqtUYhrajZkMX",
-        },
-        { name: "Summary Carousel (formatted)", recordId: "recagh8RonbQnfGmF" },
-        { name: "Summary Carousel (generic)", recordId: "recbGyg2IBcrXzwOh" },
-        { name: "Text-on-image Single", recordId: "recFzYcIIG6yyQGPK" },
+
+        { name: "Summary Carousel", recordId: "recbGyg2IBcrXzwOh" },
+        { name: "Text-on-image", recordId: "recFzYcIIG6yyQGPK" },
         { name: "Quote over image (text left)", recordId: "recVzxgN0BGBeLjUm" },
         {
           name: "Quote over image (text right)",
