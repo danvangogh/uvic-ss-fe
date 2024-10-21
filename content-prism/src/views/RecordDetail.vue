@@ -42,6 +42,107 @@
         </button>
       </div>
     </div>
+    <div
+      v-if="record && record.fields && record.fields['Generic_Caption']"
+      class="captions"
+    >
+      <h2>Sample Captions</h2>
+      <h4 class="caption-platfom-title" style="margin-top: 25px">Instagram</h4>
+      <p class="caption-text instagram-caption">
+        {{ record && record.fields ? record.fields["Generic_Caption"] : "" }}
+        <br />
+        Read the full article at our link in bio.
+      </p>
+      <p
+        @click="copyToClipboard('instagram-caption')"
+        style="
+          font-style: italic;
+          font-weight: 300;
+          font-size: 8px;
+          cursor: pointer;
+        "
+      >
+        Copy to Clipboard
+      </p>
+      <h4 class="caption-platfom-title" style="margin-top: 25px">Facebook</h4>
+      <p class="caption-text facebook-caption">
+        {{
+          record && record.fields && record.fields["Generic_Caption"]
+            ? record.fields["Generic_Caption"]
+            : ""
+        }}
+        <br />
+        Read the full article at
+        {{
+          record && record.fields && record.fields["Article URL"]
+            ? record.fields["Article URL"]
+            : ""
+        }}.
+      </p>
+      <p
+        @click="copyToClipboard('facebook-caption')"
+        style="
+          font-style: italic;
+          font-weight: 300;
+          font-size: 8px;
+          cursor: pointer;
+        "
+      >
+        Copy to Clipboard
+      </p>
+      <h4 class="caption-platfom-title" style="margin-top: 25px">LinkedIn</h4>
+      <p class="caption-text linkedin-caption">
+        {{
+          record && record.fields && record.fields["Generic_Caption"]
+            ? record.fields["Generic_Caption"]
+            : ""
+        }}
+        <br />
+        Read the full article at
+        {{
+          record && record.fields && record.fields["Article URL"]
+            ? record.fields["Article URL"]
+            : ""
+        }}.
+      </p>
+      <p
+        @click="copyToClipboard('linkedin-caption')"
+        style="
+          font-style: italic;
+          font-weight: 300;
+          font-size: 8px;
+          cursor: pointer;
+        "
+      >
+        Copy to Clipboard
+      </p>
+      <h4 class="caption-platfom-title" style="margin-top: 25px">X</h4>
+      <p class="caption-text x-caption">
+        {{
+          record && record.fields && record.fields["X_Caption"]
+            ? record.fields["X_Caption"]
+            : ""
+        }}
+        <br />
+        Full Article:
+        {{
+          record && record.fields && record.fields["Article URL"]
+            ? record.fields["Article URL"]
+            : ""
+        }}
+      </p>
+      <p
+        @click="copyToClipboard('x-caption')"
+        style="
+          font-style: italic;
+          font-weight: 300;
+          font-size: 8px;
+          cursor: pointer;
+        "
+      >
+        Copy to Clipboard
+      </p>
+    </div>
     <p v-if="message">{{ message }}</p>
   </div>
 </template>
@@ -124,6 +225,33 @@ export default {
         console.error("Error submitting feedback:", error.message);
       }
     },
+    copyToClipboard(className) {
+      const element = document.querySelector(`.${className}`);
+      if (element) {
+        const text = element.innerText;
+        navigator.clipboard
+          .writeText(text)
+          .then(() => {
+            this.message = "Text copied to clipboard!";
+            setTimeout(() => {
+              this.message = "";
+            }, 1000); // Clear the message after 3 seconds
+          })
+          .catch((err) => {
+            console.error("Failed to copy text: ", err);
+            this.message = "Failed to copy text.";
+            setTimeout(() => {
+              this.message = "";
+            }, 1000); // Clear the message after 3 seconds
+          });
+      } else {
+        console.error(`Element with class '${className}' not found.`);
+        this.message = "Failed to copy text.";
+        setTimeout(() => {
+          this.message = "";
+        }, 1000); // Clear the message after 3 seconds
+      }
+    },
   },
 };
 </script>
@@ -135,5 +263,18 @@ export default {
 
 .buttons button:first-child {
   margin-right: 25px;
+}
+
+.caption-platfom-title {
+  line-height: 1.2;
+  margin: 0;
+  padding: 0;
+}
+
+.caption-text {
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 0;
+  padding: 0;
 }
 </style>

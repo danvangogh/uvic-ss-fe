@@ -103,7 +103,6 @@ table th {
   background-color: #fff;
   word-wrap: break-word; /* Ensure long URLs wrap within the container */
   overflow-wrap: break-word; /* Ensure long URLs wrap within the container */
-  white-space: pre-wrap; /* Preserve whitespace and wrap text */
 }
 
 .styled-input {
