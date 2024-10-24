@@ -114,14 +114,18 @@ app.patch("/api/records/:id", async (req, res) => {
 });
 
 app.post("/api/content-request", async (req, res) => {
+  console.log("Received data:", req.body); // Log the received data for debugging
   try {
-    const { url, instructions, platforms, template } = req.body;
+    const { url, instructions, platforms, template, submissionType, pdfText } =
+      req.body;
     console.log("Received data:", req.body); // Log the received data for debugging
     const response = await axios.post(MAKE_WEBHOOK_SCRAPEURLADDRECORD, {
       URL: url,
       Instructions: instructions,
       Platforms: platforms,
       Template: template,
+      submissionType: submissionType,
+      pdfText: pdfText,
     });
     res.json({ success: true, data: response.data });
   } catch (error) {
