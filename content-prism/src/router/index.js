@@ -3,8 +3,6 @@ import HomeView from "../views/HomeView.vue";
 import ContentRequest from "../views/ContentRequest.vue";
 import Dashboard from "../views/Dashboard.vue";
 import RecordDetail from "../views/RecordDetail.vue";
-import ContentRequestPDF from "../views/ContentRequestPDF.vue";
-import ContentRequestTwo from "../views/ContentRequestTwo.vue";
 
 const routes = [
   {
@@ -16,16 +14,6 @@ const routes = [
     path: "/content-request",
     name: "ContentRequestView",
     component: ContentRequest,
-  },
-  {
-    path: "/content-request-pdf",
-    name: "ContentRequestPDFView",
-    component: ContentRequestPDF,
-  },
-  {
-    path: "/content-request-two",
-    name: "ContentRequestTwoView",
-    component: ContentRequestTwo,
   },
   {
     path: "/dashboard",
