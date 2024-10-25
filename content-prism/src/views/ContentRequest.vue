@@ -78,6 +78,7 @@ export default {
         instructions: "",
         platforms: [],
         template: "",
+        scraperPromptID: "",
       },
       contentTypes: [
         { name: "Listicle Carousel", recordId: "recXXGDxTqF6YirP7" },
@@ -119,6 +120,15 @@ export default {
     },
     async submitArticle() {
       try {
+        // Parse the URL and set scraperPromptID
+        if (this.formData.url.includes("uvic.ca/news")) {
+          this.formData.scraperPromptID = "recSH64cWbZaNErDL";
+        } else if (this.formData.url.includes("uvic.ca/socialsciences")) {
+          this.formData.scraperPromptID = "recIDNSSIzy70FRqt";
+        } else {
+          this.formData.scraperPromptID = "recitrUQgnCBlvLQd";
+        }
+
         const baseURL =
           process.env.VUE_APP_API_BASE_URL || "http://localhost:3000";
         await axios.post(`${baseURL}/api/content-request`, this.formData, {
@@ -134,6 +144,7 @@ export default {
           instructions: "",
           platforms: [],
           template: "",
+          scraperPromptID: "",
         };
         // Set the success message
         this.successMessage = "Article submitted successfully!";
@@ -176,6 +187,7 @@ export default {
           instructions: "",
           platforms: [],
           template: "",
+          scraperPromptID: "",
         };
         // Set the success message
         this.successMessage = "PDF submitted successfully!";
