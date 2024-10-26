@@ -48,15 +48,18 @@
       </div>
       <div>
         <label>Template:</label>
-        <select v-model="formData.template" required>
-          <option
+        <div class="thumbnail-container">
+          <div
             v-for="type in filteredContentTypes"
             :key="type.recordId"
-            :value="type.recordId"
+            class="thumbnail"
+            :class="{ selected: formData.template === type.recordId }"
+            @click="selectTemplate(type.recordId)"
           >
-            {{ type.name }}
-          </option>
-        </select>
+            <img :src="type.thumbnail" :alt="type.name" />
+            <p>{{ type.name }}</p>
+          </div>
+        </div>
       </div>
       <button type="submit">Submit</button>
     </form>
@@ -81,17 +84,46 @@ export default {
         scraperPromptID: "",
       },
       contentTypes: [
-        { name: "Listicle Carousel", recordId: "recXXGDxTqF6YirP7" },
-        { name: "Generic Question Carousel", recordId: "recAj9nl0R6Vk01zW" },
-        { name: "Summary Carousel", recordId: "recbGyg2IBcrXzwOh" },
-        { name: "Text-on-image", recordId: "recFzYcIIG6yyQGPK" },
-        { name: "Quote over image (text left)", recordId: "recVzxgN0BGBeLjUm" },
+        {
+          name: "Listicle Carousel",
+          recordId: "recXXGDxTqF6YirP7",
+          thumbnail: "/Listicle_Carousel.png",
+        },
+        {
+          name: "Generic Question Carousel",
+          recordId: "recAj9nl0R6Vk01zW",
+          thumbnail: "/Generic_Question_Carousel.png",
+        },
+        {
+          name: "Summary Carousel",
+          recordId: "recbGyg2IBcrXzwOh",
+          thumbnail: "/Summary_Carousel.png",
+        },
+        {
+          name: "Text-on-image",
+          recordId: "recFzYcIIG6yyQGPK",
+          thumbnail: "/Text_on_image.png",
+        },
+        {
+          name: "Quote over image (text left)",
+          recordId: "recVzxgN0BGBeLjUm",
+          thumbnail: "/Quote_over_image_text_left.png",
+        },
         {
           name: "Quote over image (text right)",
           recordId: "recQDBzsUDjEqwIhW",
+          thumbnail: "/Quote_over_image_text_right.png",
         },
-        { name: "Question and Answer", recordId: "recT5iP1egEwH5z5O" },
-        { name: "Image Feature", recordId: "rechcwCYlQzarNwVB" },
+        {
+          name: "Question and Answer",
+          recordId: "recT5iP1egEwH5z5O",
+          thumbnail: "/Q&A.png",
+        },
+        {
+          name: "Image Feature",
+          recordId: "rechcwCYlQzarNwVB",
+          thumbnail: "/Image_Feature.png",
+        },
       ],
       successMessage: "",
     };
@@ -174,7 +206,7 @@ export default {
 
         console.log("Data before Axios.post", data);
 
-        await axios.post(`${baseURL}/api/content-request`, data, {
+        await axios.post(`${baseURL}/api/content-request-pdf`, data, {
           headers: {
             "Content-Type": "application/json",
           },
@@ -214,6 +246,13 @@ export default {
         throw new Error("Invalid PDF structure");
       }
     },
+    selectTemplate(recordId) {
+      this.formData.template = recordId;
+    },
+    getThumbnailUrl(name) {
+      const type = this.contentTypes.find((type) => type.name === name);
+      return type ? type.thumbnail : "";
+    },
   },
 };
 </script>
@@ -232,5 +271,26 @@ select {
   font-family: "Open Sans", sans-serif;
   font-size: 16px;
   color: #333;
+}
+.thumbnail-container {
+  display: flex;
+  flex-wrap: wrap;
+}
+.thumbnail {
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  margin: 5px;
+  padding: 10px;
+  cursor: pointer;
+  text-align: center;
+}
+.thumbnail.selected {
+  border-color: blue;
+}
+.thumbnail img {
+  width: 100px;
+}
+.thumbnail p {
+  font-size: 8px;
 }
 </style>
