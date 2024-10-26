@@ -11,6 +11,7 @@
             <th>Name</th>
             <th>Content Type</th>
             <th>Status</th>
+            <th>Date</th>
           </tr>
         </thead>
         <tbody>
@@ -32,6 +33,7 @@
             </td>
             <td>{{ record.contentType }}</td>
             <td>{{ getUserFriendlyStatus(record.status) }}</td>
+            <td style="font-size: 8px">{{ formatDate(record.createdTime) }}</td>
           </tr>
         </tbody>
       </table>
@@ -75,6 +77,17 @@ export default {
           return "Processing";
       }
     },
+    formatDate(dateString) {
+      const options = {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      };
+      const date = new Date(dateString);
+      return date.toLocaleDateString(undefined, options);
+    },
   },
 };
 </script>
@@ -84,7 +97,7 @@ export default {
 @media (min-width: 1024px) {
   .main-content {
     width: 80%;
-    max-width: 1000px;
+    max-width: 1200px;
   }
 }
 
