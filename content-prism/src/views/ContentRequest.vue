@@ -112,7 +112,7 @@ export default {
         {
           name: "Quote over image (text right)",
           recordId: "recQDBzsUDjEqwIhW",
-          thumbnail: "/Quote_over_Image_Text_Right.png.png",
+          thumbnail: "/Quote_over_Image_Text_Right.png",
         },
         {
           name: "Question and Answer",
