@@ -107,12 +107,12 @@ export default {
         {
           name: "Quote over image (text left)",
           recordId: "recVzxgN0BGBeLjUm",
-          thumbnail: "/Quote_over_image_text_left.png",
+          thumbnail: "/Quote_over_Image_text_Left.png",
         },
         {
           name: "Quote over image (text right)",
           recordId: "recQDBzsUDjEqwIhW",
-          thumbnail: "/Quote_over_image_text_right.png",
+          thumbnail: "/Quote_over_Image_Text_Right.png.png",
         },
         {
           name: "Question and Answer",
