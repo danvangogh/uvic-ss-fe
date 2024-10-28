@@ -206,7 +206,7 @@ export default {
 
         console.log("Data before Axios.post", data);
 
-        await axios.post(`${baseURL}/api/content-request-pdf`, data, {
+        await axios.post(`${baseURL}/api/content-request`, data, {
           headers: {
             "Content-Type": "application/json",
           },
