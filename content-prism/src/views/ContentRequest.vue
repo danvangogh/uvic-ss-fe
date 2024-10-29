@@ -88,7 +88,6 @@ export default {
         platforms: [],
         template: "",
         scraperPromptID: "",
-        images: [],
       },
       contentTypes: [
         {
@@ -150,10 +149,6 @@ export default {
       this.formData.pdf = event.target.files[0];
       console.log("PDF file selected:", this.formData.pdf);
     },
-    handleImageUpload(event) {
-      this.formData.images = Array.from(event.target.files).slice(0, 3);
-      console.log("Images selected:", this.formData.images);
-    },
     async submitRequest() {
       if (this.formData.submissionType === "article") {
         await this.submitArticle();
@@ -186,7 +181,6 @@ export default {
           platforms: this.formData.platforms,
           template: this.formData.template,
           scraperPromptID: this.formData.scraperPromptID,
-          images: this.formData.images,
           username: username, // Add the username to the JSON package
         };
 
