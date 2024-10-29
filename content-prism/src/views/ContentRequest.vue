@@ -173,6 +173,9 @@ export default {
         // Get the username from the cookie
         const username = Cookies.get("username");
 
+        // Determine if the source is external
+        const externalSource = !this.formData.url.includes("uvic.ca");
+
         // Prepare JSON data
         const data = {
           submissionType: this.formData.submissionType,
@@ -182,6 +185,7 @@ export default {
           template: this.formData.template,
           scraperPromptID: this.formData.scraperPromptID,
           username: username, // Add the username to the JSON package
+          externalSource: externalSource.toString(), // Set externalSource based on URL
         };
 
         await axios.post(`${baseURL}/api/content-request`, data, {
@@ -232,6 +236,7 @@ export default {
           template: this.formData.template,
           pdfText: pdfText,
           username: username, // Add the username to the JSON package
+          externalSource: "true",
         };
 
         console.log("Data before Axios.post", data);

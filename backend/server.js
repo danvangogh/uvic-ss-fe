@@ -139,6 +139,7 @@ app.post("/api/content-request", async (req, res) => {
       pdfText,
       scraperPromptID,
       username,
+      externalSource,
     } = req.body;
     console.log("Received data:", req.body); // Log the received data for debugging
     const response = await axios.post(MAKE_WEBHOOK_SCRAPEURLADDRECORD, {
@@ -150,6 +151,7 @@ app.post("/api/content-request", async (req, res) => {
       submissionType: submissionType,
       pdfText: pdfText,
       username: username,
+      externalSource: externalSource,
     });
     res.json({ success: true, data: response.data });
   } catch (error) {
