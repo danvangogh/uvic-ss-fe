@@ -174,7 +174,23 @@ export default {
 
         const baseURL =
           process.env.VUE_APP_API_BASE_URL || "http://localhost:3000";
-        await axios.post(`${baseURL}/api/content-request`, this.formData, {
+
+        // Get the username from the cookie
+        const username = Cookies.get("username");
+
+        // Prepare JSON data
+        const data = {
+          submissionType: this.formData.submissionType,
+          url: this.formData.url,
+          instructions: this.formData.instructions,
+          platforms: this.formData.platforms,
+          template: this.formData.template,
+          scraperPromptID: this.formData.scraperPromptID,
+          images: this.formData.images,
+          username: username, // Add the username to the JSON package
+        };
+
+        await axios.post(`${baseURL}/api/content-request`, data, {
           headers: {
             "Content-Type": "application/json",
           },
@@ -188,10 +204,13 @@ export default {
           platforms: [],
           template: "",
           scraperPromptID: "",
-          images: [],
         };
         // Set the success message
         this.successMessage = "Article submitted successfully!";
+        // Clear the success message after 3000ms
+        setTimeout(() => {
+          this.successMessage = "";
+        }, 1500);
       } catch (error) {
         console.error("Error submitting article:", error);
       }
@@ -209,12 +228,16 @@ export default {
         // Extract text from the PDF
         const pdfText = await this.extractTextFromPDF(this.formData.pdf);
 
+        // Get the username from the cookie
+        const username = Cookies.get("username");
+
         const data = {
           submissionType: this.formData.submissionType,
           instructions: this.formData.instructions,
           platforms: this.formData.platforms,
           template: this.formData.template,
           pdfText: pdfText,
+          username: username, // Add the username to the JSON package
         };
 
         console.log("Data before Axios.post", data);
@@ -237,6 +260,10 @@ export default {
         };
         // Set the success message
         this.successMessage = "PDF submitted successfully!";
+        // Clear the success message after 3000ms
+        setTimeout(() => {
+          this.successMessage = "";
+        }, 1500);
       } catch (error) {
         console.error("Error submitting PDF:", error);
       }
@@ -279,60 +306,39 @@ export default {
 </script>
 
 <style scoped>
-.main-content {
-  padding: 20px;
-}
-
-.styled-input {
-  width: 100%;
-  border: none;
-  background-color: #f6f6f6;
-  padding: 10px;
-  margin-bottom: 10px;
-}
-
-.thumbnail-container {
-  display: flex;
-  flex-wrap: wrap;
-}
-
-.thumbnail {
-  margin: 10px;
-  cursor: pointer;
-  text-align: center;
-}
-
-.thumbnail img {
-  width: 100px;
-  height: 100px;
-  object-fit: cover;
-}
-
-.thumbnail.selected {
-  border: 2px solid #007bff;
-}
-
-button {
-  padding: 10px 20px;
-  background-color: #007bff;
-  color: white;
-  border: none;
-  cursor: pointer;
-}
-
-button:hover {
-  background-color: #0056b3;
-}
-
 .success-message {
   color: green;
   margin-top: 10px;
 }
-
 select {
   width: 100%;
   padding: 10px;
   border: 1px solid #ccc;
   border-radius: 5px;
+  background-color: #f6f6f6;
+  font-family: "Open Sans", sans-serif;
+  font-size: 16px;
+  color: #333;
+}
+.thumbnail-container {
+  display: flex;
+  flex-wrap: wrap;
+}
+.thumbnail {
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  margin: 5px;
+  padding: 10px;
+  cursor: pointer;
+  text-align: center;
+}
+.thumbnail.selected {
+  border-color: blue;
+}
+.thumbnail img {
+  width: 100px;
+}
+.thumbnail p {
+  font-size: 8px;
 }
 </style>

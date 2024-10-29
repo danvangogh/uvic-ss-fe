@@ -52,6 +52,12 @@ const airtableApi = axios.create({
 app.get("/api/records", async (req, res) => {
   console.log("Fetching records...", req.body);
   try {
+    // Extract the username from the request headers
+    const username = req.headers["x-username"];
+    if (!username) {
+      return res.status(401).send("Unauthorized: No username provided");
+    }
+
     let allRecords = [];
     let offset = null;
 
@@ -66,7 +72,16 @@ app.get("/api/records", async (req, res) => {
     } while (offset);
 
     const records = allRecords
-      .filter((record) => record.fields.Status !== "Archived") // Filter out archived records
+      .filter((record) => {
+        // If the username is "Daniel", load all records
+        if (username === "Daniel") {
+          return record.fields.Status !== "Archived";
+        }
+        // Otherwise, filter by username
+        return (
+          record.fields.Status !== "Archived" && record.fields.User === username
+        );
+      })
       .map((record) => ({
         id: record.id,
         name: record.fields.Name,
@@ -88,7 +103,6 @@ app.get("/api/records", async (req, res) => {
     res.status(500).send(error.message);
   }
 });
-
 app.get("/api/records/:id", async (req, res) => {
   try {
     const response = await airtableApi.get(`/${req.params.id}`);
@@ -124,6 +138,7 @@ app.post("/api/content-request", async (req, res) => {
       submissionType,
       pdfText,
       scraperPromptID,
+      username,
     } = req.body;
     console.log("Received data:", req.body); // Log the received data for debugging
     const response = await axios.post(MAKE_WEBHOOK_SCRAPEURLADDRECORD, {
@@ -134,6 +149,7 @@ app.post("/api/content-request", async (req, res) => {
       Template: template,
       submissionType: submissionType,
       pdfText: pdfText,
+      username: username,
     });
     res.json({ success: true, data: response.data });
   } catch (error) {
