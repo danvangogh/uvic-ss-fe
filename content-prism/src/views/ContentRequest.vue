@@ -136,9 +136,14 @@ export default {
   },
   computed: {
     filteredContentTypes() {
-      if (this.formData.submissionType === "pdf") {
+      if (
+        this.formData.submissionType === "pdf" ||
+        !this.formData.url.includes("uvic.ca")
+      ) {
         return this.contentTypes.filter(
-          (type) => type.name === "Listicle Carousel"
+          (type) =>
+            type.name === "Listicle Carousel" ||
+            type.name === "Summary Carousel"
         );
       }
       return this.contentTypes;
