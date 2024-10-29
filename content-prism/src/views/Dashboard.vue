@@ -44,6 +44,7 @@
 
 <script>
 import axios from "axios";
+import Cookies from "js-cookie"; // Import Cookies
 
 export default {
   data() {
@@ -88,6 +89,15 @@ export default {
       const date = new Date(dateString);
       return date.toLocaleDateString(undefined, options);
     },
+    checkLogin() {
+      const username = Cookies.get("username");
+      if (!username) {
+        this.$router.push("/login"); // Redirect to login page if not logged in
+      }
+    },
+  },
+  mounted() {
+    this.checkLogin();
   },
 };
 </script>

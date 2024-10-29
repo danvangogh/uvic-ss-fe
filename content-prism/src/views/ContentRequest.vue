@@ -69,11 +69,17 @@
 
 <script>
 import axios from "axios";
+import Cookies from "js-cookie";
 import * as pdfjsLib from "pdfjs-dist/webpack";
 
 export default {
   data() {
     return {
+      isLoggedIn: false,
+      loginData: {
+        username: "",
+        password: "",
+      },
       formData: {
         submissionType: "article", // Default to Article submission
         url: "",
@@ -82,47 +88,48 @@ export default {
         platforms: [],
         template: "",
         scraperPromptID: "",
+        images: [],
       },
       contentTypes: [
         {
           name: "Listicle Carousel",
           recordId: "recXXGDxTqF6YirP7",
-          thumbnail: "/Listicle_Carousel.png",
+          thumbnail: "/listicle-carousel.png",
         },
         {
           name: "Generic Question Carousel",
           recordId: "recAj9nl0R6Vk01zW",
-          thumbnail: "/Generic_Question_Carousel.png",
+          thumbnail: "/generic_question_carousel.png",
         },
         {
           name: "Summary Carousel",
           recordId: "recbGyg2IBcrXzwOh",
-          thumbnail: "/Summary_Carousel.png",
+          thumbnail: "/assets/summary-carousel.png",
         },
         {
           name: "Text-on-image",
           recordId: "recFzYcIIG6yyQGPK",
-          thumbnail: "/Text_on_image.png",
+          thumbnail: "/assets/text-on-image.png",
         },
         {
           name: "Quote over image (text left)",
           recordId: "recVzxgN0BGBeLjUm",
-          thumbnail: "/Quote_over_Image_text_Left.png",
+          thumbnail: "/assets/quote-left.png",
         },
         {
           name: "Quote over image (text right)",
           recordId: "recQDBzsUDjEqwIhW",
-          thumbnail: "/Quote_over_Image_Text_Right.png",
+          thumbnail: "/assets/quote-right.png",
         },
         {
           name: "Question and Answer",
           recordId: "recT5iP1egEwH5z5O",
-          thumbnail: "/Q&A.png",
+          thumbnail: "/assets/question-answer.png",
         },
         {
           name: "Image Feature",
           recordId: "rechcwCYlQzarNwVB",
-          thumbnail: "/Image_Feature.png",
+          thumbnail: "/assets/image-feature.png",
         },
       ],
       successMessage: "",
@@ -142,6 +149,10 @@ export default {
     handleFileUpload(event) {
       this.formData.pdf = event.target.files[0];
       console.log("PDF file selected:", this.formData.pdf);
+    },
+    handleImageUpload(event) {
+      this.formData.images = Array.from(event.target.files).slice(0, 3);
+      console.log("Images selected:", this.formData.images);
     },
     async submitRequest() {
       if (this.formData.submissionType === "article") {
@@ -177,6 +188,7 @@ export default {
           platforms: [],
           template: "",
           scraperPromptID: "",
+          images: [],
         };
         // Set the success message
         this.successMessage = "Article submitted successfully!";
@@ -184,6 +196,7 @@ export default {
         console.error("Error submitting article:", error);
       }
     },
+
     async submitPDF() {
       try {
         if (!this.formData.pdf) {
@@ -206,11 +219,12 @@ export default {
 
         console.log("Data before Axios.post", data);
 
-        await axios.post(`${baseURL}/api/content-request-pdf`, data, {
+        await axios.post(`${baseURL}/api/content-request`, data, {
           headers: {
             "Content-Type": "application/json",
           },
         });
+
         // Clear the form data
         this.formData = {
           submissionType: "article",
@@ -249,48 +263,76 @@ export default {
     selectTemplate(recordId) {
       this.formData.template = recordId;
     },
-    getThumbnailUrl(name) {
-      const type = this.contentTypes.find((type) => type.name === name);
-      return type ? type.thumbnail : "";
+    checkLogin() {
+      const username = Cookies.get("username");
+      if (!username) {
+        this.$router.push("/login"); // Redirect to login page if not logged in
+      } else {
+        this.isLoggedIn = true;
+      }
     },
+  },
+  mounted() {
+    this.checkLogin();
   },
 };
 </script>
 
-<style>
+<style scoped>
+.main-content {
+  padding: 20px;
+}
+
+.styled-input {
+  width: 100%;
+  border: none;
+  background-color: #f6f6f6;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
+.thumbnail-container {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.thumbnail {
+  margin: 10px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.thumbnail img {
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+}
+
+.thumbnail.selected {
+  border: 2px solid #007bff;
+}
+
+button {
+  padding: 10px 20px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #0056b3;
+}
+
 .success-message {
   color: green;
   margin-top: 10px;
 }
+
 select {
   width: 100%;
   padding: 10px;
   border: 1px solid #ccc;
   border-radius: 5px;
-  background-color: #f6f6f6;
-  font-family: "Open Sans", sans-serif;
-  font-size: 16px;
-  color: #333;
-}
-.thumbnail-container {
-  display: flex;
-  flex-wrap: wrap;
-}
-.thumbnail {
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  margin: 5px;
-  padding: 10px;
-  cursor: pointer;
-  text-align: center;
-}
-.thumbnail.selected {
-  border-color: blue;
-}
-.thumbnail img {
-  width: 100px;
-}
-.thumbnail p {
-  font-size: 8px;
 }
 </style>

@@ -1,12 +1,27 @@
 <template>
   <nav>
     <router-link to="/content-request">Content Request Form</router-link> |
-    <router-link to="/dashboard">Dashboard</router-link>
+    <router-link to="/dashboard">Dashboard</router-link> |
+    <!-- <span class="spacer"></span> -->
+    <a href="#" @click.prevent="logout">Logout</a>
   </nav>
   <div class="body-container">
     <router-view />
   </div>
 </template>
+
+<script>
+import Cookies from "js-cookie";
+
+export default {
+  methods: {
+    logout() {
+      Cookies.remove("username");
+      this.$router.push("/login");
+    },
+  },
+};
+</script>
 
 <style>
 @import url("https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;700&family=Poppins:wght@400;700&display=swap");
@@ -24,16 +39,24 @@ nav {
   text-align: center; /* Center-align nav items */
   background-color: #002754; /* Set nav background color */
   color: #fff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 nav a {
   font-weight: bold;
-  color: #86819a; /* Set link color to black */
+  color: #86819a; /* Set link color */
   text-decoration: none;
+  margin: 0 10px;
 }
 
 nav a.router-link-exact-active {
-  color: #e6eef7; /* Set active link color to black */
+  color: #e6eef7; /* Set active link color */
+}
+
+nav .spacer {
+  flex: 1;
 }
 
 /* Global styles for headings and paragraphs */
