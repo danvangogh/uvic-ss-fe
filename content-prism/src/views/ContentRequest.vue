@@ -47,6 +47,15 @@
         </select>
       </div>
       <div>
+        <label for="image">Upload Image:</label>
+        <input
+          type="file"
+          @change="handleImageUpload"
+          id="image"
+          ref="imageInput"
+        />
+      </div>
+      <div>
         <label>Template:</label>
         <div class="thumbnail-container">
           <div
@@ -61,15 +70,7 @@
           </div>
         </div>
       </div>
-      <div>
-        <label for="image">Upload Image:</label>
-        <input
-          type="file"
-          @change="handleImageUpload"
-          id="image"
-          ref="imageInput"
-        />
-      </div>
+
       <button type="submit">Submit</button>
     </form>
     <p v-if="successMessage">{{ successMessage }}</p>
@@ -147,16 +148,33 @@ export default {
   computed: {
     filteredContentTypes() {
       if (
-        this.formData.submissionType === "pdf" ||
-        !this.formData.url.includes("uvic.ca")
+        (this.formData.submissionType === "pdf" && !this.formData.image) ||
+        (this.formData.submissionType === "article" &&
+          !this.formData.url.includes("uvic.ca") &&
+          !this.formData.image)
       ) {
         return this.contentTypes.filter(
           (type) =>
             type.name === "Listicle Carousel" ||
             type.name === "Summary Carousel"
         );
+      } else if (
+        (this.formData.submissionType === "pdf" && this.formData.image) ||
+        (this.formData.submissionType === "article" &&
+          !this.formData.url.includes("uvic.ca"))
+      ) {
+        return this.contentTypes.filter(
+          (type) =>
+            type.name === "Listicle Carousel" ||
+            type.name === "Summary Carousel" ||
+            type.name === "Generic Question Carousel" ||
+            type.name === "Text-on-image" ||
+            type.name === "Quote over image (text left)" ||
+            type.name === "Quote over image (text right)"
+        );
+      } else {
+        return this.contentTypes;
       }
-      return this.contentTypes;
     },
   },
   methods: {
@@ -167,6 +185,25 @@ export default {
     handleImageUpload(event) {
       this.formData.image = event.target.files[0];
       console.log("Image selected:", this.formData.image);
+    },
+    async uploadImage() {
+      if (this.formData.image) {
+        const baseURL =
+          process.env.VUE_APP_API_BASE_URL || "http://localhost:3000";
+        const imageData = new FormData();
+        imageData.append("image", this.formData.image);
+        const response = await axios.post(
+          `${baseURL}/api/upload-image`,
+          imageData,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          }
+        );
+        return response.data.url;
+      }
+      return "";
     },
     async submitRequest() {
       if (this.formData.submissionType === "article") {
@@ -195,22 +232,8 @@ export default {
         // Determine if the source is external
         const externalSource = !this.formData.url.includes("uvic.ca");
 
-        // Prepare image data
-        let imageUrl = "";
-        if (this.formData.image) {
-          const imageData = new FormData();
-          imageData.append("image", this.formData.image);
-          const response = await axios.post(
-            `${baseURL}/api/upload-image`,
-            imageData,
-            {
-              headers: {
-                "Content-Type": "multipart/form-data",
-              },
-            }
-          );
-          imageUrl = response.data.url;
-        }
+        // Upload image and get the URL
+        const imageUrl = await this.uploadImage();
 
         // Prepare JSON data
         const data = {
@@ -254,7 +277,6 @@ export default {
         console.error("Error submitting article:", error);
       }
     },
-
     async submitPDF() {
       try {
         if (!this.formData.pdf) {
@@ -267,17 +289,25 @@ export default {
         // Extract text from the PDF
         const pdfText = await this.extractTextFromPDF(this.formData.pdf);
 
+        // Truncate pdfText if it exceeds 100,000 characters
+        const truncatedPdfText =
+          pdfText.length > 100000 ? pdfText.substring(0, 100000) : pdfText;
+
         // Get the username from the cookie
         const username = Cookies.get("username");
+
+        // Upload image and get the URL
+        const imageUrl = await this.uploadImage();
 
         const data = {
           submissionType: this.formData.submissionType,
           instructions: this.formData.instructions,
           platforms: this.formData.platforms,
           template: this.formData.template,
-          pdfText: pdfText,
+          pdfText: truncatedPdfText,
           username: username, // Add the username to the JSON package
           externalSource: "true",
+          imageUrl: imageUrl, // Add the image URL to the JSON package
         };
 
         console.log("Data before Axios.post", data);
