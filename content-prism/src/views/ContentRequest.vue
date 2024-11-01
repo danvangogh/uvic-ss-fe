@@ -46,7 +46,7 @@
           <option value="LinkedIn">LinkedIn</option>
         </select>
       </div>
-      <div>
+      <!-- <div>
         <label for="image">Upload Image:</label>
         <input
           type="file"
@@ -54,7 +54,7 @@
           id="image"
           ref="imageInput"
         />
-      </div>
+      </div> -->
       <div>
         <label>Template:</label>
         <div class="thumbnail-container">
