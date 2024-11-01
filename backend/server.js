@@ -1,9 +1,13 @@
-require("dotenv").config();
 const express = require("express");
-const bodyParser = require("body-parser");
 const axios = require("axios");
 const cors = require("cors");
 const path = require("path");
+const multer = require("multer");
+const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
+const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
+const dotenv = require("dotenv");
+
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -11,7 +15,6 @@ const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 const history = require("connect-history-api-fallback");
 app.use(history());
 
-// app.use(cors());
 app.use(
   cors({
     origin: BASE_URL, // Allow requests from this origin
@@ -20,9 +23,84 @@ app.use(
   })
 );
 
-app.use(bodyParser.json());
-
+app.use(express.json());
 app.use(express.static(path.join(__dirname, "../content-prism/dist")));
+
+// Configure multer for file uploads
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
+
+// Configure AWS SDK for DigitalOcean Spaces
+const s3Client = new S3Client({
+  region: "tor1", // DigitalOcean Spaces uses 'us-east-1' as the region
+  endpoint: "https://tor1.digitaloceanspaces.com",
+  credentials: {
+    accessKeyId: process.env.DIGITAL_OCEAN_SPACE_ACCESS_KEY,
+    secretAccessKey: process.env.DIGITAL_OCEAN_SPACE_SECRET_KEY,
+  },
+});
+
+// Handle image upload
+app.post("/api/upload-image", upload.single("image"), async (req, res) => {
+  try {
+    const file = req.file;
+    if (!file) {
+      return res.status(400).send("No file uploaded.");
+    }
+    // Replace spaces with underscores in the original name
+    const sanitizedFileName = file.originalname.replace(/\s+/g, "_");
+    const timestamp = Date.now();
+    const params = {
+      Bucket: process.env.DO_SPACES_BUCKET,
+      Key: `uploads/${timestamp}_${sanitizedFileName}`,
+      Body: file.buffer,
+      ACL: "public-read",
+    };
+    const command = new PutObjectCommand(params);
+    await s3Client.send(command);
+    const url = `https://${process.env.DO_SPACES_BUCKET}.tor1.digitaloceanspaces.com/uploads/${timestamp}_${sanitizedFileName}`;
+    res.json({ url });
+  } catch (error) {
+    console.error("Error uploading image:", error.message);
+    res.status(500).send(error.message);
+  }
+});
+
+// Handle content request
+app.post("/api/content-request", async (req, res) => {
+  console.log("Received data:", req.body); // Log the received data for debugging
+  try {
+    const {
+      url,
+      instructions,
+      platforms,
+      template,
+      submissionType,
+      pdfText,
+      scraperPromptID,
+      username,
+      externalSource,
+      imageUrl,
+    } = req.body;
+    console.log("Received data:", req.body); // Log the received data for debugging
+    const response = await axios.post(MAKE_WEBHOOK_SCRAPEURLADDRECORD, {
+      URL: url,
+      ScraperPromptID: scraperPromptID,
+      Instructions: instructions,
+      Platforms: platforms,
+      Template: template,
+      submissionType: submissionType,
+      pdfText: pdfText,
+      username: username,
+      externalSource: externalSource,
+      imageUrl: imageUrl,
+    });
+    res.json({ success: true, data: response.data });
+  } catch (error) {
+    console.error("Error forwarding request to Make.com:", error.message); // Log the error for debugging
+    res.status(500).send(error.message);
+  }
+});
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
@@ -103,6 +181,7 @@ app.get("/api/records", async (req, res) => {
     res.status(500).send(error.message);
   }
 });
+
 app.get("/api/records/:id", async (req, res) => {
   try {
     const response = await airtableApi.get(`/${req.params.id}`);
@@ -123,39 +202,6 @@ app.patch("/api/records/:id", async (req, res) => {
     res.json(response.data);
   } catch (error) {
     console.error("Error updating record:", error.message);
-    res.status(500).send(error.message);
-  }
-});
-
-app.post("/api/content-request", async (req, res) => {
-  console.log("Received data:", req.body); // Log the received data for debugging
-  try {
-    const {
-      url,
-      instructions,
-      platforms,
-      template,
-      submissionType,
-      pdfText,
-      scraperPromptID,
-      username,
-      externalSource,
-    } = req.body;
-    console.log("Received data:", req.body); // Log the received data for debugging
-    const response = await axios.post(MAKE_WEBHOOK_SCRAPEURLADDRECORD, {
-      URL: url,
-      ScraperPromptID: scraperPromptID,
-      Instructions: instructions,
-      Platforms: platforms,
-      Template: template,
-      submissionType: submissionType,
-      pdfText: pdfText,
-      username: username,
-      externalSource: externalSource,
-    });
-    res.json({ success: true, data: response.data });
-  } catch (error) {
-    console.error("Error forwarding request to Make.com:", error.message); // Log the error for debugging
     res.status(500).send(error.message);
   }
 });

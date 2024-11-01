@@ -61,6 +61,15 @@
           </div>
         </div>
       </div>
+      <div>
+        <label for="image">Upload Image:</label>
+        <input
+          type="file"
+          @change="handleImageUpload"
+          id="image"
+          ref="imageInput"
+        />
+      </div>
       <button type="submit">Submit</button>
     </form>
     <p v-if="successMessage">{{ successMessage }}</p>
@@ -88,6 +97,7 @@ export default {
         platforms: [],
         template: "",
         scraperPromptID: "",
+        image: null,
       },
       contentTypes: [
         {
@@ -154,6 +164,10 @@ export default {
       this.formData.pdf = event.target.files[0];
       console.log("PDF file selected:", this.formData.pdf);
     },
+    handleImageUpload(event) {
+      this.formData.image = event.target.files[0];
+      console.log("Image selected:", this.formData.image);
+    },
     async submitRequest() {
       if (this.formData.submissionType === "article") {
         await this.submitArticle();
@@ -181,6 +195,23 @@ export default {
         // Determine if the source is external
         const externalSource = !this.formData.url.includes("uvic.ca");
 
+        // Prepare image data
+        let imageUrl = "";
+        if (this.formData.image) {
+          const imageData = new FormData();
+          imageData.append("image", this.formData.image);
+          const response = await axios.post(
+            `${baseURL}/api/upload-image`,
+            imageData,
+            {
+              headers: {
+                "Content-Type": "multipart/form-data",
+              },
+            }
+          );
+          imageUrl = response.data.url;
+        }
+
         // Prepare JSON data
         const data = {
           submissionType: this.formData.submissionType,
@@ -191,6 +222,7 @@ export default {
           scraperPromptID: this.formData.scraperPromptID,
           username: username, // Add the username to the JSON package
           externalSource: externalSource.toString(), // Set externalSource based on URL
+          imageUrl: imageUrl, // Add the image URL to the JSON package
         };
 
         await axios.post(`${baseURL}/api/content-request`, data, {
@@ -198,6 +230,7 @@ export default {
             "Content-Type": "application/json",
           },
         });
+
         // Clear the form data
         this.formData = {
           submissionType: "article",
@@ -207,13 +240,16 @@ export default {
           platforms: [],
           template: "",
           scraperPromptID: "",
+          image: null,
         };
+        // Clear the file input value
+        this.$refs.imageInput.value = "";
         // Set the success message
         this.successMessage = "Article submitted successfully!";
         // Clear the success message after 3000ms
         setTimeout(() => {
           this.successMessage = "";
-        }, 1500);
+        }, 3000);
       } catch (error) {
         console.error("Error submitting article:", error);
       }
@@ -261,13 +297,16 @@ export default {
           platforms: [],
           template: "",
           scraperPromptID: "",
+          image: null,
         };
+        // Clear the file input value
+        this.$refs.imageInput.value = "";
         // Set the success message
         this.successMessage = "PDF submitted successfully!";
         // Clear the success message after 3000ms
         setTimeout(() => {
           this.successMessage = "";
-        }, 1500);
+        }, 3000);
       } catch (error) {
         console.error("Error submitting PDF:", error);
       }
