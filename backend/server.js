@@ -85,6 +85,7 @@ app.post("/api/content-request", async (req, res) => {
       username,
       externalSource,
       imageUrl,
+      imageCredit,
     } = req.body;
     console.log("Received data:", req.body); // Log the received data for debugging
     const response = await axios.post(MAKE_WEBHOOK_SCRAPEURLADDRECORD, {
@@ -98,6 +99,7 @@ app.post("/api/content-request", async (req, res) => {
       username: username,
       externalSource: externalSource,
       imageUrl: imageUrl,
+      imageCredit: imageCredit,
     });
     res.json({ success: true, data: response.data });
   } catch (error) {

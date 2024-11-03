@@ -55,6 +55,15 @@
           ref="imageInput"
         />
       </div>
+      <div v-if="formData.image">
+        <label for="imageCredit">Image Credit (name only):</label>
+        <input
+          type="text"
+          v-model="formData.imageCredit"
+          id="imageCredit"
+          class="styled-input"
+        />
+      </div>
       <div>
         <label>Template:</label>
         <div class="thumbnail-container">
@@ -99,6 +108,7 @@ export default {
         template: "",
         scraperPromptID: "",
         image: null,
+        imageCredit: "",
       },
       contentTypes: [
         {
@@ -246,6 +256,7 @@ export default {
           username: username, // Add the username to the JSON package
           externalSource: externalSource.toString(), // Set externalSource based on URL
           imageUrl: imageUrl, // Add the image URL to the JSON package
+          imageCredit: this.formData.imageCredit, // Add image credit to the JSON package
         };
 
         await axios.post(`${baseURL}/api/content-request`, data, {
@@ -264,6 +275,7 @@ export default {
           template: "",
           scraperPromptID: "",
           image: null,
+          imageCredit: "", // Clear image credit
         };
         // Clear the file input value
         this.$refs.imageInput.value = "";
@@ -308,6 +320,7 @@ export default {
           username: username, // Add the username to the JSON package
           externalSource: "true",
           imageUrl: imageUrl, // Add the image URL to the JSON package
+          imageCredit: this.formData.imageCredit, // Add image credit to the JSON package
         };
 
         console.log("Data before Axios.post", data);
@@ -328,6 +341,7 @@ export default {
           template: "",
           scraperPromptID: "",
           image: null,
+          imageCredit: "", // Clear image credit
         };
         // Clear the file input value
         this.$refs.imageInput.value = "";

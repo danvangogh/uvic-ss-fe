@@ -50,8 +50,23 @@
       <h4 class="caption-platfom-title" style="margin-top: 25px">Instagram</h4>
       <p class="caption-text instagram-caption">
         {{ record && record.fields ? record.fields["Generic_Caption"] : "" }}
+        <span
+          v-if="
+            record.fields['Featured Image'] && record.fields['Image_Credit']
+          "
+        >
+          <br />
+          Image Credit: {{ record.fields["Image_Credit"] }}
+        </span>
         <br />
-        Read the full article at our link in bio.
+        <span
+          v-if="
+            record.fields['Origin Content Type'] === 'article' &&
+            record.fields['Article URL']
+          "
+        >
+          Read the full article at our link in bio.
+        </span>
       </p>
       <p
         @click="copyToClipboard('instagram-caption')"
@@ -71,13 +86,24 @@
             ? record.fields["Generic_Caption"]
             : ""
         }}
+        <span
+          v-if="
+            record.fields['Featured Image'] && record.fields['Image_Credit']
+          "
+        >
+          <br />
+          Image Credit: {{ record.fields["Image_Credit"] }}
+        </span>
         <br />
-        Read the full article at
-        {{
-          record && record.fields && record.fields["Article URL"]
-            ? record.fields["Article URL"]
-            : ""
-        }}.
+        <span
+          v-if="
+            record.fields['Origin Content Type'] === 'article' &&
+            record.fields['Article URL']
+          "
+        >
+          Read the full article at
+          {{ record.fields["Article URL"] }}
+        </span>
       </p>
       <p
         @click="copyToClipboard('facebook-caption')"
@@ -97,13 +123,24 @@
             ? record.fields["Generic_Caption"]
             : ""
         }}
+        <span
+          v-if="
+            record.fields['Featured Image'] && record.fields['Image_Credit']
+          "
+        >
+          <br />
+          Image Credit: {{ record.fields["Image_Credit"] }}
+        </span>
         <br />
-        Read the full article at
-        {{
-          record && record.fields && record.fields["Article URL"]
-            ? record.fields["Article URL"]
-            : ""
-        }}.
+        <span
+          v-if="
+            record.fields['Origin Content Type'] === 'article' &&
+            record.fields['Article URL']
+          "
+        >
+          Read the full article at
+          {{ record.fields["Article URL"] }}
+        </span>
       </p>
       <p
         @click="copyToClipboard('linkedin-caption')"
@@ -123,13 +160,22 @@
             ? record.fields["X_Caption"]
             : ""
         }}
-        <br />
-        Full Article:
-        {{
-          record && record.fields && record.fields["Article URL"]
-            ? record.fields["Article URL"]
-            : ""
-        }}
+        <span
+          v-if="
+            record.fields['Featured Image'] && record.fields['Image_Credit']
+          "
+        >
+          <br />
+          Image Credit: {{ record.fields["Image_Credit"] }}
+        </span>
+        <span
+          v-if="
+            record.fields['Origin Content Type'] === 'article' &&
+            record.fields['Article URL']
+          "
+          >. Full article:
+          {{ record.fields["Article URL"] }}
+        </span>
       </p>
       <p
         @click="copyToClipboard('x-caption')"
