@@ -3,6 +3,7 @@ import HomeView from "../views/HomeView.vue";
 import ContentRequest from "../views/ContentRequest.vue";
 import Dashboard from "../views/Dashboard.vue";
 import RecordDetail from "../views/RecordDetail.vue";
+import LogIn from "../views/LogIn.vue";
 
 const routes = [
   {
@@ -24,6 +25,11 @@ const routes = [
     path: "/record/:id",
     name: "recordDetail",
     component: RecordDetail,
+  },
+  {
+    path: "/login",
+    name: "login",
+    component: LogIn,
   },
 ];
 

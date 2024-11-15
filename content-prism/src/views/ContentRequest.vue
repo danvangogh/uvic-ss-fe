@@ -47,6 +47,24 @@
         </select>
       </div>
       <div>
+        <label for="image">Upload Image:</label>
+        <input
+          type="file"
+          @change="handleImageUpload"
+          id="image"
+          ref="imageInput"
+        />
+      </div>
+      <div v-if="formData.image">
+        <label for="imageCredit">Image Credit (name only):</label>
+        <input
+          type="text"
+          v-model="formData.imageCredit"
+          id="imageCredit"
+          class="styled-input"
+        />
+      </div>
+      <div>
         <label>Template:</label>
         <div class="thumbnail-container">
           <div
@@ -61,6 +79,7 @@
           </div>
         </div>
       </div>
+
       <button type="submit">Submit</button>
     </form>
     <p v-if="successMessage">{{ successMessage }}</p>
@@ -69,11 +88,17 @@
 
 <script>
 import axios from "axios";
+import Cookies from "js-cookie";
 import * as pdfjsLib from "pdfjs-dist/webpack";
 
 export default {
   data() {
     return {
+      isLoggedIn: false,
+      loginData: {
+        username: "",
+        password: "",
+      },
       formData: {
         submissionType: "article", // Default to Article submission
         url: "",
@@ -82,6 +107,8 @@ export default {
         platforms: [],
         template: "",
         scraperPromptID: "",
+        image: null,
+        imageCredit: "",
       },
       contentTypes: [
         {
@@ -130,18 +157,63 @@ export default {
   },
   computed: {
     filteredContentTypes() {
-      if (this.formData.submissionType === "pdf") {
+      if (
+        (this.formData.submissionType === "pdf" && !this.formData.image) ||
+        (this.formData.submissionType === "article" &&
+          !this.formData.url.includes("uvic.ca") &&
+          !this.formData.image)
+      ) {
         return this.contentTypes.filter(
-          (type) => type.name === "Listicle Carousel"
+          (type) =>
+            type.name === "Listicle Carousel" ||
+            type.name === "Summary Carousel"
         );
+      } else if (
+        (this.formData.submissionType === "pdf" && this.formData.image) ||
+        (this.formData.submissionType === "article" &&
+          !this.formData.url.includes("uvic.ca"))
+      ) {
+        return this.contentTypes.filter(
+          (type) =>
+            type.name === "Listicle Carousel" ||
+            type.name === "Summary Carousel" ||
+            type.name === "Generic Question Carousel" ||
+            type.name === "Text-on-image" ||
+            type.name === "Quote over image (text left)" ||
+            type.name === "Quote over image (text right)"
+        );
+      } else {
+        return this.contentTypes;
       }
-      return this.contentTypes;
     },
   },
   methods: {
     handleFileUpload(event) {
       this.formData.pdf = event.target.files[0];
       console.log("PDF file selected:", this.formData.pdf);
+    },
+    handleImageUpload(event) {
+      this.formData.image = event.target.files[0];
+      console.log("Image selected:", this.formData.image);
+    },
+    async uploadImage() {
+      if (this.formData.image) {
+        const baseURL =
+          process.env.VUE_APP_API_BASE_URL || "http://localhost:3000";
+        const imageData = new FormData();
+        imageData.append("image", this.formData.image);
+        const response = await axios.post(
+          `${baseURL}/api/upload-image`,
+          imageData,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          }
+        );
+        return response.data.url;
+      }
+      return "";
     },
     async submitRequest() {
       if (this.formData.submissionType === "article") {
@@ -163,11 +235,36 @@ export default {
 
         const baseURL =
           process.env.VUE_APP_API_BASE_URL || "http://localhost:3000";
-        await axios.post(`${baseURL}/api/content-request`, this.formData, {
+
+        // Get the username from the cookie
+        const username = Cookies.get("username");
+
+        // Determine if the source is external
+        const externalSource = !this.formData.url.includes("uvic.ca");
+
+        // Upload image and get the URL
+        const imageUrl = await this.uploadImage();
+
+        // Prepare JSON data
+        const data = {
+          submissionType: this.formData.submissionType,
+          url: this.formData.url,
+          instructions: this.formData.instructions,
+          platforms: this.formData.platforms,
+          template: this.formData.template,
+          scraperPromptID: this.formData.scraperPromptID,
+          username: username, // Add the username to the JSON package
+          externalSource: externalSource.toString(), // Set externalSource based on URL
+          imageUrl: imageUrl, // Add the image URL to the JSON package
+          imageCredit: this.formData.imageCredit, // Add image credit to the JSON package
+        };
+
+        await axios.post(`${baseURL}/api/content-request`, data, {
           headers: {
             "Content-Type": "application/json",
           },
         });
+
         // Clear the form data
         this.formData = {
           submissionType: "article",
@@ -177,9 +274,17 @@ export default {
           platforms: [],
           template: "",
           scraperPromptID: "",
+          image: null,
+          imageCredit: "", // Clear image credit
         };
+        // Clear the file input value
+        this.$refs.imageInput.value = "";
         // Set the success message
         this.successMessage = "Article submitted successfully!";
+        // Clear the success message after 3000ms
+        setTimeout(() => {
+          this.successMessage = "";
+        }, 3000);
       } catch (error) {
         console.error("Error submitting article:", error);
       }
@@ -196,12 +301,26 @@ export default {
         // Extract text from the PDF
         const pdfText = await this.extractTextFromPDF(this.formData.pdf);
 
+        // Truncate pdfText if it exceeds 100,000 characters
+        const truncatedPdfText =
+          pdfText.length > 100000 ? pdfText.substring(0, 100000) : pdfText;
+
+        // Get the username from the cookie
+        const username = Cookies.get("username");
+
+        // Upload image and get the URL
+        const imageUrl = await this.uploadImage();
+
         const data = {
           submissionType: this.formData.submissionType,
           instructions: this.formData.instructions,
           platforms: this.formData.platforms,
           template: this.formData.template,
-          pdfText: pdfText,
+          pdfText: truncatedPdfText,
+          username: username, // Add the username to the JSON package
+          externalSource: "true",
+          imageUrl: imageUrl, // Add the image URL to the JSON package
+          imageCredit: this.formData.imageCredit, // Add image credit to the JSON package
         };
 
         console.log("Data before Axios.post", data);
@@ -211,6 +330,7 @@ export default {
             "Content-Type": "application/json",
           },
         });
+
         // Clear the form data
         this.formData = {
           submissionType: "article",
@@ -220,9 +340,17 @@ export default {
           platforms: [],
           template: "",
           scraperPromptID: "",
+          image: null,
+          imageCredit: "", // Clear image credit
         };
+        // Clear the file input value
+        this.$refs.imageInput.value = "";
         // Set the success message
         this.successMessage = "PDF submitted successfully!";
+        // Clear the success message after 3000ms
+        setTimeout(() => {
+          this.successMessage = "";
+        }, 3000);
       } catch (error) {
         console.error("Error submitting PDF:", error);
       }
@@ -249,15 +377,22 @@ export default {
     selectTemplate(recordId) {
       this.formData.template = recordId;
     },
-    getThumbnailUrl(name) {
-      const type = this.contentTypes.find((type) => type.name === name);
-      return type ? type.thumbnail : "";
+    checkLogin() {
+      const username = Cookies.get("username");
+      if (!username) {
+        this.$router.push("/login"); // Redirect to login page if not logged in
+      } else {
+        this.isLoggedIn = true;
+      }
     },
+  },
+  mounted() {
+    this.checkLogin();
   },
 };
 </script>
 
-<style>
+<style scoped>
 .success-message {
   color: green;
   margin-top: 10px;
