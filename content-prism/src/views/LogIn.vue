@@ -16,6 +16,7 @@
 </template>
 
 <script>
+import axios from "axios";
 import Cookies from "js-cookie";
 
 export default {
@@ -28,23 +29,25 @@ export default {
     };
   },
   methods: {
-    login() {
-      const hardcodedUsers = [
-        { username: "Daniel", password: "123" },
-        { username: "Anne", password: "uvic" },
-      ];
-
-      const user = hardcodedUsers.find(
-        (u) =>
-          u.username === this.loginData.username &&
-          u.password === this.loginData.password
-      );
-
-      if (user) {
-        Cookies.set("username", user.username, { expires: 30 });
-        this.$router.push("/"); // Redirect to the home page or dashboard after login
-      } else {
-        alert("Invalid username or password");
+    async login() {
+      try {
+        const baseURL =
+          process.env.VUE_APP_API_BASE_URL || "http://localhost:3000";
+        const response = await axios.post(
+          `${baseURL}/api/login`,
+          this.loginData
+        );
+        if (response.data.success) {
+          Cookies.set("username", response.data.username, { expires: 30 });
+          this.$root.username = response.data.username; // Update the username in App.vue
+          console.log("Logged in as:", response.data.username); // Log to verify username
+          this.$router.push("/"); // Redirect to the home page or dashboard after login
+        } else {
+          alert("Invalid username or password");
+        }
+      } catch (error) {
+        console.error("Error logging in:", error);
+        alert("An error occurred during login. Please try again.");
       }
     },
   },

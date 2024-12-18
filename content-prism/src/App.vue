@@ -1,8 +1,12 @@
 <template>
-  <nav>
+  <nav v-if="isPropero" class="propero-nav">
+    <router-link to="/content-request">Content Submission Form</router-link> |
+    <router-link to="/propero/dashboard">Propero Dashboard</router-link> |
+    <a href="#" @click.prevent="logout">Logout</a>
+  </nav>
+  <nav v-else class="uvic-nav">
     <router-link to="/content-request">Content Request Form</router-link> |
     <router-link to="/dashboard">Dashboard</router-link> |
-    <!-- <span class="spacer"></span> -->
     <a href="#" @click.prevent="logout">Logout</a>
   </nav>
   <div class="body-container">
@@ -14,11 +18,26 @@
 import Cookies from "js-cookie";
 
 export default {
+  data() {
+    return {
+      username: Cookies.get("username") || "",
+    };
+  },
+  computed: {
+    isPropero() {
+      return this.username === "Propero";
+    },
+  },
   methods: {
     logout() {
       Cookies.remove("username");
+      this.username = "";
+      console.log("Username cookie removed:", !Cookies.get("username")); // Log to verify cookie removal
       this.$router.push("/login");
     },
+  },
+  created() {
+    this.username = Cookies.get("username") || "";
   },
 };
 </script>

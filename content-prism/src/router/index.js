@@ -4,6 +4,8 @@ import ContentRequest from "../views/ContentRequest.vue";
 import Dashboard from "../views/Dashboard.vue";
 import RecordDetail from "../views/RecordDetail.vue";
 import LogIn from "../views/LogIn.vue";
+import ProperoDashboard from "../views/ProperoDashboard.vue";
+import ProperoRecordDetail from "../views/ProperoRecordDetail.vue";
 
 const routes = [
   {
@@ -30,6 +32,16 @@ const routes = [
     path: "/login",
     name: "login",
     component: LogIn,
+  },
+  {
+    path: "/propero/dashboard",
+    name: "properoDashboard",
+    component: ProperoDashboard,
+  },
+  {
+    path: "/propero/record/:id",
+    name: "properoRecordDetail",
+    component: ProperoRecordDetail,
   },
 ];
 

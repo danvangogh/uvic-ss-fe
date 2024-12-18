@@ -70,6 +70,28 @@ app.post("/api/upload-image", upload.single("image"), async (req, res) => {
   }
 });
 
+// Handle login request
+app.post("/api/login", (req, res) => {
+  const { username, password } = req.body;
+  const hardcodedUsers = [
+    { username: "Daniel", password: "123" },
+    { username: "Anne", password: "uvic" },
+    { username: "Propero", password: "Accelerate" },
+  ];
+
+  const user = hardcodedUsers.find(
+    (u) => u.username === username && u.password === password
+  );
+
+  if (user) {
+    res.json({ success: true, username: user.username });
+  } else {
+    res
+      .status(401)
+      .json({ success: false, message: "Invalid username or password" });
+  }
+});
+
 // Handle content request
 app.post("/api/content-request", async (req, res) => {
   console.log("Received data:", req.body); // Log the received data for debugging
@@ -131,7 +153,7 @@ const airtableApi = axios.create({
   },
 });
 
-// API Routes
+// UVIC SS API Routes
 
 app.get("/api/records", async (req, res) => {
   console.log("Fetching records...", req.body);
@@ -203,6 +225,73 @@ app.patch("/api/records/:id", async (req, res) => {
     const recordId = req.params.id;
     const updateData = req.body;
     const response = await airtableApi.patch(`/${recordId}`, {
+      fields: updateData,
+    });
+    res.json(response.data);
+  } catch (error) {
+    console.error("Error updating record:", error.message);
+    res.status(500).send(error.message);
+  }
+});
+
+// End of UVIC SS API Routes
+
+// Propero API Routes
+
+const PROPERO_BASE_ID = process.env.PROPERO_BASE_ID;
+const PROPERO_TABLE_NAME = process.env.PROPERO_TABLE_NAME;
+
+const properoAirtableApi = axios.create({
+  baseURL: `https://api.airtable.com/v0/${PROPERO_BASE_ID}/${PROPERO_TABLE_NAME.replace(
+    /_/g,
+    "%20"
+  )}`,
+  headers: {
+    Authorization: `Bearer ${process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN}`,
+    "Content-Type": "application/json",
+  },
+});
+
+app.get("/api/propero/records", async (req, res) => {
+  try {
+    const records = [];
+    let offset;
+
+    do {
+      const response = await properoAirtableApi.get("", {
+        params: {
+          offset,
+          view: "Grid view",
+        },
+      });
+
+      records.push(...response.data.records);
+      offset = response.data.offset;
+    } while (offset);
+
+    res.json({ records });
+  } catch (error) {
+    console.error("Error fetching records:", error.message);
+    res.status(500).send(error.message);
+  }
+});
+
+app.get("/api/propero/records/:id", async (req, res) => {
+  try {
+    const response = await properoAirtableApi.get(`/${req.params.id}`);
+    res.json(response.data);
+  } catch (error) {
+    console.error("Error fetching record:", error.message);
+    res.status(500).send(error.message);
+  }
+});
+
+app.patch("/api/propero/records/:id", async (req, res) => {
+  console.log("Updating record...", req.params.id);
+  try {
+    const recordId = req.params.id;
+    const updateData = req.body;
+    const response = await properoAirtableApi.patch(`/${recordId}`, {
       fields: updateData,
     });
     res.json(response.data);
