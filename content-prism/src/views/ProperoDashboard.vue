@@ -1,6 +1,6 @@
 <template>
   <div class="main-content">
-    <h1>Dashboard</h1>
+    <h1>Approval Dashboard</h1>
     <div v-if="loading">
       <p>Content is loading...</p>
     </div>
