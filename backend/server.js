@@ -236,6 +236,7 @@ app.patch("/api/records/:id", async (req, res) => {
 
 // End of UVIC SS API Routes
 
+
 // Propero API Routes
 
 const PROPERO_BASE_ID = process.env.PROPERO_BASE_ID;
@@ -252,6 +253,7 @@ const properoAirtableApi = axios.create({
   },
 });
 
+// Propero Get - Load all records
 app.get("/api/propero/records", async (req, res) => {
   try {
     const records = [];
@@ -276,6 +278,7 @@ app.get("/api/propero/records", async (req, res) => {
   }
 });
 
+// Propero Get - Load specific record
 app.get("/api/propero/records/:id", async (req, res) => {
   try {
     const response = await properoAirtableApi.get(`/${req.params.id}`);
@@ -286,6 +289,7 @@ app.get("/api/propero/records/:id", async (req, res) => {
   }
 });
 
+// Propero Patch - Edit Record
 app.patch("/api/propero/records/:id", async (req, res) => {
   console.log("Updating record...", req.params.id);
   try {
@@ -301,6 +305,7 @@ app.patch("/api/propero/records/:id", async (req, res) => {
   }
 });
 
+// Propero Post - Create new Record
 app.post("/api/propero/content-request", async (req, res) => {
   console.log("Received data:", req.body); // Log the received data for debugging
   try {
@@ -331,10 +336,10 @@ app.post("/api/propero/content-request", async (req, res) => {
       ],
     });
 
-    console.log("Response from Propero Airtable API:");
     res.json({ success: true, data: response.data });
   } catch (error) {
-    console.error("Error creating record in Airtable:", error.message); // Log the error for debugging
+    console.error("Error creating record in Airtable:", error.message); 
+    // Log the error for debugging
     res.status(500).send(error.message);
   }
 });

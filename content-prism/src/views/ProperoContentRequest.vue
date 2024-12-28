@@ -149,7 +149,7 @@ export default {
           author: this.formData.author,
           status: "New Submission",
         };
-        console.log("Submitting Data object:", data);
+        // console.log("Submitting Data object:", data);
 
         await axios.post(`${baseURL}/api/propero/content-request`, data, {
           headers: {
