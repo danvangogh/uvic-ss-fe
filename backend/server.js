@@ -300,3 +300,41 @@ app.patch("/api/propero/records/:id", async (req, res) => {
     res.status(500).send(error.message);
   }
 });
+
+app.post("/api/propero/content-request", async (req, res) => {
+  console.log("Received data:", req.body); // Log the received data for debugging
+  try {
+    const {
+      submissionType,
+      url,
+      notes,
+      username,
+      blog,
+      author,
+      status,
+    } = req.body;
+
+    // Create a new record in Airtable
+    const response = await properoAirtableApi.post("/", {
+      records: [
+        {
+          fields: {
+            "Content_Type": submissionType,
+            "URL": url,
+            "Notes": notes,
+            "Submitted By": username,
+            "Main_Text": blog,
+            "Status": status,
+            "Author": author,
+          },
+        },
+      ],
+    });
+
+    console.log("Response from Propero Airtable API:");
+    res.json({ success: true, data: response.data });
+  } catch (error) {
+    console.error("Error creating record in Airtable:", error.message); // Log the error for debugging
+    res.status(500).send(error.message);
+  }
+});

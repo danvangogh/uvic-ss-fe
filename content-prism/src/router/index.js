@@ -6,6 +6,7 @@ import RecordDetail from "../views/RecordDetail.vue";
 import LogIn from "../views/LogIn.vue";
 import ProperoDashboard from "../views/ProperoDashboard.vue";
 import ProperoRecordDetail from "../views/ProperoRecordDetail.vue";
+import ProperoContentRequest from "../views/ProperoContentRequest.vue";
 
 const routes = [
   {
@@ -42,6 +43,11 @@ const routes = [
     path: "/propero/record/:id",
     name: "properoRecordDetail",
     component: ProperoRecordDetail,
+  },
+  {
+    path: "/propero/content-request",
+    name: "ProperoContentRequestView",
+    component: ProperoContentRequest,
   },
 ];
 

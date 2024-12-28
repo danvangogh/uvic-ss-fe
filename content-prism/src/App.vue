@@ -1,6 +1,6 @@
 <template>
   <nav v-if="isPropero" class="propero-nav">
-    <router-link to="/content-request">Content Submission Form</router-link> |
+    <router-link to="/propero/content-request">Content Submission Form</router-link> |
     <router-link to="/propero/dashboard">Propero Dashboard</router-link> |
     <a href="#" @click.prevent="logout">Logout</a>
   </nav>

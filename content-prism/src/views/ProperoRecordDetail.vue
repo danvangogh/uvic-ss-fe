@@ -17,18 +17,6 @@
       >
         Content Preview
       </button>
-      <!-- Notes/Feedback -->
-      <h4 v-if="record?.fields" style="font-weight: 300; margin-bottom: 0">
-        <strong>Notes/Feedback: </strong>
-      </h4>
-      <textarea
-        @input="adjustTextareaHeight($event)"
-        v-model="notes"
-        class="styled-input"
-        placeholder="Enter feedback"
-        ref="notesTextarea"
-      ></textarea>
-      <!-- End Notes/Feedback -->
 
       <!-- Caption -->
       <div
@@ -64,6 +52,18 @@
         ></textarea>
       </div>
       <!-- End Text -->
+       <!-- Notes/Feedback -->
+      <h4 v-if="record?.fields" style="font-weight: 300; margin-bottom: 0">
+        <strong>Notes/Feedback: </strong>
+      </h4>
+      <textarea
+        @input="adjustTextareaHeight($event)"
+        v-model="notes"
+        class="styled-input"
+        placeholder="Enter feedback"
+        ref="notesTextarea"
+      ></textarea>
+      <!-- End Notes/Feedback -->
 
       <!-- Submit Button -->
       <div class="buttons">
