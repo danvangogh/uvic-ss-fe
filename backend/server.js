@@ -315,6 +315,7 @@ app.post("/api/propero/content-request", async (req, res) => {
       notes,
       username,
       blog,
+      blogTitle,
       author,
       status,
     } = req.body;
@@ -331,6 +332,7 @@ app.post("/api/propero/content-request", async (req, res) => {
             "Main_Text": blog,
             "Status": status,
             "Author": author,
+            "Blog_Title": blogTitle,
           },
         },
       ],

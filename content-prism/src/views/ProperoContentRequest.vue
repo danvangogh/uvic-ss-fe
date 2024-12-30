@@ -74,7 +74,17 @@
           class="styled-input"
         />
       </div>
-      
+
+<!-- Blog Title -->
+<div v-if="formData.submissionType === 'Propero Blog'">
+      <textarea
+        @input="adjustTextareaHeight($event)"
+        v-model="formData.blogTitle"
+        class="styled-input"
+        placeholder="Blog Title"
+      ></textarea>
+    </div>
+
 <!-- Blog Text -->
 <div v-if="formData.submissionType === 'Propero Blog'">
       <textarea
@@ -117,6 +127,7 @@ export default {
         submissionType: "News Article", // Default to Article submission
         url: "",
         blog: "",
+        blogTitle: "",
         notes: "",
         author: "",
         pdf: null,
@@ -146,6 +157,7 @@ export default {
           notes: this.formData.notes,
           username: username,
           blog: this.formData.blog,
+          blogTitle: this.formData.blogTitle,
           author: this.formData.author,
           status: "New Submission",
         };
@@ -176,6 +188,7 @@ export default {
           notes: "",
           pdf: null,
           blog: "",
+          blogTitle: "",
           author: "",
         };
         
