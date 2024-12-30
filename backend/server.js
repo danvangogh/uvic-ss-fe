@@ -318,6 +318,7 @@ app.post("/api/propero/content-request", async (req, res) => {
       blogTitle,
       author,
       status,
+      imageUrl,
     } = req.body;
 
     // Create a new record in Airtable
@@ -333,6 +334,7 @@ app.post("/api/propero/content-request", async (req, res) => {
             "Status": status,
             "Author": author,
             "Blog_Title": blogTitle,
+            "PDF_URL": imageUrl,
           },
         },
       ],
@@ -342,6 +344,32 @@ app.post("/api/propero/content-request", async (req, res) => {
   } catch (error) {
     console.error("Error creating record in Airtable:", error.message); 
     // Log the error for debugging
+    res.status(500).send(error.message);
+  }
+});
+
+// Propero Post - Handle image upload
+app.post("/api/propero/upload-image", upload.single("image"), async (req, res) => {
+  try {
+    const file = req.file;
+    if (!file) {
+      return res.status(400).send("No file uploaded.");
+    }
+    // Replace spaces with underscores in the original name
+    const sanitizedFileName = file.originalname.replace(/\s+/g, "_");
+    const timestamp = Date.now();
+    const params = {
+      Bucket: process.env.DO_SPACES_BUCKET,
+      Key: `uploads/propero/${timestamp}_${sanitizedFileName}`,
+      Body: file.buffer,
+      ACL: "public-read",
+    };
+    const command = new PutObjectCommand(params);
+    await s3Client.send(command);
+    const url = `https://${process.env.DO_SPACES_BUCKET}.tor1.digitaloceanspaces.com/uploads/propero/${timestamp}_${sanitizedFileName}`;
+    res.json({ url });
+  } catch (error) {
+    console.error("Error uploading image:", error.message);
     res.status(500).send(error.message);
   }
 });

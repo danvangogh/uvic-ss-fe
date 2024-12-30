@@ -142,6 +142,26 @@ export default {
       this.formData.pdf = event.target.files[0];
       console.log("PDF file selected:", this.formData.pdf);
     },
+    async uploadImage() {
+      console.log("Uploading image...");
+      if (this.formData.pdf) {
+        const baseURL =
+          process.env.VUE_APP_API_BASE_URL || "http://localhost:3000";
+        const imageData = new FormData();
+        imageData.append("image", this.formData.pdf);
+        const response = await axios.post(
+          `${baseURL}/api/propero/upload-image`,
+          imageData,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          }
+        );
+        return response.data.url;
+      }
+      return "";
+    },
     async submitContent() {
       try {
         const baseURL =
@@ -149,6 +169,9 @@ export default {
 
         // Get the username from the cookie
         const username = Cookies.get("username");
+
+        // Upload image and get the URL
+        const imageUrl = await this.uploadImage();
         
         // Prepare JSON data
         const data = {
@@ -160,6 +183,7 @@ export default {
           blogTitle: this.formData.blogTitle,
           author: this.formData.author,
           status: "New Submission",
+          imageUrl: imageUrl,
         };
         // console.log("Submitting Data object:", data);
 
