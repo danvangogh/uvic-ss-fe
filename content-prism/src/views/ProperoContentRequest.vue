@@ -3,7 +3,7 @@
     <h1>Content Request Form</h1>
     <form @submit.prevent="submitContent">
       <div>
-<!-- News Article -->
+        <!-- News Article -->
         <input
           type="radio"
           id="News Article"
@@ -11,8 +11,8 @@
           v-model="formData.submissionType"
         />
         <label for="News Article">News Article/Blog</label>
-        <br>
-<!-- Report -->
+        <br />
+        <!-- Report -->
         <input
           type="radio"
           id="Report"
@@ -20,8 +20,8 @@
           v-model="formData.submissionType"
         />
         <label for="Report">Report</label>
-        <br>
-<!-- Propero Blog -->
+        <br />
+        <!-- Propero Blog -->
         <input
           type="radio"
           id="Propero Blog"
@@ -29,8 +29,8 @@
           v-model="formData.submissionType"
         />
         <label for="Propero Blog">Propero Blog</label>
-        <br>
-<!-- LinkedIn Post -->
+        <br />
+        <!-- LinkedIn Post -->
         <input
           type="radio"
           id="LinkedIn Post"
@@ -39,35 +39,43 @@
         />
         <label for="LinkedIn Post">LinkedIn Post</label>
       </div>
-<!-- End radio buttons -->
+      <!-- End radio buttons -->
 
-<!-- Conditional submission instructions -->
-<h5 v-if="formData.submissionType === 'News Article'">Enter the URL of a news article or blog to share on LinkedIn.</h5>
-<h5 v-if="formData.submissionType === 'Report'">Upload a report via a URL or directly via a PDF file.</h5>
-<h5 v-if="formData.submissionType === 'Propero Blog'">Upload the text for a Propero Blog (to publish on propero.ca).</h5>
-<h5 v-if="formData.submissionType === 'LinkedIn Post'">Upload the URL of someone's LinkedIn post to share on Propero's LinkedIn page.</h5>
+      <!-- Conditional submission instructions -->
+      <h5 v-if="formData.submissionType === 'News Article'">
+        Enter the URL of a news article or blog to share on LinkedIn.
+      </h5>
+      <h5 v-if="formData.submissionType === 'Report'">
+        Upload a report via a URL or directly via a PDF file.
+      </h5>
+      <h5 v-if="formData.submissionType === 'Propero Blog'">
+        Upload the text for a Propero Blog (to publish on propero.ca).
+      </h5>
+      <h5 v-if="formData.submissionType === 'LinkedIn Post'">
+        Upload the URL of someone's LinkedIn post to share on Propero's LinkedIn
+        page.
+      </h5>
 
-<!-- Begin submission elements -->
-<!-- URL -->
-      <div v-if="
-        formData.submissionType === 'News Article' || 
-        formData.submissionType === 'Report' || 
-        formData.submissionType === 'LinkedIn Post'">
-        <input
-          v-model="formData.url"
-          placeholder="URL"
-          class="styled-input"
-        />
+      <!-- Begin submission elements -->
+      <!-- URL -->
+      <div
+        v-if="
+          formData.submissionType === 'News Article' ||
+          formData.submissionType === 'Report' ||
+          formData.submissionType === 'LinkedIn Post'
+        "
+      >
+        <input v-model="formData.url" placeholder="URL" class="styled-input" />
       </div>
 
-<!-- PDF -->
+      <!-- PDF -->
       <div v-if="formData.submissionType === 'Report'">
         <label for="pdf">Upload PDF:</label>
         <input type="file" @change="handleFileUpload" id="pdf" />
       </div>
 
-<!-- Blog Author -->
-<div v-if="formData.submissionType === 'Propero Blog'">
+      <!-- Blog Author -->
+      <div v-if="formData.submissionType === 'Propero Blog'">
         <input
           v-model="formData.author"
           placeholder="Blog Author"
@@ -75,36 +83,36 @@
         />
       </div>
 
-<!-- Blog Title -->
-<div v-if="formData.submissionType === 'Propero Blog'">
-      <textarea
-        @input="adjustTextareaHeight($event)"
-        v-model="formData.blogTitle"
-        class="styled-input"
-        placeholder="Blog Title"
-      ></textarea>
-    </div>
+      <!-- Blog Title -->
+      <div v-if="formData.submissionType === 'Propero Blog'">
+        <textarea
+          @input="adjustTextareaHeight($event)"
+          v-model="formData.blogTitle"
+          class="styled-input"
+          placeholder="Blog Title"
+        ></textarea>
+      </div>
 
-<!-- Blog Text -->
-<div v-if="formData.submissionType === 'Propero Blog'">
-      <textarea
-        @input="adjustTextareaHeight($event)"
-        v-model="formData.blog"
-        class="styled-input"
-        placeholder="Blog Text"
-      ></textarea>
-    </div>
+      <!-- Blog Text -->
+      <div v-if="formData.submissionType === 'Propero Blog'">
+        <textarea
+          @input="adjustTextareaHeight($event)"
+          v-model="formData.blog"
+          class="styled-input"
+          placeholder="Blog Text"
+        ></textarea>
+      </div>
 
-<!-- Notes -->
+      <!-- Notes -->
       <div>
         <textarea
-        @input="adjustTextareaHeight($event)"
+          @input="adjustTextareaHeight($event)"
           v-model="formData.notes"
           placeholder="Notes (Optional)"
           class="styled-input"
         ></textarea>
       </div>
-      
+
       <button type="submit">Submit</button>
     </form>
     <p v-if="successMessage">{{ successMessage }}</p>
@@ -135,8 +143,7 @@ export default {
       successMessage: "",
     };
   },
-  computed: {
-  },
+  computed: {},
   methods: {
     handleFileUpload(event) {
       this.formData.pdf = event.target.files[0];
@@ -172,7 +179,7 @@ export default {
 
         // Upload image and get the URL
         const imageUrl = await this.uploadImage();
-        
+
         // Prepare JSON data
         const data = {
           submissionType: this.formData.submissionType,
@@ -202,27 +209,43 @@ export default {
       } catch (error) {
         console.error("Error submitting article:", error);
       }
-      
-        // Clear the form data
-        this.formData = {
-          submissionType: "News Article",
-          url: "",
-          instructions: "",
-          scraperPromptID: "",
-          notes: "",
-          pdf: null,
-          blog: "",
-          blogTitle: "",
-          author: "",
-        };
-        
+
+      // Clear the form data
+      this.formData = {
+        submissionType: "News Article",
+        url: "",
+        instructions: "",
+        scraperPromptID: "",
+        notes: "",
+        pdf: null,
+        blog: "",
+        blogTitle: "",
+        author: "",
+      };
     },
     checkLogin() {
       const username = Cookies.get("username");
+      const userRole = Cookies.get("role"); // Assuming role is stored in a cookie
       if (!username) {
         this.$router.push("/login"); // Redirect to login page if not logged in
       } else {
         this.isLoggedIn = true;
+        this.userRole = userRole; // Set the user role
+        this.checkAccess(); // Check access based on role
+      }
+    },
+    checkAccess() {
+      // Define access rules
+      const accessRules = {
+        propero: ["/propero/content-request", "/propero/dashboard"],
+        uvicSS: ["/content-request", "/dashboard"],
+      };
+
+      const currentPath = this.$route.path;
+      const allowedPaths = accessRules[this.userRole] || [];
+
+      if (!allowedPaths.includes(currentPath)) {
+        this.$router.push("/login"); // Redirect to unauthorized page if access is denied
       }
     },
     adjustTextareaHeight(event) {

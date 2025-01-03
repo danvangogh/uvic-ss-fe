@@ -39,7 +39,9 @@ export default {
         );
         if (response.data.success) {
           Cookies.set("username", response.data.username, { expires: 30 });
+          Cookies.set("role", response.data.role, { expires: 30 }); // Store role in a cookie
           this.$root.username = response.data.username; // Update the username in App.vue
+          this.$root.role = response.data.role; // Update the role in App.vue
           console.log("Logged in as:", response.data.username); // Log to verify username
           this.$router.push("/"); // Redirect to the home page or dashboard after login
         } else {

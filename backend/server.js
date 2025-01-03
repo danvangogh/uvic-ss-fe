@@ -74,9 +74,13 @@ app.post("/api/upload-image", upload.single("image"), async (req, res) => {
 app.post("/api/login", (req, res) => {
   const { username, password } = req.body;
   const hardcodedUsers = [
-    { username: "Daniel", password: "123" },
-    { username: "Anne", password: "uvic" },
-    { username: "Propero", password: "Accelerate" },
+    { username: "Daniel", password: "123", role: "uvicSS" },
+    { username: "Anne", password: "uvic", role: "uvicSS" },
+    { username: "Propero", password: "Accelerate", role: "propero" },
+    { username: "Curtis", password: "Accelerate", role: "propero" },
+    { username: "Scott", password: "Accelerate", role: "propero" },
+    { username: "Sheila", password: "Accelerate", role: "propero" },
+    { username: "Colin", password: "Accelerate", role: "propero" },
   ];
 
   const user = hardcodedUsers.find(
@@ -84,7 +88,7 @@ app.post("/api/login", (req, res) => {
   );
 
   if (user) {
-    res.json({ success: true, username: user.username });
+    res.json({ success: true, username: user.username, role: user.role });
   } else {
     res
       .status(401)
@@ -236,7 +240,6 @@ app.patch("/api/records/:id", async (req, res) => {
 
 // End of UVIC SS API Routes
 
-
 // Propero API Routes
 
 const PROPERO_BASE_ID = process.env.PROPERO_BASE_ID;
@@ -326,15 +329,15 @@ app.post("/api/propero/content-request", async (req, res) => {
       records: [
         {
           fields: {
-            "Content_Type": submissionType,
-            "URL": url,
-            "Notes": notes,
+            Content_Type: submissionType,
+            URL: url,
+            Notes: notes,
             "Submitted By": username,
-            "Main_Text": blog,
-            "Status": status,
-            "Author": author,
-            "Blog_Title": blogTitle,
-            "PDF_URL": imageUrl,
+            Main_Text: blog,
+            Status: status,
+            Author: author,
+            Blog_Title: blogTitle,
+            PDF_URL: imageUrl,
           },
         },
       ],
@@ -342,34 +345,38 @@ app.post("/api/propero/content-request", async (req, res) => {
 
     res.json({ success: true, data: response.data });
   } catch (error) {
-    console.error("Error creating record in Airtable:", error.message); 
+    console.error("Error creating record in Airtable:", error.message);
     // Log the error for debugging
     res.status(500).send(error.message);
   }
 });
 
 // Propero Post - Handle image upload
-app.post("/api/propero/upload-image", upload.single("image"), async (req, res) => {
-  try {
-    const file = req.file;
-    if (!file) {
-      return res.status(400).send("No file uploaded.");
+app.post(
+  "/api/propero/upload-image",
+  upload.single("image"),
+  async (req, res) => {
+    try {
+      const file = req.file;
+      if (!file) {
+        return res.status(400).send("No file uploaded.");
+      }
+      // Replace spaces with underscores in the original name
+      const sanitizedFileName = file.originalname.replace(/\s+/g, "_");
+      const timestamp = Date.now();
+      const params = {
+        Bucket: process.env.DO_SPACES_BUCKET,
+        Key: `uploads/propero/${timestamp}_${sanitizedFileName}`,
+        Body: file.buffer,
+        ACL: "public-read",
+      };
+      const command = new PutObjectCommand(params);
+      await s3Client.send(command);
+      const url = `https://${process.env.DO_SPACES_BUCKET}.tor1.digitaloceanspaces.com/uploads/propero/${timestamp}_${sanitizedFileName}`;
+      res.json({ url });
+    } catch (error) {
+      console.error("Error uploading image:", error.message);
+      res.status(500).send(error.message);
     }
-    // Replace spaces with underscores in the original name
-    const sanitizedFileName = file.originalname.replace(/\s+/g, "_");
-    const timestamp = Date.now();
-    const params = {
-      Bucket: process.env.DO_SPACES_BUCKET,
-      Key: `uploads/propero/${timestamp}_${sanitizedFileName}`,
-      Body: file.buffer,
-      ACL: "public-read",
-    };
-    const command = new PutObjectCommand(params);
-    await s3Client.send(command);
-    const url = `https://${process.env.DO_SPACES_BUCKET}.tor1.digitaloceanspaces.com/uploads/propero/${timestamp}_${sanitizedFileName}`;
-    res.json({ url });
-  } catch (error) {
-    console.error("Error uploading image:", error.message);
-    res.status(500).send(error.message);
   }
-});
+);

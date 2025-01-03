@@ -1,13 +1,25 @@
 <template>
   <nav v-if="isPropero" class="propero-nav">
-    <router-link to="/propero/content-request">Content Submission Form</router-link> |
-    <router-link to="/propero/dashboard">Propero Dashboard</router-link> |
-    <a href="#" @click.prevent="logout">Logout</a>
+    <div class="logo-container">
+      <img src="/Propero_Logo.png" alt="" class="logo" />
+    </div>
+    <div class="nav-links">
+      <router-link to="/propero/content-request"
+        >Content Submission Form</router-link
+      >
+      | <router-link to="/propero/dashboard">Dashboard</router-link> |
+      <a href="#" @click.prevent="logout">Logout</a>
+    </div>
   </nav>
-  <nav v-else class="uvic-nav">
-    <router-link to="/content-request">Content Request Form</router-link> |
-    <router-link to="/dashboard">Dashboard</router-link> |
-    <a href="#" @click.prevent="logout">Logout</a>
+  <nav v-else-if="isUvicSS" class="uvic-nav">
+    <div class="logo-container">
+      <img src="/UVIC_Logo.png" alt="" class="logo" />
+    </div>
+    <div class="nav-links">
+      <router-link to="/content-request">Content Request Form</router-link>
+      | <router-link to="/dashboard">Dashboard</router-link> |
+      <a href="#" @click.prevent="logout">Logout</a>
+    </div>
   </nav>
   <div class="body-container">
     <router-view />
@@ -21,23 +33,37 @@ export default {
   data() {
     return {
       username: Cookies.get("username") || "",
+      role: Cookies.get("role") || "",
     };
   },
   computed: {
     isPropero() {
-      return this.username === "Propero";
+      return this.role === "propero";
+    },
+    isUvicSS() {
+      return this.role === "uvicSS";
     },
   },
   methods: {
     logout() {
       Cookies.remove("username");
+      Cookies.remove("role");
       this.username = "";
-      console.log("Username cookie removed:", !Cookies.get("username")); // Log to verify cookie removal
+      this.role = "";
+      console.log(
+        "Username and role cookies removed:",
+        !Cookies.get("username"),
+        !Cookies.get("role")
+      ); // Log to verify cookie removal
       this.$router.push("/login");
+    },
+    checkLogin() {
+      this.username = Cookies.get("username") || "";
+      this.role = Cookies.get("role") || "";
     },
   },
   created() {
-    this.username = Cookies.get("username") || "";
+    this.checkLogin();
   },
 };
 </script>
@@ -59,6 +85,7 @@ nav {
   background-color: #002754; /* Set nav background color */
   color: #fff;
   display: flex;
+  flex-direction: column; /* Stack logo and links vertically */
   justify-content: center;
   align-items: center;
 }
@@ -219,5 +246,9 @@ button {
   form > * {
     margin-bottom: 20px;
   }
+}
+
+.logo {
+  width: 125px;
 }
 </style>
