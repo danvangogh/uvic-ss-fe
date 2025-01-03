@@ -1,6 +1,6 @@
 <template>
   <div class="main-content">
-    <h1>Content Request Form</h1>
+    <h1>Content Submission Form</h1>
     <form @submit.prevent="submitContent">
       <div>
         <!-- News Article -->

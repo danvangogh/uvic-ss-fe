@@ -85,6 +85,9 @@ router.beforeEach((to, from, next) => {
   } else {
     next();
   }
+
+  // Set document title
+  document.title = "Prism of Content"; // Default title
 });
 
 export default router;
