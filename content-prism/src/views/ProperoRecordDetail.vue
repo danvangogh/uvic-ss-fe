@@ -11,7 +11,7 @@
         {{ record?.fields?.Posting_Date || "Fetching Status..." }}
       </h6>
       <button
-        v-if="record?.fields?.['Preview_Link']"
+        v-if="record?.fields?.['URL']"
         class="propero-preview-button"
         @click="openPreviewLink"
       >
@@ -52,7 +52,7 @@
         ></textarea>
       </div>
       <!-- End Text -->
-       <!-- Notes/Feedback -->
+      <!-- Notes/Feedback -->
       <h4 v-if="record?.fields" style="font-weight: 300; margin-bottom: 0">
         <strong>Notes/Feedback: </strong>
       </h4>
@@ -123,8 +123,8 @@ export default {
   },
   methods: {
     openPreviewLink() {
-      if (this.record?.fields?.["Preview_Link"]) {
-        window.open(this.record.fields["Preview_Link"], "_blank");
+      if (this.record?.fields?.["URL"]) {
+        window.open(this.record.fields["URL"], "_blank");
       }
     },
     async submitFeedback() {
