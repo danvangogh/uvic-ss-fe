@@ -151,12 +151,18 @@ export default {
           recordId: "rechcwCYlQzarNwVB",
           thumbnail: "/Image_Feature.png",
         },
+        {
+          name: "Video Feature (1 image)",
+          recordId: "recCASdQbfqDiZpSI",
+          thumbnail: "/Generic_Video_Feature_1Image.png",
+        }
       ],
       successMessage: "",
     };
   },
   computed: {
     filteredContentTypes() {
+      // If there's no image, only display Listicle Carousel and Summary Carousel
       if (
         (this.formData.submissionType === "pdf" && !this.formData.image) ||
         (this.formData.submissionType === "article" &&
