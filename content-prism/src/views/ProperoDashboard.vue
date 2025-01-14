@@ -4,56 +4,112 @@
     <div v-if="loading">
       <p>Content is loading...</p>
     </div>
-    <table v-else-if="records.length">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Posting Date</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="record in records" :key="record.id">
-          <router-link :to="`/propero/record/${record.id}`">
-            <td>
-              <strong>{{ record.fields.Content_Type }}:</strong>
-              {{ record.fields.Name }}
-            </td>
-          </router-link>
-          <td>{{ record.fields.Posting_Date }}</td>
-          <td>{{ record.fields.Status }}</td>
-        </tr>
-      </tbody>
-    </table>
-
-    <p v-else>No records found.</p>
+    <div v-else>
+      <div class="filter-buttons">
+        <button
+          @click="setFilter('Pending Approval')"
+          :class="{ active: filter === 'Pending Approval' }"
+        >
+          Pending Approval
+        </button>
+        <button
+          @click="setFilter('Scheduled')"
+          :class="{ active: filter === 'Scheduled' }"
+        >
+          Scheduled
+        </button>
+        <button @click="setFilter('All')" :class="{ active: filter === 'All' }">
+          All
+        </button>
+        <button
+          @click="setFilter('Archived')"
+          :class="{ active: filter === 'Archived' }"
+        >
+          Archived
+        </button>
+      </div>
+      <table v-if="filteredRecords.length">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Posting Date</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="record in filteredRecords" :key="record.id">
+            <router-link :to="`/propero/record/${record.id}`">
+              <td>
+                <strong>{{ record.fields.Content_Type }}:</strong>
+                {{ record.fields.Name }}
+              </td>
+            </router-link>
+            <td>{{ record.fields.Posting_Date }}</td>
+            <td>{{ record.fields.Status }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p v-else>No records found.</p>
+    </div>
   </div>
 </template>
 
 <script>
 import axios from "axios";
-// import Cookies from "js-cookie"; // Import Cookies
 
 export default {
   data() {
     return {
       records: [],
-      loading: true, // Added loading state
+      loading: true,
+      filter: "Pending Approval", // Default filter
     };
   },
-  async created() {
-    try {
-      const baseURL =
-        process.env.VUE_APP_API_BASE_URL || "http://localhost:3000";
-      const response = await axios.get(`${baseURL}/api/propero/records`);
-      this.records = response.data.records;
-    } catch (error) {
-      console.error("Error loading records:", error);
-    } finally {
-      this.loading = false;
-    }
+  computed: {
+    filteredRecords() {
+      if (this.filter === "All") {
+        return this.records;
+      } else if (this.filter === "Pending Approval") {
+        return this.records.filter(
+          (record) => record.fields.Status === "Pending Approval"
+        );
+      } else if (this.filter === "Scheduled") {
+        return this.records.filter(
+          (record) => record.fields.Status === "Scheduled"
+        );
+      } else if (this.filter === "Archived") {
+        return this.records.filter(
+          (record) =>
+            record.fields.Status === "Posted" ||
+            record.fields.Status === "Archived"
+        );
+      } else {
+        return this.records; // Default return value
+      }
+    },
   },
-  methods: {},
+  methods: {
+    setFilter(filter) {
+      this.filter = filter;
+      console.log("Filter set to:", filter);
+    },
+    async fetchRecords() {
+      this.loading = true;
+      try {
+        const baseURL =
+          process.env.VUE_APP_API_BASE_URL || "http://localhost:3000";
+        const response = await axios.get(`${baseURL}/api/propero/records`);
+        this.records = response.data.records;
+      } catch (error) {
+        console.error("Error fetching records:", error);
+      } finally {
+        this.loading = false;
+      }
+    },
+  },
+  created() {
+    this.fetchRecords();
+  },
 };
 </script>
 
@@ -73,5 +129,32 @@ export default {
   p {
     font-size: 12px;
   }
+}
+
+.main-content {
+  padding: 20px;
+}
+
+.filter-buttons {
+  margin-bottom: 20px;
+}
+
+.filter-buttons button {
+  margin-right: 10px;
+  background-color: #ffffff;
+  border: 1px solid #333;
+  padding: 5px 10px;
+  border-radius: 3px;
+  color: #333;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.filter-buttons button.active {
+  background-color: #f3f3f3;
+}
+
+.filter-buttons button:hover {
+  background-color: #f3f3f3;
 }
 </style>

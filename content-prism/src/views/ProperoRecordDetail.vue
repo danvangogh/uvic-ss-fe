@@ -4,6 +4,9 @@
     <div v-else-if="record">
       <h2>{{ record?.fields?.Name || "Fetching article name..." }}</h2>
       <h6 v-if="record?.fields" style="font-weight: 300; margin: 0">
+        Content Type: {{ record?.fields?.Content_Type || "Fetching Status..." }}
+      </h6>
+      <h6 v-if="record?.fields" style="font-weight: 300; margin: 0">
         Status: {{ record?.fields?.Status || "Fetching Status..." }}
       </h6>
       <h6 v-if="record?.fields" style="font-weight: 300; margin-top: 0">
@@ -137,7 +140,7 @@ export default {
         const response = await axios.patch(
           `${baseURL}/api/propero/records/${id}`,
           {
-            Status: "Pending Revision",
+            Status: "In Revision",
             Notes: this.notes,
             Main_Text: this.mainText,
             Caption: this.caption,

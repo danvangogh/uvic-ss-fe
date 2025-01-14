@@ -81,6 +81,7 @@ app.post("/api/login", (req, res) => {
     { username: "Scott", password: "Accelerate", role: "propero" },
     { username: "Sheila", password: "Accelerate", role: "propero" },
     { username: "Colin", password: "Accelerate", role: "propero" },
+    { username: "Mark", password: "Accelerate", role: "propero" },
   ];
 
   const user = hardcodedUsers.find(
