@@ -133,6 +133,7 @@ export default {
         password: "",
       },
       formData: {
+        name: "",
         submissionType: "News Article", // Default to Article submission
         url: "",
         blog: "",
@@ -210,6 +211,7 @@ export default {
         this.mainText = await this.extractTextFromPDF(this.formData.pdf);
       } else if (this.formData.blog) {
         this.mainText = this.formData.blog;
+        this.name = this.formData.blogTitle;
       }
 
         // Upload image and get the URL
@@ -217,6 +219,7 @@ export default {
 
         // Prepare JSON data
         const data = {
+          name: this.name,
           submissionType: this.formData.submissionType,
           url: this.formData.url,
           notes: this.formData.notes,
@@ -247,6 +250,7 @@ export default {
 
       // Clear the form data
       this.formData = {
+        name: "",
         submissionType: "News Article",
         url: "",
         instructions: "",

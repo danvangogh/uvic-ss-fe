@@ -314,6 +314,7 @@ app.post("/api/propero/content-request", async (req, res) => {
   console.log("Received data:", req.body); // Log the received data for debugging
   try {
     const {
+      name,
       submissionType,
       url,
       notes,
@@ -330,6 +331,7 @@ app.post("/api/propero/content-request", async (req, res) => {
       records: [
         {
           fields: {
+            Name: name,
             Content_Type: submissionType,
             URL: url,
             Notes: notes,
