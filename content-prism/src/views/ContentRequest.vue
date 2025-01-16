@@ -155,7 +155,7 @@ export default {
           name: "Video Feature (1 image)",
           recordId: "recCASdQbfqDiZpSI",
           thumbnail: "/Generic_Video_Feature_1Image.png",
-        }
+        },
       ],
       successMessage: "",
     };
@@ -173,20 +173,6 @@ export default {
           (type) =>
             type.name === "Listicle Carousel" ||
             type.name === "Summary Carousel"
-        );
-      } else if (
-        (this.formData.submissionType === "pdf" && this.formData.image) ||
-        (this.formData.submissionType === "article" &&
-          !this.formData.url.includes("uvic.ca"))
-      ) {
-        return this.contentTypes.filter(
-          (type) =>
-            type.name === "Listicle Carousel" ||
-            type.name === "Summary Carousel" ||
-            type.name === "Generic Question Carousel" ||
-            type.name === "Text-on-image" ||
-            type.name === "Quote over image (text left)" ||
-            type.name === "Quote over image (text right)"
         );
       } else {
         return this.contentTypes;
