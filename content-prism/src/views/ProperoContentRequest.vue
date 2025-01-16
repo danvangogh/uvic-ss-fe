@@ -122,6 +122,7 @@
 <script>
 import axios from "axios";
 import Cookies from "js-cookie";
+import * as pdfjsLib from "pdfjs-dist/webpack";
 
 export default {
   data() {
@@ -139,6 +140,7 @@ export default {
         notes: "",
         author: "",
         pdf: null,
+        mainText: "",
       },
       successMessage: "",
     };
@@ -149,7 +151,32 @@ export default {
       this.formData.pdf = event.target.files[0];
       console.log("PDF file selected:", this.formData.pdf);
     },
-    async uploadImage() {
+    async extractTextFromPDF(file) {
+      console.log("Extracting text from PDF...");
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let text = "";
+
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          const strings = content.items.map((item) => item.str);
+          text += strings.join(" ");
+        }
+
+        // Truncate text to 99,999 characters if it exceeds 100,000 characters
+        if (text.length > 100000) {
+          text = text.substring(0, 99999);
+        }
+
+        return text;
+      } catch (error) {
+        console.error("Error extracting text from PDF:", error);
+        throw new Error("Invalid PDF structure");
+      }
+    },
+    async uploadPDF() {
       console.log("Uploading image...");
       if (this.formData.pdf) {
         const baseURL =
@@ -177,8 +204,16 @@ export default {
         // Get the username from the cookie
         const username = Cookies.get("username");
 
+        // Assign mainText by checking if a PDF has been uploaded and extract text, otherwise blog text is assigned
+      if (this.formData.pdf) {
+        console.log("Calling extraction function...");
+        this.mainText = await this.extractTextFromPDF(this.formData.pdf);
+      } else if (this.formData.blog) {
+        this.mainText = this.formData.blog;
+      }
+
         // Upload image and get the URL
-        const imageUrl = await this.uploadImage();
+        const imageUrl = await this.uploadPDF();
 
         // Prepare JSON data
         const data = {
@@ -186,11 +221,11 @@ export default {
           url: this.formData.url,
           notes: this.formData.notes,
           username: username,
-          blog: this.formData.blog,
           blogTitle: this.formData.blogTitle,
           author: this.formData.author,
           status: "New Submission",
           imageUrl: imageUrl,
+          mainText: this.mainText,
         };
         // console.log("Submitting Data object:", data);
 
@@ -219,6 +254,7 @@ export default {
         notes: "",
         pdf: null,
         blog: "",
+        mainText: "",
         blogTitle: "",
         author: "",
       };
