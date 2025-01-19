@@ -18,8 +18,11 @@
         >
           Scheduled
         </button>
-        <button @click="setFilter('All')" :class="{ active: filter === 'All' }">
-          All
+        <button
+          @click="setFilter('In Progress')"
+          :class="{ active: filter === 'In Progress' }"
+        >
+          In Progress
         </button>
         <button
           @click="setFilter('Archived')"
@@ -33,11 +36,11 @@
           <tr>
             <th>Title</th>
             <th>Posting Date</th>
-            <th>Status</th>
+            <th>Working Status</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="record in filteredRecords" :key="record.id">
+          <!-- <tr v-for="record in filteredRecords" :key="record.id">
             <router-link :to="`/propero/record/${record.id}`">
               <td>
                 <strong>{{ record.fields.Content_Type }}:</strong>
@@ -46,6 +49,19 @@
             </router-link>
             <td>{{ record.fields.Posting_Date }}</td>
             <td>{{ record.fields.Status }}</td>
+          </tr> -->
+          <tr v-for="record in filteredRecords" :key="record.id">
+            <td>
+              <strong>{{ record.fields.Content_Type }}: </strong>
+              <span v-if="filter === 'In Progress'">
+                {{ record.fields.Name }}
+              </span>
+              <router-link v-else :to="`/propero/record/${record.id}`">
+                {{ record.fields.Name }}
+              </router-link>
+            </td>
+            <td>{{ record.fields.Posting_Date }}</td>
+            <td>{{ record.fields["Approval Status"] }}</td>
           </tr>
         </tbody>
       </table>
@@ -67,15 +83,17 @@ export default {
   },
   computed: {
     filteredRecords() {
-      if (this.filter === "All") {
+      if (this.filter === "In Progress") {
         return this.records;
       } else if (this.filter === "Pending Approval") {
         return this.records.filter(
-          (record) => record.fields.Status === "Pending Approval"
+          (record) => record.fields["Approval Status"] === "Pending Approval"
         );
       } else if (this.filter === "Scheduled") {
         return this.records.filter(
-          (record) => record.fields.Status === "Scheduled"
+          (record) =>
+            record.fields.Status === "Scheduled" &&
+            record.fields["Approval Status"] === "Approved"
         );
       } else if (this.filter === "Archived") {
         return this.records.filter(

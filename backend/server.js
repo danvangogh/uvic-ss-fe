@@ -322,6 +322,7 @@ app.post("/api/propero/content-request", async (req, res) => {
       blogTitle,
       author,
       status,
+      approvalStatus,
       imageUrl,
     } = req.body;
 
@@ -336,6 +337,7 @@ app.post("/api/propero/content-request", async (req, res) => {
             "Submitted By": username,
             Main_Text: blog,
             Status: status,
+            "Approval Status": approvalStatus,
             Author: author,
             Blog_Title: blogTitle,
             PDF_URL: imageUrl,
