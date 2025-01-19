@@ -54,13 +54,13 @@
             <td>
               <strong>{{ record.fields.Content_Type }}: </strong>
               <span v-if="filter === 'In Progress'">
-                {{ record.fields.Name }}
+                {{ record.fields.Name || "Fetching article name..." }}
               </span>
               <router-link v-else :to="`/propero/record/${record.id}`">
                 {{ record.fields.Name }}
               </router-link>
             </td>
-            <td>{{ record.fields.Posting_Date }}</td>
+            <td>{{ record.fields.Posting_Date || "TBD" }}</td>
             <td>{{ record.fields["Approval Status"] }}</td>
           </tr>
         </tbody>
@@ -84,7 +84,9 @@ export default {
   computed: {
     filteredRecords() {
       if (this.filter === "In Progress") {
-        return this.records;
+        return this.records.filter(
+          (record) => record.fields["Approval Status"] === "In Progress"
+        );
       } else if (this.filter === "Pending Approval") {
         return this.records.filter(
           (record) => record.fields["Approval Status"] === "Pending Approval"

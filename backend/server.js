@@ -260,20 +260,15 @@ const properoAirtableApi = axios.create({
 // Propero Get - Load all records
 app.get("/api/propero/records", async (req, res) => {
   try {
-    const records = [];
-    let offset;
+    const response = await properoAirtableApi.get("/");
+    let records = response.data.records;
 
-    do {
-      const response = await properoAirtableApi.get("", {
-        params: {
-          offset,
-          view: "Grid view",
-        },
-      });
-
-      records.push(...response.data.records);
-      offset = response.data.offset;
-    } while (offset);
+    // Sort records by Posting Date
+    records.sort((a, b) => {
+      const dateA = new Date(a.fields["Posting_Date"]);
+      const dateB = new Date(b.fields["Posting_Date"]);
+      return dateA - dateB;
+    });
 
     res.json({ records });
   } catch (error) {
