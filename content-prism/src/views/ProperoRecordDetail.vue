@@ -13,6 +13,17 @@
         Scheduled for:
         {{ record?.fields?.Posting_Date || "Fetching Status..." }}
       </h6>
+
+      <!-- Notes from Daniel -->
+      <div
+        v-if="record?.fields?.['Notes from Daniel']"
+        class="notes-from-daniel"
+      >
+        <h4>Notes from Daniel</h4>
+        <p>{{ record.fields["Notes from Daniel"] }}</p>
+      </div>
+      <!-- End Notes from Daniel -->
+
       <button
         v-if="record?.fields?.['URL']"
         class="propero-preview-button"
@@ -150,15 +161,15 @@ export default {
         this.notes = ""; // Clear the feedback form
         this.mainText = ""; // Clear the main text form
         console.log("Feedback submitted:", this.notes);
-        this.$router.push({ name: "properoDashboard" }); // Navigate to the dashboard
+        setTimeout(() => {
+          this.$router.push({ name: "properoDashboard" }); // Navigate to the dashboard after delay
+        }, 2000); // 2-second delay
       } catch (error) {
         console.error("Error submitting feedback:", error.message);
-      } finally {
-        this.loading = false; // Set loading state to false
+        this.loading = false; // Set loading state to false only on error
       }
     },
     async submitApproval() {
-      this.$router.push({ name: "properoDashboard" }); // Navigate to the dashboard
       try {
         this.loading = true; // Set loading state to true
         const baseURL =
@@ -167,7 +178,7 @@ export default {
         const response = await axios.patch(
           `${baseURL}/api/propero/records/${id}`,
           {
-            Status: "Approved",
+            "Approval Status": "Approved", // Update Approval Status
             Notes: this.notes,
             Main_Text: this.mainText,
             Caption: this.caption,
@@ -177,11 +188,12 @@ export default {
         this.notes = ""; // Clear the feedback form
         this.mainText = ""; // Clear the main text form
         console.log("Feedback submitted:", this.notes);
-        this.$router.push({ name: "properoDashboard" }); // Navigate to the dashboard
+        setTimeout(() => {
+          this.$router.push({ name: "properoDashboard" }); // Navigate to the dashboard after delay
+        }, 2000); // 2-second delay
       } catch (error) {
         console.error("Error submitting feedback:", error.message);
-      } finally {
-        this.loading = false; // Set loading state to false
+        this.loading = false; // Set loading state to false only on error
       }
     },
     adjustTextareaHeight(event) {
@@ -228,5 +240,17 @@ export default {
   border: 1px solid #ccc;
   border-radius: 4px;
   resize: none; /* Prevent manual resizing */
+}
+
+.notes-from-daniel {
+  margin: 20px 0px;
+  background-color: #f7f7f7;
+  padding: 5px 10px;
+}
+
+.notes-from-daniel h4,
+p {
+  font-size: 12px;
+  font-style: italic;
 }
 </style>
