@@ -372,9 +372,11 @@ app.post(
         Bucket: process.env.DO_SPACES_BUCKET,
         Key: `uploads/propero/${timestamp}_${sanitizedFileName}`,
         Body: file.buffer,
-        ACL: "public-read",
+        ContentType: "application/pdf",
+        ContentDisposition: "inline", // Set Content-Disposition to inline
+        ACL: "public-read", // Optional: make the file publicly readable
       };
-      
+
       const command = new PutObjectCommand(params);
       await s3Client.send(command);
       const url = `https://${process.env.DO_SPACES_BUCKET}.tor1.digitaloceanspaces.com/uploads/propero/${timestamp}_${sanitizedFileName}`;
@@ -477,7 +479,7 @@ app.post("/api/propero/pdf-parse", async (req, res) => {
   }
 });
 
-app.post("/api/propero/pdf-parse", upload.single('pdf'), async (req, res) => {
+app.post("/api/propero/pdf-parse", upload.single("pdf"), async (req, res) => {
   console.log("Received PDF for parsing"); // Log for debugging
   try {
     const pdfFile = req.file; // Assuming you're using multer to handle file uploads
@@ -489,14 +491,22 @@ app.post("/api/propero/pdf-parse", upload.single('pdf'), async (req, res) => {
     const baseURL = process.env.VUE_APP_API_BASE_URL || "http://localhost:3000";
 
     const formData = new FormData();
-    formData.append("pdf", fs.createReadStream(pdfFile.path), pdfFile.originalname);
+    formData.append(
+      "pdf",
+      fs.createReadStream(pdfFile.path),
+      pdfFile.originalname
+    );
 
     const headers = formData.getHeaders();
-    headers['Content-Type'] = 'application/pdf';
+    headers["Content-Type"] = "application/pdf";
 
-    const response = await axios.post(`${baseURL}/api/propero/upload-image`, formData, {
-      headers: headers,
-    });
+    const response = await axios.post(
+      `${baseURL}/api/propero/upload-image`,
+      formData,
+      {
+        headers: headers,
+      }
+    );
 
     // Delete the temporary file
     fs.unlinkSync(pdfFile.path);
