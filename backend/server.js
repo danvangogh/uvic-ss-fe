@@ -374,6 +374,7 @@ app.post(
         Body: file.buffer,
         ACL: "public-read",
       };
+      
       const command = new PutObjectCommand(params);
       await s3Client.send(command);
       const url = `https://${process.env.DO_SPACES_BUCKET}.tor1.digitaloceanspaces.com/uploads/propero/${timestamp}_${sanitizedFileName}`;
@@ -438,16 +439,17 @@ app.post("/api/propero/pdf-parse", async (req, res) => {
     );
     fs.writeFileSync(pdfPath, pdfBytes);
 
-    // Upload the PDF using the existing /api/upload-image endpoint
+    // Upload the PDF using the existing /api/propero/upload-image endpoint
     const formData = new FormData();
     formData.append("image", fs.createReadStream(pdfPath));
 
     const uploadResponse = await axios.post(
       // "http://localhost:3000/api/upload-image",
-      `${BASE_SERVER_URL}/api/upload-image`,
+      `${BASE_SERVER_URL}/api/propero/upload-image`,
       formData,
       {
         headers: formData.getHeaders(),
+        "Content-Type": "application/pdf",
       }
     );
 
@@ -461,7 +463,7 @@ app.post("/api/propero/pdf-parse", async (req, res) => {
       fileUrl: uploadResponse.data.url,
       fileName: req.body.metadata,
     });
-    console.log("response from /upload-image", uploadResponse.data.url);
+    console.log("response from /propero/upload-image", uploadResponse.data.url);
     console.log("fileName", req.body.metadata);
 
     // Send the file URL as a response
@@ -472,5 +474,40 @@ app.post("/api/propero/pdf-parse", async (req, res) => {
   } catch (error) {
     console.error("Error creating PDF:", error.message);
     res.status(500).send("Error creating PDF");
+  }
+});
+
+app.post("/api/propero/pdf-parse", upload.single('pdf'), async (req, res) => {
+  console.log("Received PDF for parsing"); // Log for debugging
+  try {
+    const pdfFile = req.file; // Assuming you're using multer to handle file uploads
+
+    if (!pdfFile) {
+      return res.status(400).send("No PDF file uploaded");
+    }
+
+    const baseURL = process.env.VUE_APP_API_BASE_URL || "http://localhost:3000";
+
+    const formData = new FormData();
+    formData.append("pdf", fs.createReadStream(pdfFile.path), pdfFile.originalname);
+
+    const headers = formData.getHeaders();
+    headers['Content-Type'] = 'application/pdf';
+
+    const response = await axios.post(`${baseURL}/api/propero/upload-image`, formData, {
+      headers: headers,
+    });
+
+    // Delete the temporary file
+    fs.unlinkSync(pdfFile.path);
+
+    // Send the file URL as a response
+    res.json({
+      fileUrl: response.data.url,
+      fileName: pdfFile.originalname,
+    });
+  } catch (error) {
+    console.error("Error parsing PDF:", error.message);
+    res.status(500).send("Error parsing PDF");
   }
 });

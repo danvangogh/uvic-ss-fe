@@ -24,13 +24,18 @@
       </div>
       <!-- End Notes from Daniel -->
 
+      <!-- PDF Preview or Preview Button -->
+      <div v-if="record?.fields?.['Content_Type'] === 'Report Summary for Social' && record?.fields?.['Preview_Link']">
+        <iframe :src="record.fields['Preview_Link']" type="application/pdf" width="100%" height="600px"></iframe>
+      </div>
       <button
-        v-if="record?.fields?.['URL']"
+        v-else-if="record?.fields?.['URL']"
         class="propero-preview-button"
         @click="openPreviewLink"
       >
         Content Preview
       </button>
+      <!-- End PDF Preview or Preview Button -->
 
       <!-- Caption -->
       <div
@@ -66,6 +71,7 @@
         ></textarea>
       </div>
       <!-- End Text -->
+       
       <!-- Notes/Feedback -->
       <h4 v-if="record?.fields" style="font-weight: 300; margin-bottom: 0">
         <strong>Notes/Feedback: </strong>
@@ -137,8 +143,13 @@ export default {
   },
   methods: {
     openPreviewLink() {
-      if (this.record?.fields?.["URL"]) {
-        window.open(this.record.fields["URL"], "_blank");
+      const previewLink = this.record.fields['Preview_Link'];
+      const url = this.record.fields['URL'];
+      const link = previewLink ? previewLink : url;
+      if (link) {
+        window.open(link, '_blank');
+      } else {
+        console.error('No valid link found in the record.');
       }
     },
     async submitFeedback() {
