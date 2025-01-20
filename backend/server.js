@@ -372,9 +372,7 @@ app.post(
         Bucket: process.env.DO_SPACES_BUCKET,
         Key: `uploads/propero/${timestamp}_${sanitizedFileName}`,
         Body: file.buffer,
-        ContentType: "application/pdf",
-        ContentDisposition: "inline", // Set Content-Disposition to inline
-        ACL: "public-read", // Optional: make the file publicly readable
+        ACL: "public-read",
       };
       const command = new PutObjectCommand(params);
       await s3Client.send(command);
