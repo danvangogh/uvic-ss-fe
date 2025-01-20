@@ -1,11 +1,14 @@
 const express = require("express");
 const axios = require("axios");
 const cors = require("cors");
+const fs = require("fs");
 const path = require("path");
 const multer = require("multer");
 const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const dotenv = require("dotenv");
+const { PDFDocument, rgb } = require("pdf-lib");
+const FormData = require("form-data");
 
 dotenv.config();
 
@@ -380,3 +383,76 @@ app.post(
     }
   }
 );
+
+// Endpoint to receive payload from BannerBear and create a PDF
+app.post("/api/propero/pdf-parse", async (req, res) => {
+  // console.log("Received data:", req.body);
+
+  let image_urls = [];
+
+  // Assuming the relevant image URLs are stored under `image_urls` in the JSON
+  Object.values(req.body.image_urls).forEach((url) => {
+    // Check if the URL ends with '.png' to exclude JPG files
+    if (url.endsWith(".png")) {
+      // Adding the URL to the array
+      image_urls.push(url);
+    }
+  });
+  console.log("Image URLs:", image_urls);
+  try {
+    if (!image_urls || image_urls.length === 0) {
+      return res
+        .status(400)
+        .send(
+          "Invalid payload: image_urls is required and should be an array of URLs."
+        );
+    }
+
+    // Create a new PDF document
+    const pdfDoc = await PDFDocument.create();
+
+    // Fetch each image and add it to the PDF
+    for (const imageUrl of image_urls) {
+      const response = await axios.get(imageUrl, {
+        responseType: "arraybuffer",
+      });
+      const imageBytes = response.data;
+      const image = await pdfDoc.embedPng(imageBytes);
+      const page = pdfDoc.addPage([image.width, image.height]);
+      page.drawImage(image, {
+        x: 0,
+        y: 0,
+        width: image.width,
+        height: image.height,
+      });
+    }
+
+    // Serialize the PDF document to bytes (a Uint8Array)
+    const pdfBytes = await pdfDoc.save();
+
+    // Save the PDF to a temporary file
+    const pdfPath = path.join(__dirname, `output-${Date.now()}.pdf`);
+    fs.writeFileSync(pdfPath, pdfBytes);
+
+    // Upload the PDF using the existing /api/upload-image endpoint
+    const formData = new FormData();
+    formData.append("image", fs.createReadStream(pdfPath));
+
+    const uploadResponse = await axios.post(
+      "http://localhost:3000/api/upload-image",
+      formData,
+      {
+        headers: formData.getHeaders(),
+      }
+    );
+
+    // Delete the temporary file
+    fs.unlinkSync(pdfPath);
+
+    // Send the file URL as a response
+    res.json({ fileUrl: uploadResponse.data.url });
+  } catch (error) {
+    console.error("Error creating PDF:", error.message);
+    res.status(500).send("Error creating PDF");
+  }
+});
