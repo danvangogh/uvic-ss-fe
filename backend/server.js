@@ -15,6 +15,7 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
+const BASE_SERVER_URL = process.env.BASE_SERVER_URL;
 const history = require("connect-history-api-fallback");
 app.use(history());
 
@@ -430,8 +431,11 @@ app.post("/api/propero/pdf-parse", async (req, res) => {
     // Serialize the PDF document to bytes (a Uint8Array)
     const pdfBytes = await pdfDoc.save();
 
-    // Save the PDF to a temporary file
-    const pdfPath = path.join(__dirname, `output-${Date.now()}.pdf`);
+    // Save the PDF to a temporary file with the name based on metadata
+    const pdfPath = path.join(
+      __dirname,
+      `${req.body.metadata}-${Date.now()}.pdf`
+    );
     fs.writeFileSync(pdfPath, pdfBytes);
 
     // Upload the PDF using the existing /api/upload-image endpoint
@@ -439,7 +443,8 @@ app.post("/api/propero/pdf-parse", async (req, res) => {
     formData.append("image", fs.createReadStream(pdfPath));
 
     const uploadResponse = await axios.post(
-      "http://localhost:3000/api/upload-image",
+      // "http://localhost:3000/api/upload-image",
+      `${BASE_SERVER_URL}/api/upload-image`,
       formData,
       {
         headers: formData.getHeaders(),
@@ -449,8 +454,21 @@ app.post("/api/propero/pdf-parse", async (req, res) => {
     // Delete the temporary file
     fs.unlinkSync(pdfPath);
 
+    // Send the file URL to the webhook
+    const webhookUrl =
+      "https://hook.us1.make.com/i1359awa38rawdms5k9fnubih92oxxdc";
+    await axios.post(webhookUrl, {
+      fileUrl: uploadResponse.data.url,
+      fileName: req.body.metadata,
+    });
+    console.log("response from /upload-image", uploadResponse.data.url);
+    console.log("fileName", req.body.metadata);
+
     // Send the file URL as a response
-    res.json({ fileUrl: uploadResponse.data.url });
+    res.json({
+      fileUrl: uploadResponse.data.url,
+      fileName: req.body.metadata,
+    });
   } catch (error) {
     console.error("Error creating PDF:", error.message);
     res.status(500).send("Error creating PDF");
