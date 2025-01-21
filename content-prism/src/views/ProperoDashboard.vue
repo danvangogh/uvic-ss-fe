@@ -1,46 +1,47 @@
 <template>
-  <div class="main-content">
-    <h1>Approval Dashboard</h1>
-    <div v-if="loading">
-      <p>Content is loading...</p>
-    </div>
-    <div v-else>
-      <div class="filter-buttons">
-        <button
-          @click="setFilter('Pending Approval')"
-          :class="{ active: filter === 'Pending Approval' }"
-        >
-          Pending Approval
-        </button>
-        <button
-          @click="setFilter('Scheduled')"
-          :class="{ active: filter === 'Scheduled' }"
-        >
-          Scheduled
-        </button>
-        <button
-          @click="setFilter('In Progress')"
-          :class="{ active: filter === 'In Progress' }"
-        >
-          In Progress
-        </button>
-        <button
-          @click="setFilter('Archived')"
-          :class="{ active: filter === 'Archived' }"
-        >
-          Archived
-        </button>
+  <div class="main-content-wrapper">
+    <div class="main-content">
+      <h1>Dashboard</h1>
+      <div v-if="loading">
+        <p>Content is loading...</p>
       </div>
-      <table v-if="filteredRecords.length">
-        <thead>
-          <tr>
-            <th>Title</th>
-            <th>Posting Date</th>
-            <th>Working Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          <!-- <tr v-for="record in filteredRecords" :key="record.id">
+      <div v-else>
+        <div class="filter-buttons">
+          <button
+            @click="setFilter('Pending Approval')"
+            :class="{ active: filter === 'Pending Approval' }"
+          >
+            Pending Approval
+          </button>
+          <button
+            @click="setFilter('Scheduled')"
+            :class="{ active: filter === 'Scheduled' }"
+          >
+            Approved & Scheduled
+          </button>
+          <button
+            @click="setFilter('In Progress')"
+            :class="{ active: filter === 'In Progress' }"
+          >
+            In Progress
+          </button>
+          <button
+            @click="setFilter('Archived')"
+            :class="{ active: filter === 'Archived' }"
+          >
+            Archived
+          </button>
+        </div>
+        <table v-if="filteredRecords.length">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Posting Date</th>
+              <th>Working Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- <tr v-for="record in filteredRecords" :key="record.id">
             <router-link :to="`/propero/record/${record.id}`">
               <td>
                 <strong>{{ record.fields.Content_Type }}:</strong>
@@ -50,22 +51,40 @@
             <td>{{ record.fields.Posting_Date }}</td>
             <td>{{ record.fields.Status }}</td>
           </tr> -->
-          <tr v-for="record in filteredRecords" :key="record.id">
-            <td>
-              <strong>{{ record.fields.Content_Type }}: </strong>
-              <span v-if="filter === 'In Progress'">
-                {{ record.fields.Name || "Fetching article name..." }}
-              </span>
-              <router-link v-else :to="`/propero/record/${record.id}`">
-                {{ record.fields.Name }}
-              </router-link>
-            </td>
-            <td>{{ record.fields.Posting_Date || "TBD" }}</td>
-            <td>{{ record.fields["Approval Status"] }}</td>
-          </tr>
-        </tbody>
-      </table>
-      <p v-else>No records found.</p>
+            <tr v-for="record in filteredRecords" :key="record.id">
+              <td>
+                <strong>{{ record.fields.Content_Type }}: </strong>
+                <span v-if="filter === 'In Progress'">
+                  {{ record.fields.Name || "Fetching article name..." }}
+                </span>
+                <router-link v-else :to="`/propero/record/${record.id}`">
+                  {{ record.fields.Name }}
+                </router-link>
+              </td>
+              <td>{{ record.fields.Posting_Date || "TBD" }}</td>
+              <td>{{ record.fields["Approval Status"] }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <p v-else>No records found.</p>
+      </div>
+    </div>
+    <div
+      v-if="filter === 'Pending Approval' || filter === 'Scheduled'"
+      class="main-content airtable-calendar"
+    >
+      <h1>Posting Calendar</h1>
+      <div>
+        <iframe
+          class="airtable-embed"
+          src="https://airtable.com/embed/appHhE7IIvFQ5G3XT/shrN3WjkohJImYMLz?viewControls=off"
+          frameborder="0"
+          onmousewheel=""
+          width="100%"
+          height="533"
+          style="background: transparent; border: 1px solid #ccc"
+        ></iframe>
+      </div>
     </div>
   </div>
 </template>
@@ -153,6 +172,7 @@ export default {
 
 .main-content {
   padding: 20px;
+  margin-bottom: 5%;
 }
 
 .filter-buttons {
@@ -176,5 +196,12 @@ export default {
 
 .filter-buttons button:hover {
   background-color: #f3f3f3;
+}
+
+.main-content-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
 }
 </style>
