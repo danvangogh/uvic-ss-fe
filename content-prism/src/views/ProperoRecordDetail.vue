@@ -38,7 +38,6 @@
       <!-- Caption -->
       <div
         v-if="
-          record?.fields?.Content_Type !== 'Propero Blog' &&
           record?.fields?.Content_Type !== 'Email Newsletter'
         "
       >
