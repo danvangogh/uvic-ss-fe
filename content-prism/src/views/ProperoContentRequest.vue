@@ -113,9 +113,19 @@
         ></textarea>
       </div>
 
-      <button type="submit">Submit</button>
+      <!-- Loading Animation -->
+      <div v-if="loading" class="loading-animation">
+        <div class="spinner"></div>
+      </div>
+
+      <!-- Success Message -->
+      <p v-if="successMessage">{{ successMessage }}</p>
+
+      <!-- Submit Button -->
+      <button @click="submitContent" :disabled="loading">
+        {{ loading ? "Submitting..." : "Submit" }}
+      </button>
     </form>
-    <p v-if="successMessage">{{ successMessage }}</p>
   </div>
 </template>
 
@@ -144,6 +154,7 @@ export default {
         mainText: "",
       },
       successMessage: "",
+      loading: false,
     };
   },
   computed: {},
@@ -199,6 +210,7 @@ export default {
     },
     async submitContent() {
       try {
+        this.loading = true; // Set loading state to true
         const baseURL =
           process.env.VUE_APP_API_BASE_URL || "http://localhost:3000";
 
@@ -206,13 +218,13 @@ export default {
         const username = Cookies.get("username");
 
         // Assign mainText by checking if a PDF has been uploaded and extract text, otherwise blog text is assigned
-      if (this.formData.pdf) {
-        console.log("Calling extraction function...");
-        this.mainText = await this.extractTextFromPDF(this.formData.pdf);
-      } else if (this.formData.blog) {
-        this.mainText = this.formData.blog;
-        this.name = this.formData.blogTitle;
-      }
+        if (this.formData.pdf) {
+          console.log("Calling extraction function...");
+          this.mainText = await this.extractTextFromPDF(this.formData.pdf);
+        } else if (this.formData.blog) {
+          this.mainText = this.formData.blog;
+          this.name = this.formData.blogTitle;
+        }
 
         // Upload image and get the URL
         const imageUrl = await this.uploadPDF();
@@ -237,6 +249,9 @@ export default {
             "Content-Type": "application/json",
           },
         });
+
+        // Set loading state to false
+        this.loading = false;
 
         // Set the success message
         this.successMessage = `${this.formData.submissionType} submitted successfully!`;
@@ -347,5 +362,26 @@ select {
 }
 .thumbnail p {
   font-size: 8px;
+}
+/* Spinner Animation */
+.loading-animation {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.spinner {
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  border-left-color: #000;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+  /* End Spinner Animation */
 }
 </style>

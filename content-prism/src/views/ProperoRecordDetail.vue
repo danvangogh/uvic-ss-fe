@@ -6,8 +6,11 @@
       <h6 v-if="record?.fields" style="font-weight: 300; margin: 0">
         Content Type: {{ record?.fields?.Content_Type || "Fetching Status..." }}
       </h6>
-      <h6 v-if="record?.fields" style="font-weight: 300; margin: 0">
+      <!-- <h6 v-if="record?.fields" style="font-weight: 300; margin: 0">
         Status: {{ record?.fields?.Status || "Fetching Status..." }}
+      </h6> -->
+      <h6 v-if="record?.fields?.Author" style="font-weight: 300; margin: 0">
+        Author: {{ record?.fields?.Author || "Fetching Status..." }}
       </h6>
       <h6 v-if="record?.fields" style="font-weight: 300; margin-top: 0">
         Scheduled for:
