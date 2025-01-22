@@ -36,11 +36,7 @@
       </button>
 
       <!-- Caption -->
-      <div
-        v-if="
-          record?.fields?.Content_Type !== 'Email Newsletter'
-        "
-      >
+      <div v-if="record?.fields?.Content_Type !== 'Email Newsletter'">
         <h4 style="font-weight: 300; margin-bottom: 0">
           <strong>Caption for LinkedIn: </strong>
         </h4>
@@ -55,7 +51,12 @@
       <!-- End Caption -->
 
       <!-- Text -->
-      <div v-if="record?.fields?.Main_Text">
+      <div
+        v-if="
+          record?.fields?.Main_Text &&
+          record?.fields?.Content_Type === 'Propero Blog'
+        "
+      >
         <h4 style="font-weight: 300; margin-bottom: 0">
           <strong>Text: </strong>
         </h4>
