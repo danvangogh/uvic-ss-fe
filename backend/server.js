@@ -319,6 +319,12 @@ app.post("/api/uvic/pdf-parse", async (req, res) => {
     await axios.post(webhookUrl, {
       fileUrl: uploadResponse.data.url,
       fileName: req.body.metadata,
+      png1: image_urls[0],
+      png2: image_urls[1],
+      png3: image_urls[2],
+      png4: image_urls[3],
+      png5: image_urls[4],
+      png6: image_urls[5],
     });
     console.log("response from /upload-image", uploadResponse.data.url);
     console.log("fileName", req.body.metadata);
@@ -327,6 +333,12 @@ app.post("/api/uvic/pdf-parse", async (req, res) => {
     res.json({
       fileUrl: uploadResponse.data.url,
       fileName: req.body.metadata,
+      png1: image_urls[0],
+      png2: image_urls[1],
+      png3: image_urls[2],
+      png4: image_urls[3],
+      png5: image_urls[4],
+      png6: image_urls[5],
     });
   } catch (error) {
     console.error("Error creating PDF:", error.message);
