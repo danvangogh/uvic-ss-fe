@@ -327,7 +327,11 @@ app.post("/api/uvic/pdf-parse", async (req, res) => {
     });
 
     // Add slide 6 to the webhook payload if it exists
-    if (req.body.slideSix) {
+    if (
+      req.body.modifications?.some(
+        (modification) => modification.name === "p6_a"
+      )
+    ) {
       webhookPayload.png6 = image_urls[5];
     }
 
@@ -346,7 +350,11 @@ app.post("/api/uvic/pdf-parse", async (req, res) => {
     });
 
     // Add slide 6 to the webhook payload if it exists
-    if (req.body.slideSix) {
+    if (
+      req.body.modifications?.some(
+        (modification) => modification.name === "p6_a"
+      )
+    ) {
       responsePayload.png6 = image_urls[5];
     }
   } catch (error) {
