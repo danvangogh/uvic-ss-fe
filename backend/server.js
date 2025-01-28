@@ -324,8 +324,13 @@ app.post("/api/uvic/pdf-parse", async (req, res) => {
       png3: image_urls[2],
       png4: image_urls[3],
       png5: image_urls[4],
-      png6: image_urls[5],
     });
+
+    // Add slide 6 to the webhook payload if it exists
+    if (req.body.slideSix) {
+      webhookPayload.png6 = image_urls[5];
+    }
+
     console.log("response from /upload-image", uploadResponse.data.url);
     console.log("fileName", req.body.metadata);
 
@@ -338,8 +343,12 @@ app.post("/api/uvic/pdf-parse", async (req, res) => {
       png3: image_urls[2],
       png4: image_urls[3],
       png5: image_urls[4],
-      png6: image_urls[5],
     });
+
+    // Add slide 6 to the webhook payload if it exists
+    if (req.body.slideSix) {
+      responsePayload.png6 = image_urls[5];
+    }
   } catch (error) {
     console.error("Error creating PDF:", error.message);
     res.status(500).send("Error creating PDF");
