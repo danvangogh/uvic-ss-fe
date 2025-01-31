@@ -596,65 +596,65 @@ app.post("/api/propero/pdf-parse", async (req, res) => {
   }
 });
 
-// Endpoint to run Playwright automation which downloads external image and uploads it to the DigitalOcean Space
-app.post(
-  "/api/propero/image-download-playwright-automation",
-  async (req, res) => {
-    try {
-      const { recordId, imageUrl } = req.body;
-      console.log("Received data:", req.body);
+// // Endpoint to run Playwright automation which downloads external image and uploads it to the DigitalOcean Space
+// app.post(
+//   "/api/propero/image-download-playwright-automation",
+//   async (req, res) => {
+//     try {
+//       const { recordId, imageUrl } = req.body;
+//       console.log("Received data:", req.body);
 
-      if (!recordId || !imageUrl) {
-        return res
-          .status(400)
-          .send("Invalid payload: recordId and imageUrl are required.");
-      }
+//       if (!recordId || !imageUrl) {
+//         return res
+//           .status(400)
+//           .send("Invalid payload: recordId and imageUrl are required.");
+//       }
 
-      const browser = await chromium.launch({ headless: false }); // Set headless to false to see the browser
-      const page = await browser.newPage();
-      await page.goto(imageUrl);
+//       const browser = await chromium.launch({ headless: false }); // Set headless to false to see the browser
+//       const page = await browser.newPage();
+//       await page.goto(imageUrl);
 
-      console.log("imageUrl at goto", imageUrl);
+//       console.log("imageUrl at goto", imageUrl);
 
-      // Wait for the download event and save the image locally
-      const downloadPromise = page.waitForEvent("download");
-      await page.getByRole("img").click({
-        button: "right",
-      });
-      const download = await downloadPromise;
-      const imagePath = path.join(__dirname, "downloaded_image.jpg");
-      await download.saveAs(imagePath);
+//       // Wait for the download event and save the image locally
+//       const downloadPromise = page.waitForEvent("download");
+//       await page.getByRole("img").click({
+//         button: "right",
+//       });
+//       const download = await downloadPromise;
+//       const imagePath = path.join(__dirname, "downloaded_image.jpg");
+//       await download.saveAs(imagePath);
 
-      // Read the downloaded image file
-      const imageData = fs.readFileSync(imagePath);
+//       // Read the downloaded image file
+//       const imageData = fs.readFileSync(imagePath);
 
-      // Create form data
-      const form = new FormData();
-      form.append("image", imageData, {
-        filename: "downloaded_image.jpg",
-        contentType: "image/jpeg",
-      });
+//       // Create form data
+//       const form = new FormData();
+//       form.append("image", imageData, {
+//         filename: "downloaded_image.jpg",
+//         contentType: "image/jpeg",
+//       });
 
-      // Send the image file to the API endpoint using Axios
-      const response = await axios.post(
-        `${BASE_SERVER_URL}/api/propero/upload-image`,
-        form,
-        {
-          headers: {
-            ...form.getHeaders(),
-          },
-        }
-      );
+//       // Send the image file to the API endpoint using Axios
+//       const response = await axios.post(
+//         `${BASE_SERVER_URL}/api/propero/upload-image`,
+//         form,
+//         {
+//           headers: {
+//             ...form.getHeaders(),
+//           },
+//         }
+//       );
 
-      await browser.close();
-      res.json({
-        success: true,
-        message: "Automation completed successfully",
-        url: response.data.url,
-      });
-    } catch (error) {
-      console.error("Error running Playwright automation:", error.message);
-      res.status(500).send("Error running Playwright automation");
-    }
-  }
-);
+//       await browser.close();
+//       res.json({
+//         success: true,
+//         message: "Automation completed successfully",
+//         url: response.data.url,
+//       });
+//     } catch (error) {
+//       console.error("Error running Playwright automation:", error.message);
+//       res.status(500).send("Error running Playwright automation");
+//     }
+//   }
+// );
