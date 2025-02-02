@@ -247,26 +247,35 @@ app.patch("/api/records/:id", async (req, res) => {
 // UVIC PDF Parse
 
 app.post("/api/uvic/pdf-parse", async (req, res) => {
-  console.log("Received data in test:", req.body);
-
-  let image_urls = [];
-
-  // Assuming the relevant image URLs are stored under `image_urls` in the JSON
-  Object.values(req.body.image_urls).forEach((url) => {
-    // Check if the URL ends with '.png' to exclude JPG files
-    if (url.endsWith(".png")) {
-      // Adding the URL to the array
-      image_urls.push(url);
-    }
-  });
-  console.log("Image URLs:", image_urls);
   try {
+    // Check if the modification with the name p6_a has any text
+    const p6_a_modification = req.body.modifications?.find(
+      (modification) => modification.name === "p6_a"
+    );
+
+    const includePng6 = p6_a_modification && p6_a_modification.text.trim() !== "";
+
+    // Assuming the relevant image URLs are stored under `image_urls` in the JSON
+    let image_urls = [];
+    Object.values(req.body.image_urls).forEach((url) => {
+      if (url.endsWith(".png")) {
+        image_urls.push(url);
+      }
+    });
+
     if (!image_urls || image_urls.length === 0) {
       return res
         .status(400)
         .send(
           "Invalid payload: image_urls is required and should be an array of URLs."
         );
+    }
+
+    // If p6_a has text, include the 6th image
+    if (includePng6 && image_urls.length >= 6) {
+      image_urls = image_urls.slice(0, 6);
+    } else {
+      image_urls = image_urls.slice(0, 5);
     }
 
     // Create a new PDF document
@@ -291,19 +300,16 @@ app.post("/api/uvic/pdf-parse", async (req, res) => {
     // Serialize the PDF document to bytes (a Uint8Array)
     const pdfBytes = await pdfDoc.save();
 
-    // Save the PDF to a temporary file with the name based on metadata
-    const pdfPath = path.join(
-      __dirname,
-      `${req.body.metadata}-${Date.now()}.pdf`
-    );
+    // Write the PDF to a temporary file
+    const pdfPath = `./uploads/${Date.now()}.pdf`;
     fs.writeFileSync(pdfPath, pdfBytes);
 
-    // Upload the PDF using the existing /api/upload-image endpoint
+    // Prepare the form data for the upload
     const formData = new FormData();
-    formData.append("image", fs.createReadStream(pdfPath));
+    formData.append("pdf", fs.createReadStream(pdfPath));
 
+    // Upload the PDF using the existing /api/upload-image endpoint
     const uploadResponse = await axios.post(
-      // "http://localhost:3000/api/upload-image",
       `${BASE_SERVER_URL}/api/upload-image`,
       formData,
       {
@@ -314,7 +320,7 @@ app.post("/api/uvic/pdf-parse", async (req, res) => {
     // Delete the temporary file
     fs.unlinkSync(pdfPath);
 
-   // Define the webhook payload
+    // Define the webhook payload
     const webhookPayload = {
       fileUrl: uploadResponse.data.url,
       fileName: req.body.metadata,
@@ -325,12 +331,7 @@ app.post("/api/uvic/pdf-parse", async (req, res) => {
       png5: image_urls[4],
     };
 
-    // Add slide 6 to the webhook payload if it exists and has text
-    const p6_a_modification = req.body.modifications?.find(
-      (modification) => modification.name === "p6_a"
-    );
-
-    if (p6_a_modification && p6_a_modification.text.trim() !== "") {
+    if (includePng6) {
       webhookPayload.png6 = image_urls[5];
     }
 
@@ -341,12 +342,12 @@ app.post("/api/uvic/pdf-parse", async (req, res) => {
     console.log("response from /upload-image", uploadResponse.data.url);
     console.log("fileName", req.body.metadata);
 
-    // Send the file URL as a response
+    // Send the webhook payload as a response
     res.json(webhookPayload);
 
   } catch (error) {
-    console.error("Error creating PDF:", error.message);
-    res.status(500).send("Error creating PDF");
+    console.error("Error processing PDF:", error.message);
+    res.status(500).send("Error processing PDF");
   }
 });
 
