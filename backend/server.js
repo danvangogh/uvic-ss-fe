@@ -300,16 +300,19 @@ app.post("/api/uvic/pdf-parse", async (req, res) => {
     // Serialize the PDF document to bytes (a Uint8Array)
     const pdfBytes = await pdfDoc.save();
 
-    // Write the PDF to a temporary file
-    const pdfPath = `./uploads/${Date.now()}.pdf`;
+    // Save the PDF to a temporary file with the name based on metadata
+    const pdfPath = path.join(
+      __dirname,
+      `${req.body.metadata}-${Date.now()}.pdf`
+    );
     fs.writeFileSync(pdfPath, pdfBytes);
 
-    // Prepare the form data for the upload
-    const formData = new FormData();
-    formData.append("pdf", fs.createReadStream(pdfPath));
-
     // Upload the PDF using the existing /api/upload-image endpoint
+    const formData = new FormData();
+    formData.append("image", fs.createReadStream(pdfPath));
+
     const uploadResponse = await axios.post(
+      // "http://localhost:3000/api/upload-image",
       `${BASE_SERVER_URL}/api/upload-image`,
       formData,
       {
@@ -319,6 +322,7 @@ app.post("/api/uvic/pdf-parse", async (req, res) => {
 
     // Delete the temporary file
     fs.unlinkSync(pdfPath);
+
 
     // Define the webhook payload
     const webhookPayload = {
