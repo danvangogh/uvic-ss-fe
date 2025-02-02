@@ -314,19 +314,8 @@ app.post("/api/uvic/pdf-parse", async (req, res) => {
     // Delete the temporary file
     fs.unlinkSync(pdfPath);
 
-   // Add slide 6 to the webhook payload if it exists and has text
-   const p6_a_modification = req.body.modifications?.find(
-    (modification) => modification.name === "p6_a"
-  );
-
-  if (p6_a_modification && p6_a_modification.text !== "") {
-    webhookUrl.png6 = image_urls[5];
-  }
-
-    // Send the file URL to the webhook
-    const webhookUrl =
-      "https://hook.us1.make.com/g3hy3xhygjk4te8qvko46q6fkq1wdo43";
-    await axios.post(webhookUrl, {
+   // Define the webhook payload
+    const webhookPayload = {
       fileUrl: uploadResponse.data.url,
       fileName: req.body.metadata,
       png1: image_urls[0],
@@ -334,22 +323,26 @@ app.post("/api/uvic/pdf-parse", async (req, res) => {
       png3: image_urls[2],
       png4: image_urls[3],
       png5: image_urls[4],
-    });
+    };
+
+    // Add slide 6 to the webhook payload if it exists and has text
+    const p6_a_modification = req.body.modifications?.find(
+      (modification) => modification.name === "p6_a"
+    );
+
+    if (p6_a_modification && p6_a_modification.text.trim() !== "") {
+      webhookPayload.png6 = image_urls[5];
+    }
+
+    // Send the file URL to the webhook
+    const webhookUrl = "https://hook.us1.make.com/g3hy3xhygjk4te8qvko46q6fkq1wdo43";
+    await axios.post(webhookUrl, webhookPayload);
 
     console.log("response from /upload-image", uploadResponse.data.url);
     console.log("fileName", req.body.metadata);
 
     // Send the file URL as a response
-    res.json({
-      fileUrl: uploadResponse.data.url,
-      fileName: req.body.metadata,
-      png1: image_urls[0],
-      png2: image_urls[1],
-      png3: image_urls[2],
-      png4: image_urls[3],
-      png5: image_urls[4],
-      ...(p6_a_modification && p6_a_modification.text.trim() !== "" && { png6: image_urls[5] }),
-    });
+    res.json(webhookPayload);
 
   } catch (error) {
     console.error("Error creating PDF:", error.message);
