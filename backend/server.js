@@ -314,6 +314,15 @@ app.post("/api/uvic/pdf-parse", async (req, res) => {
     // Delete the temporary file
     fs.unlinkSync(pdfPath);
 
+   // Add slide 6 to the webhook payload if it exists and has text
+   const p6_a_modification = req.body.modifications?.find(
+    (modification) => modification.name === "p6_a"
+  );
+
+  if (p6_a_modification && p6_a_modification.text.trim() !== "") {
+    webhookPayload.png6 = image_urls[5];
+  }
+
     // Send the file URL to the webhook
     const webhookUrl =
       "https://hook.us1.make.com/g3hy3xhygjk4te8qvko46q6fkq1wdo43";
@@ -326,15 +335,6 @@ app.post("/api/uvic/pdf-parse", async (req, res) => {
       png4: image_urls[3],
       png5: image_urls[4],
     });
-
-   // Add slide 6 to the webhook payload if it exists and has text
-   const p6_a_modification = req.body.modifications?.find(
-    (modification) => modification.name === "p6_a"
-  );
-
-  if (p6_a_modification && p6_a_modification.text.trim() !== "") {
-    webhookPayload.png6 = image_urls[5];
-  }
 
     console.log("response from /upload-image", uploadResponse.data.url);
     console.log("fileName", req.body.metadata);
@@ -350,7 +350,7 @@ app.post("/api/uvic/pdf-parse", async (req, res) => {
       png5: image_urls[4],
       ...(p6_a_modification && p6_a_modification.text.trim() !== "" && { png6: image_urls[5] }),
     });
-    
+
   } catch (error) {
     console.error("Error creating PDF:", error.message);
     res.status(500).send("Error creating PDF");
