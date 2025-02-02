@@ -319,8 +319,8 @@ app.post("/api/uvic/pdf-parse", async (req, res) => {
     (modification) => modification.name === "p6_a"
   );
 
-  if (p6_a_modification && p6_a_modification.text.trim() !== "") {
-    webhookPayload.png6 = image_urls[5];
+  if (p6_a_modification && p6_a_modification.text !== "") {
+    webhookUrl.png6 = image_urls[5];
   }
 
     // Send the file URL to the webhook
