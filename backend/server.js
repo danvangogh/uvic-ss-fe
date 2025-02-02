@@ -247,7 +247,7 @@ app.patch("/api/records/:id", async (req, res) => {
 // UVIC PDF Parse
 
 app.post("/api/uvic/pdf-parse", async (req, res) => {
-  // console.log("Received data:", req.body);
+  // console.log("Received data in test:", req.body);
 
   let image_urls = [];
 
