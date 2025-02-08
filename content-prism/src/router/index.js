@@ -9,6 +9,7 @@ import LogIn from "../views/LogIn.vue";
 import ProperoDashboard from "../views/ProperoDashboard.vue";
 import ProperoRecordDetail from "../views/ProperoRecordDetail.vue";
 import ProperoContentRequest from "../views/ProperoContentRequest.vue";
+import ProperoReports from "../views/ProperoReports.vue";
 
 const routes = [
   {
@@ -56,6 +57,12 @@ const routes = [
     path: "/propero/content-request",
     name: "ProperoContentRequestView",
     component: ProperoContentRequest,
+    meta: { requiresAuth: true, role: "propero" },
+  },
+  {
+    path: "/propero/reports",
+    name: "ProperoReports",
+    component: ProperoReports,
     meta: { requiresAuth: true, role: "propero" },
   },
 ];

@@ -375,16 +375,34 @@ const properoAirtableApi = axios.create({
 
 // Propero Get - Load all records
 app.get("/api/propero/records", async (req, res) => {
+  console.log("Fetching records...", req.query);
   try {
-    const response = await properoAirtableApi.get("/");
+    const tableId = req.query.tableId;
+    let airtableApiInstance = properoAirtableApi;
+
+    if (tableId === "tblDq8HRg6JF88OFH") {
+      airtableApiInstance = axios.create({
+        baseURL: `https://api.airtable.com/v0/${PROPERO_BASE_ID}/Reports`,
+        headers: {
+          Authorization: `Bearer ${process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+      });
+    }
+console.log("tableId", tableId);
+console.log("baseId", PROPERO_BASE_ID);
+console.log("airtableApiInstance", airtableApiInstance);
+    const response = await airtableApiInstance.get("/");
     let records = response.data.records;
 
-    // Sort records by Posting Date
-    records.sort((a, b) => {
-      const dateA = new Date(a.fields["Posting_Date"]);
-      const dateB = new Date(b.fields["Posting_Date"]);
-      return dateA - dateB;
-    });
+    if (tableId !== "tblDq8HRg6JF88OFH") {
+      // Sort records by Posting Date for the default table
+      records.sort((a, b) => {
+        const dateA = new Date(a.fields["Posting_Date"]);
+        const dateB = new Date(b.fields["Posting_Date"]);
+        return dateA - dateB;
+      });
+    }
 
     res.json({ records });
   } catch (error) {
