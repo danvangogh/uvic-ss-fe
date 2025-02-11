@@ -105,6 +105,7 @@
 
 <script>
 import axios from "axios";
+import Cookies from "js-cookie";
 
 export default {
   data() {
@@ -177,6 +178,7 @@ export default {
       }
     },
     async submitApproval() {
+      const username = Cookies.get("username");
       try {
         this.loading = true; // Set loading state to true
         const baseURL =
@@ -186,6 +188,7 @@ export default {
           `${baseURL}/api/propero/records/${id}`,
           {
             "Approval Status": "Approved", // Update Approval Status
+            "Approved By": username, // Include the current user's username
             Notes: this.notes,
             Main_Text: this.mainText,
             Caption: this.caption,

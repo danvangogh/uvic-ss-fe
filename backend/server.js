@@ -49,8 +49,26 @@ const s3Client = new S3Client({
   },
 });
 
+// Include timestamps in all console.log statements
+const originalLog = console.log;
+console.log = (...args) => {
+    const now = new Date();
+    const formattedTimestamp = now.toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    });
+
+    originalLog(`[${formattedTimestamp}]`, ...args);
+};
+
 // Handle image upload
 app.post("/api/upload-image", upload.single("image"), async (req, res) => {
+  console.log("Received image upload request:", req.file); // Log the received file for debugging
   try {
     const file = req.file;
     if (!file) {
@@ -77,6 +95,7 @@ app.post("/api/upload-image", upload.single("image"), async (req, res) => {
 
 // Handle login request
 app.post("/api/login", (req, res) => {
+  console.log("Received login request:", req.body); // Log the received data for debugging
   const { username, password } = req.body;
   const hardcodedUsers = [
     { username: "Daniel", password: "123", role: "uvicSS" },
@@ -104,7 +123,7 @@ app.post("/api/login", (req, res) => {
 
 // Handle content request
 app.post("/api/content-request", async (req, res) => {
-  console.log("Received data:", req.body); // Log the received data for debugging
+  console.log("Received data in /api/content-request/:", req.body); // Log the received data for debugging
   try {
     const {
       url,
@@ -119,7 +138,7 @@ app.post("/api/content-request", async (req, res) => {
       imageUrl,
       imageCredit,
     } = req.body;
-    console.log("Received data:", req.body); // Log the received data for debugging
+
     const response = await axios.post(MAKE_WEBHOOK_SCRAPEURLADDRECORD, {
       URL: url,
       ScraperPromptID: scraperPromptID,
@@ -166,7 +185,7 @@ const airtableApi = axios.create({
 // UVIC SS API Routes
 
 app.get("/api/records", async (req, res) => {
-  console.log("Fetching records...", req.body);
+  console.log("Fetching records in /api/records...", req.body);
   try {
     // Extract the username from the request headers
     const username = req.headers["x-username"];
@@ -208,7 +227,7 @@ app.get("/api/records", async (req, res) => {
         createdTime: record.createdTime, // Include createdTime for sorting
       }))
       .sort((a, b) => new Date(b.createdTime) - new Date(a.createdTime)); // Sort by most recent
-
+      console.log("Sorted records in /api/records", records);
     res.json(records);
   } catch (error) {
     console.error("Error fetching records:", error.message); // Log the error message
@@ -221,6 +240,7 @@ app.get("/api/records", async (req, res) => {
 });
 
 app.get("/api/records/:id", async (req, res) => {
+  console.log("Fetching record in /api/records/:id...", req.params);
   try {
     const response = await airtableApi.get(`/${req.params.id}`);
     res.json(response.data);
@@ -231,6 +251,7 @@ app.get("/api/records/:id", async (req, res) => {
 });
 
 app.patch("/api/records/:id", async (req, res) => {
+  console.log("Updating record in /api/records/:id...", req.params);
   try {
     const recordId = req.params.id;
     const updateData = req.body;
@@ -247,6 +268,7 @@ app.patch("/api/records/:id", async (req, res) => {
 // UVIC PDF Parse
 
 app.post("/api/uvic/pdf-parse", async (req, res) => {
+  console.log("Received data in /api/uvic/pdf-parse:", req.body);
   try {
     // Check if the modification with the name p6_a has any text
     const p6_a_modification = req.body.modifications?.find(
@@ -375,7 +397,7 @@ const properoAirtableApi = axios.create({
 
 // Propero Get - Load all records
 app.get("/api/propero/records", async (req, res) => {
-  console.log("Fetching records...", req.query);
+  console.log("Fetching records in /api/propero/records...", req.query);
   try {
     const tableId = req.query.tableId;
     let airtableApiInstance = properoAirtableApi;
@@ -389,9 +411,6 @@ app.get("/api/propero/records", async (req, res) => {
         },
       });
     }
-console.log("tableId", tableId);
-console.log("baseId", PROPERO_BASE_ID);
-console.log("airtableApiInstance", airtableApiInstance);
     const response = await airtableApiInstance.get("/");
     let records = response.data.records;
 
@@ -413,6 +432,7 @@ console.log("airtableApiInstance", airtableApiInstance);
 
 // Propero Get - Load specific record
 app.get("/api/propero/records/:id", async (req, res) => {
+  console.log("Fetching record in /api/propero/records/:id...", req.params);
   try {
     const response = await properoAirtableApi.get(`/${req.params.id}`);
     res.json(response.data);
@@ -424,7 +444,8 @@ app.get("/api/propero/records/:id", async (req, res) => {
 
 // Propero Patch - Edit Record
 app.patch("/api/propero/records/:id", async (req, res) => {
-  console.log("Updating record...", req.params.id);
+  console.log("Updating record in /api/propero/records/:id...", req.params);
+  console.log("Received data in /api/propero/records/:id...", req.body);
   try {
     const recordId = req.params.id;
     const updateData = req.body;
@@ -440,7 +461,7 @@ app.patch("/api/propero/records/:id", async (req, res) => {
 
 // Propero Post - Create new Record
 app.post("/api/propero/content-request", async (req, res) => {
-  console.log("Received data:", req.body); // Log the received data for debugging
+  console.log("Received data in /api/propero/content-request:", req.body);
   try {
     const {
       name,
@@ -486,10 +507,10 @@ app.post("/api/propero/content-request", async (req, res) => {
 });
 
 // Propero Post - Handle image upload
-app.post(
-  "/api/propero/upload-image",
+app.post("/api/propero/upload-image",
   upload.single("image"),
   async (req, res) => {
+    console.log("Received image upload request:", req.file); // Log the received file for debugging
     try {
       const file = req.file;
       if (!file) {
@@ -517,7 +538,7 @@ app.post(
 
 // Endpoint to receive payload from BannerBear and create a PDF
 app.post("/api/propero/pdf-parse", async (req, res) => {
-  // console.log("Received data:", req.body);
+  console.log("Received data in /api/propero/pdf-parse:", req.body);
 
   let image_urls = [];
 
