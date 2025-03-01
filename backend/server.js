@@ -9,7 +9,6 @@ const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const dotenv = require("dotenv");
 const { PDFDocument, rgb } = require("pdf-lib");
 const FormData = require("form-data");
-// const { chromium } = require("playwright");
 
 dotenv.config();
 
@@ -52,18 +51,18 @@ const s3Client = new S3Client({
 // Include timestamps in all console.log statements
 const originalLog = console.log;
 console.log = (...args) => {
-    const now = new Date();
-    const formattedTimestamp = now.toLocaleString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false
-    });
+  const now = new Date();
+  const formattedTimestamp = now.toLocaleString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
 
-    originalLog(`[${formattedTimestamp}]`, ...args);
+  originalLog(`[${formattedTimestamp}]`, ...args);
 };
 
 // Handle image upload
@@ -227,7 +226,7 @@ app.get("/api/records", async (req, res) => {
         createdTime: record.createdTime, // Include createdTime for sorting
       }))
       .sort((a, b) => new Date(b.createdTime) - new Date(a.createdTime)); // Sort by most recent
-      console.log("Sorted records in /api/records", records);
+    console.log("Sorted records in /api/records", records);
     res.json(records);
   } catch (error) {
     console.error("Error fetching records:", error.message); // Log the error message
@@ -275,7 +274,8 @@ app.post("/api/uvic/pdf-parse", async (req, res) => {
       (modification) => modification.name === "p6_a"
     );
 
-    const includePng6 = p6_a_modification && p6_a_modification.text.trim() !== "";
+    const includePng6 =
+      p6_a_modification && p6_a_modification.text.trim() !== "";
 
     // Assuming the relevant image URLs are stored under `image_urls` in the JSON
     let image_urls = [];
@@ -345,7 +345,6 @@ app.post("/api/uvic/pdf-parse", async (req, res) => {
     // Delete the temporary file
     fs.unlinkSync(pdfPath);
 
-
     // Define the webhook payload
     const webhookPayload = {
       fileUrl: uploadResponse.data.url,
@@ -362,7 +361,8 @@ app.post("/api/uvic/pdf-parse", async (req, res) => {
     }
 
     // Send the file URL to the webhook
-    const webhookUrl = "https://hook.us1.make.com/g3hy3xhygjk4te8qvko46q6fkq1wdo43";
+    const webhookUrl =
+      "https://hook.us1.make.com/g3hy3xhygjk4te8qvko46q6fkq1wdo43";
     await axios.post(webhookUrl, webhookPayload);
 
     console.log("response from /upload-image", uploadResponse.data.url);
@@ -370,7 +370,6 @@ app.post("/api/uvic/pdf-parse", async (req, res) => {
 
     // Send the webhook payload as a response
     res.json(webhookPayload);
-
   } catch (error) {
     console.error("Error processing PDF:", error.message);
     res.status(500).send("Error processing PDF");
@@ -507,7 +506,8 @@ app.post("/api/propero/content-request", async (req, res) => {
 });
 
 // Propero Post - Handle image upload
-app.post("/api/propero/upload-image",
+app.post(
+  "/api/propero/upload-image",
   upload.single("image"),
   async (req, res) => {
     console.log("Received image upload request:", req.file); // Log the received file for debugging
@@ -625,66 +625,3 @@ app.post("/api/propero/pdf-parse", async (req, res) => {
     res.status(500).send("Error creating PDF");
   }
 });
-
-// // Endpoint to run Playwright automation which downloads external image and uploads it to the DigitalOcean Space
-// app.post(
-//   "/api/propero/image-download-playwright-automation",
-//   async (req, res) => {
-//     try {
-//       const { recordId, imageUrl } = req.body;
-//       console.log("Received data:", req.body);
-
-//       if (!recordId || !imageUrl) {
-//         return res
-//           .status(400)
-//           .send("Invalid payload: recordId and imageUrl are required.");
-//       }
-
-//       const browser = await chromium.launch({ headless: false }); // Set headless to false to see the browser
-//       const page = await browser.newPage();
-//       await page.goto(imageUrl);
-
-//       console.log("imageUrl at goto", imageUrl);
-
-//       // Wait for the download event and save the image locally
-//       const downloadPromise = page.waitForEvent("download");
-//       await page.getByRole("img").click({
-//         button: "right",
-//       });
-//       const download = await downloadPromise;
-//       const imagePath = path.join(__dirname, "downloaded_image.jpg");
-//       await download.saveAs(imagePath);
-
-//       // Read the downloaded image file
-//       const imageData = fs.readFileSync(imagePath);
-
-//       // Create form data
-//       const form = new FormData();
-//       form.append("image", imageData, {
-//         filename: "downloaded_image.jpg",
-//         contentType: "image/jpeg",
-//       });
-
-//       // Send the image file to the API endpoint using Axios
-//       const response = await axios.post(
-//         `${BASE_SERVER_URL}/api/propero/upload-image`,
-//         form,
-//         {
-//           headers: {
-//             ...form.getHeaders(),
-//           },
-//         }
-//       );
-
-//       await browser.close();
-//       res.json({
-//         success: true,
-//         message: "Automation completed successfully",
-//         url: response.data.url,
-//       });
-//     } catch (error) {
-//       console.error("Error running Playwright automation:", error.message);
-//       res.status(500).send("Error running Playwright automation");
-//     }
-//   }
-// );
