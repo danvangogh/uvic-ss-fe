@@ -251,6 +251,7 @@ app.get("/api/records/:id", async (req, res) => {
 
 app.patch("/api/records/:id", async (req, res) => {
   console.log("Updating record in /api/records/:id...", req.params);
+  console.log("Received data in /api/records/:id...", req.body);
   try {
     const recordId = req.params.id;
     const updateData = req.body;

@@ -301,18 +301,19 @@
     </div>
 
     <div v-if="record" style="margin-top: 25px">
-      <textarea
+      <!-- Feedback removed -->
+      <!-- <textarea
         v-model="feedback"
         class="styled-input"
         placeholder="General feedback"
-      ></textarea>
+      ></textarea> -->
       <div class="buttons">
         <button
           v-if="record && record.fields"
           @click="submitFeedback"
           :disabled="loading"
         >
-          {{ loading ? "Submitting..." : "Save and Submit Feedback" }}
+          {{ loading ? "Submitting..." : "Save & Re-Generate Imagery" }}
         </button>
       </div>
     </div>
@@ -384,7 +385,6 @@ export default {
           P1_A: true,
           P1_B: true,
           P2_A: true,
-          P2_B: true,
           P3_A: true,
           P3_B: true,
           P4_A: true,
@@ -457,28 +457,37 @@ export default {
           process.env.VUE_APP_API_BASE_URL || "http://localhost:3000";
         const id = this.$route.params.id;
 
+        // Send request to the specified URL
+        console.log("Sending Generate Imagery to Make.com");
+        await axios.post(
+          "https://hook.us1.make.com/nhtd989jky96b5e08ke64rv5po657e8m",
+          {
+            recordId: id,
+          }
+        );
+
         // Construct the payload with hard-coded values
         const payload = {
-          Status: "Regenerate",
-          Revisions: this.feedback,
-          p1_a: this.record.fields.P1_A,
-          p1_b: this.record.fields.P1_B,
-          p2_a: this.record.fields.P2_A,
-          p2_b: this.record.fields.P2_B,
-          p3_a: this.record.fields.P3_A,
-          p3_b: this.record.fields.P3_B,
-          p4_a: this.record.fields.P4_A,
-          p4_b: this.record.fields.P4_B,
-          p5_a: this.record.fields.P5_A,
-          p5_b: this.record.fields.P5_B,
+          P1_A: this.record.fields.P1_A,
+          P1_B: this.record.fields.P1_B,
+          P2_A: this.record.fields.P2_A,
+          P2_B: this.record.fields.P2_B,
+          P3_A: this.record.fields.P3_A,
+          P3_B: this.record.fields.P3_B,
+          P4_A: this.record.fields.P4_A,
+          P4_B: this.record.fields.P4_B,
+          P5_A: this.record.fields.P5_A,
+          P5_B: this.record.fields.P5_B,
         };
-
-        const response = await axios.patch(`${baseURL}/api/records/${id}`, payload);
+        console.log("Payload:", payload);
+        const response = await axios.patch(
+          `${baseURL}/api/records/${id}`,
+          payload
+        );
         this.record = response.data.fields;
-        this.feedback = ""; // Clear the feedback form
-        console.log("Feedback submitted:", this.feedback);
+        // this.feedback = ""; // Clear the feedback form
       } catch (error) {
-        console.error("Error submitting feedback:", error.message);
+        console.error("Error saving:", error.message);
       }
     },
     copyToClipboard(className) {
