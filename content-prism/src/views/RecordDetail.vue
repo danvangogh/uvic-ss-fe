@@ -2,6 +2,7 @@
   <div v-if="record && record.fields" class="main-content">
     <div class="table-captions-container">
       <div class="table-container">
+        <h2>Post Info</h2>
         <table v-if="record && record.fields" class="styled-table">
           <thead>
             <tr>
@@ -16,10 +17,9 @@
                 {{ formattedContentType || "Fetching content type..." }}
               </td>
             </tr>
-            <tr>
+            <tr v-if="record.fields['Article URL']">
               <td>Source Content</td>
               <a
-                v-if="record.fields['Article URL']"
                 :href="record.fields['Article URL']"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -44,7 +44,7 @@
 
       <!-- Captions -->
       <div class="captions-container" v-if="record && record.fields">
-        <h2>Sample Captions</h2>
+        <h2>Post Captions</h2>
         <div class="caption-platform-selection">
           <h4
             class="caption-platform"
