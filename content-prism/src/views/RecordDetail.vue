@@ -450,7 +450,7 @@ export default {
   },
   methods: {
     async submitFeedback() {
-      this.$router.push({ name: "dashboard" }); // Navigate to the dashboard
+      // this.$router.push({ name: "dashboard" }); // Navigate to the dashboard
 
       try {
         const baseURL =
