@@ -1,7 +1,51 @@
 <template>
-  <div v-if="record && record.fields" class="main-content">
+  <div v-if="loading" class="loading-container">
+    <div class="spinner"></div>
+  </div>
+  <div v-else-if="record && record.fields" class="main-content">
+    <!-- ImageryContent Preview -->
+    <div class="imagery-container">
+      <div class="imagery-preview">
+        <img
+          v-for="(src, index) in pngUrls"
+          :key="index"
+          :src="src"
+          alt="Thumbnail"
+          class="thumbnail"
+          @click="openLightbox(index)"
+        />
+      </div>
+      <a
+        :href="record.fields['Dropbox Folder URL']"
+        target="_blank"
+        rel="noopener noreferrer"
+        ><span class="cta-span">Go to Dropbox</span></a
+      >
+    </div>
+
+    <!-- Lightbox -->
+    <div v-if="isLightboxOpen" class="lightbox" @click="closeLightbox">
+      <template v-if="record.fields.Video">
+        <video controls class="lightbox-video" @click.stop>
+          <source :src="record.fields.Video" type="video/mp4" />
+          Your browser does not support the video tag.
+        </video>
+      </template>
+      <template v-else>
+        <img
+          :src="lightboxImage"
+          alt="Full-size image"
+          class="lightbox-image"
+        />
+      </template>
+    </div>
+    <!-- End Lightbox -->
+    <!-- End Content Preview -->
+
+    <!-- Container for Post Info & Captions -->
     <div class="table-captions-container">
-      <div class="table-container">
+      <!-- Post Info -->
+      <div class="table-container section-card">
         <h2>Post Info</h2>
         <table v-if="record && record.fields" class="styled-table">
           <thead>
@@ -52,7 +96,10 @@
       </div>
 
       <!-- Captions -->
-      <div class="captions-container" v-if="record && record.fields">
+      <div
+        class="captions-container section-card"
+        v-if="record && record.fields"
+      >
         <h2>Post Captions</h2>
         <div class="caption-platform-selection">
           <h4
@@ -231,24 +278,27 @@
         </p>
       </div>
     </div>
+    <!-- End Captions -->
 
-    <!-- Edit text fields -->
-    <h2>Template Text</h2>
-    <div class="edit-text-field-container" v-if="record && record.fields">
-      <div
-        v-for="(fields, key) in templateSchema[
-          record.fields['Name (from Content type)'][0]
-        ]"
-        :key="key"
-        class="edit-text-field"
-      >
-        <h5>{{ key }}</h5>
-        <textarea
-          :name="key"
-          :id="key"
-          v-model="record.fields[key]"
-          class="styled-input"
-        ></textarea>
+    <!-- Edit Template text fields -->
+    <div class="section-card">
+      <h2>Template Text</h2>
+      <div class="edit-text-field-container" v-if="record && record.fields">
+        <div
+          v-for="(fields, key) in templateSchema[
+            record.fields['Name (from Content type)'][0]
+          ]"
+          :key="key"
+          class="edit-text-field"
+        >
+          <h5>{{ key }}</h5>
+          <textarea
+            :name="key"
+            :id="key"
+            v-model="record.fields[key]"
+            class="styled-input"
+          ></textarea>
+        </div>
       </div>
     </div>
 
@@ -283,6 +333,9 @@ export default {
       message: "",
       loading: true, // Added loading state
       selectedPlatform: "Instagram", // Default selected platform
+      isLightboxOpen: false,
+      lightboxImage: "",
+      lightboxIndex: 0,
       templateSchema: {
         "Listicle Carousel": {
           P1_A: true,
@@ -303,6 +356,13 @@ export default {
           P4_A: true,
           P5_A: true,
         },
+        "Question Carousel (no page count)": {
+          P1_A: true,
+          P2_A: true,
+          P3_A: true,
+          P4_A: true,
+          P5_A: true,
+        },
         "Summary Carousel": {
           P1_A: true,
           P1_B: true,
@@ -311,14 +371,18 @@ export default {
           P4_A: true,
           P5_A: true,
         },
-        TextOnImage: {
+        "Text-on-image": {
           P1_A: true,
         },
-        QuoteOverImage: {
+        "Quote over image (text left)": {
           P1_A: true,
           P1_B: true,
         },
-        QA: {
+        "Quote over image (text right)": {
+          P1_A: true,
+          P1_B: true,
+        },
+        "Question and Answer": {
           P1_A: true,
           P1_B: true,
           P2_A: true,
@@ -330,14 +394,14 @@ export default {
           P5_A: true,
           P5_B: true,
         },
-        ImageFeature: {
+        "Image Feature": {
           P1_A: true,
           P2_A: true,
           P3_A: true,
           P4_A: true,
           P5_A: true,
         },
-        GenericVideoFeature: {
+        "Generic Video Feature (1 image)": {
           P1_A: true,
           P2_A: true,
           P3_A: true,
@@ -363,6 +427,13 @@ export default {
         return this.record.fields["Name (from Content type)"].join(", ");
       }
       return "";
+    },
+    pngUrls() {
+      if (!this.record || !this.record.fields) return [];
+      return Array.from(
+        { length: 6 },
+        (_, i) => this.record.fields[`PNG${i + 1}`]
+      ).filter(Boolean);
     },
   },
   async created() {
@@ -425,6 +496,42 @@ export default {
         }, 1000); // Clear the message after 3 seconds
       }
     },
+    openLightbox(index) {
+      this.lightboxIndex = index;
+      this.lightboxImage = this.pngUrls[index];
+      this.isLightboxOpen = true;
+      window.addEventListener("keydown", this.handleKeydown);
+    },
+    closeLightbox() {
+      this.isLightboxOpen = false;
+      this.lightboxImage = "";
+      window.removeEventListener("keydown", this.handleKeydown);
+    },
+    handleKeydown(event) {
+      if (event.key === "ArrowRight") {
+        this.nextImage();
+      } else if (event.key === "ArrowLeft") {
+        this.prevImage();
+      } else if (event.key === "Escape") {
+        this.closeLightbox();
+      }
+    },
+    nextImage() {
+      if (this.lightboxIndex < this.pngUrls.length - 1) {
+        this.lightboxIndex++;
+      } else {
+        this.lightboxIndex = 0; // Loop back to the first image
+      }
+      this.lightboxImage = this.pngUrls[this.lightboxIndex];
+    },
+    prevImage() {
+      if (this.lightboxIndex > 0) {
+        this.lightboxIndex--;
+      } else {
+        this.lightboxIndex = this.pngUrls.length - 1; // Loop back to the last image
+      }
+      this.lightboxImage = this.pngUrls[this.lightboxIndex];
+    },
   },
 };
 </script>
@@ -436,6 +543,16 @@ export default {
     width: 80%;
     max-width: 1200px;
   }
+}
+
+.section-card {
+  margin-top: 25px;
+  padding: 25px;
+  border-radius: 15px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  background-color: #fff;
+  word-wrap: break-word; /* Ensure long URLs wrap within the container */
+  overflow-wrap: break-word; /* Ensure long URLs wrap within the container */
 }
 
 .buttons {
@@ -468,9 +585,10 @@ export default {
   width: 80%;
   background-color: #f7f7f7;
   padding: 25px;
+  margin-left: 20px;
 }
 
-.captions-container h2 {
+h2 {
   margin: 0;
   padding: 0;
   line-height: 1;
@@ -500,6 +618,7 @@ export default {
 }
 
 .edit-text-field-container {
+  margin-top: 25px;
   display: flex;
   flex-wrap: wrap;
   gap: 20px;
@@ -513,7 +632,7 @@ export default {
 
 .edit-text-field textarea {
   margin-top: 5px;
-  padding: 10px;
+  padding: 5px;
   resize: none;
   font-size: 12px;
   line-height: 1.3;
@@ -524,5 +643,72 @@ export default {
   margin: 0;
   padding: 0;
   line-height: 1;
+}
+
+.imagery-container {
+  border-bottom: #afafaf 1px solid;
+  padding-bottom: 15px;
+}
+
+.imagery-preview {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.thumbnail {
+  width: 75px;
+  height: auto;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4); /* Subtle box shadow */
+}
+
+.lightbox {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.lightbox-image {
+  max-width: 90%;
+  max-height: 90%;
+}
+
+.lightbox-video {
+  max-width: 80%;
+  max-height: 650px;
+  height: 80%;
+}
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+.spinner {
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  border-top: 4px solid #3498db;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 </style>
