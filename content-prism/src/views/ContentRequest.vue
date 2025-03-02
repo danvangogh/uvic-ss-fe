@@ -207,6 +207,7 @@ export default {
       }
       return "";
     },
+    // Called on Form Submit
     async submitRequest() {
       if (this.formData.submissionType === "article") {
         await this.submitArticle();

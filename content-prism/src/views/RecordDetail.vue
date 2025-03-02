@@ -1,5 +1,30 @@
 <template>
   <div class="main-content">
+    <div class="table-container">
+      <table class="styled-table">
+        <thead>
+          <tr>
+            <td>Name</td>
+            <td>{{ record.fields.Name || "Fetching article name..." }}</td>
+          </tr>
+          <tr>
+            <td>Content Format</td>
+            <td>{{ formattedContentType || "Fetching content type..." }}</td>
+          </tr>
+          <tr>
+            <td>Source Content</td>
+            <a  v-if="record.fields['Article URL']"
+                :href="record.fields['Article URL']"
+                target="_blank"
+                rel="noopener noreferrer">
+            <td>{{ record.fields['Article URL'] || "Fetching article source..." }}</td>
+            </a>
+          </tr>
+        </thead>
+        <tbody>
+        </tbody>
+      </table>
+    </div>
     <a
       v-if="record && record.fields && record.fields['Dropbox Folder URL']"
       :href="record.fields['Dropbox Folder URL']"
@@ -303,6 +328,14 @@ export default {
 </script>
 
 <style scoped>
+/* Apply .main-content styles only on desktop screens */
+@media (min-width: 1024px) {
+  .main-content {
+    width: 80%;
+    max-width: 1200px;
+  }
+}
+
 .buttons {
   padding: 25px 0;
 }
