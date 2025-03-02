@@ -7,9 +7,18 @@
           <thead>
             <tr>
               <td>Name</td>
-              <td v-if="record && record.fields">
-                {{ record.fields.Name || "Fetching article name..." }}
-              </td>
+              <a
+                v-if="
+                  record && record.fields && record.fields['Dropbox Folder URL']
+                "
+                :href="record.fields['Dropbox Folder URL']"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <td v-if="record && record.fields">
+                  {{ record.fields.Name || "Fetching article name..." }}
+                </td>
+              </a>
             </tr>
             <tr>
               <td>Content Format</td>
