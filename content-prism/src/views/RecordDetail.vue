@@ -40,57 +40,55 @@
       </template>
     </div>
     <!-- End Lightbox -->
-    <!-- End Content Preview -->
 
     <!-- Container for Post Info & Captions -->
     <div class="table-captions-container">
       <!-- Post Info -->
-      <div class="table-container section-card">
+      <div class="info-table-container section-card">
         <h2>Post Info</h2>
-        <table v-if="record && record.fields" class="styled-table">
-          <thead>
-            <tr>
-              <td>Name</td>
+        <table
+          v-if="record && record.fields"
+          class="styled-table table-row-small-font"
+        >
+          <tr>
+            <td>Name</td>
+            <td v-if="record && record.fields">
               <a
-                v-if="
-                  record && record.fields && record.fields['Dropbox Folder URL']
-                "
+                v-if="record.fields['Dropbox Folder URL']"
                 :href="record.fields['Dropbox Folder URL']"
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                <td v-if="record && record.fields">
-                  {{ record.fields.Name || "Fetching article name..." }}
-                </td>
+                {{ record.fields.Name || "Fetching article name..." }}
               </a>
-            </tr>
-            <tr>
-              <td>Content Format</td>
-              <td v-if="record && record.fields">
-                {{ formattedContentType || "Fetching content type..." }}
-              </td>
-            </tr>
-            <tr v-if="record.fields['Article URL']">
-              <td>Source Content</td>
+            </td>
+          </tr>
+          <tr>
+            <td>Content Format</td>
+            <td v-if="record && record.fields">
+              {{ formattedContentType || "Fetching content type..." }}
+            </td>
+          </tr>
+          <tr v-if="record.fields['Article URL']">
+            <td>Source Content</td>
+            <td v-if="record && record.fields">
               <a
                 :href="record.fields['Article URL']"
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                <td v-if="record && record.fields">
-                  {{
-                    record.fields["Article URL"] || "Fetching article source..."
-                  }}
-                </td>
+                {{
+                  record.fields["Article URL"] || "Fetching article source..."
+                }}
               </a>
-            </tr>
-            <tr>
-              <td>Status</td>
-              <td v-if="record && record.fields">
-                {{ userFriendlyStatus || "Fetching Status..." }}
-              </td>
-            </tr>
-          </thead>
+            </td>
+          </tr>
+          <tr>
+            <td>Status</td>
+            <td v-if="record && record.fields">
+              {{ userFriendlyStatus || "Fetching Status..." }}
+            </td>
+          </tr>
           <tbody></tbody>
         </table>
       </div>
@@ -578,14 +576,31 @@ export default {
 
 .table-captions-container {
   display: flex;
-  justify-content: space-between;
+  gap: 25px;
 }
 
+.info-table-container,
 .captions-container {
-  width: 80%;
-  background-color: #f7f7f7;
-  padding: 25px;
-  margin-left: 20px;
+  flex: 1; /* Ensure equal width */
+  overflow: hidden;
+}
+
+td a {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 70%;
+  word-break: break-all;
+}
+
+.table-row-small-font a,
+tr {
+  font-size: 12px;
+}
+
+table {
+  width: 20px !important;
 }
 
 h2 {

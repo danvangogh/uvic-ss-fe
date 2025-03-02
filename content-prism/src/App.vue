@@ -5,8 +5,10 @@
     </div>
     <div class="nav-links">
       <router-link to="/propero/content-request"
-        >Content Submission Form</router-link>
-      | <router-link to="/propero/dashboard">Dashboard</router-link> | <router-link to="/propero/reports">Reports</router-link> |
+        >Content Submission Form</router-link
+      >
+      | <router-link to="/propero/dashboard">Dashboard</router-link> |
+      <router-link to="/propero/reports">Reports</router-link> |
       <a href="#" @click.prevent="logout">Logout</a>
     </div>
   </nav>
