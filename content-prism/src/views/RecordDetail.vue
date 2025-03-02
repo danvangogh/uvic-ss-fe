@@ -312,7 +312,7 @@
           @click="submitFeedback"
           :disabled="loading"
         >
-          {{ loading ? "Submitting..." : "Submit Feedback" }}
+          {{ loading ? "Submitting..." : "Save and Submit Feedback" }}
         </button>
       </div>
     </div>
@@ -456,10 +456,24 @@ export default {
         const baseURL =
           process.env.VUE_APP_API_BASE_URL || "http://localhost:3000";
         const id = this.$route.params.id;
-        const response = await axios.patch(`${baseURL}/api/records/${id}`, {
+
+        // Construct the payload with hard-coded values
+        const payload = {
           Status: "Regenerate",
           Revisions: this.feedback,
-        });
+          p1_a: this.record.fields.P1_A,
+          p1_b: this.record.fields.P1_B,
+          p2_a: this.record.fields.P2_A,
+          p2_b: this.record.fields.P2_B,
+          p3_a: this.record.fields.P3_A,
+          p3_b: this.record.fields.P3_B,
+          p4_a: this.record.fields.P4_A,
+          p4_b: this.record.fields.P4_B,
+          p5_a: this.record.fields.P5_A,
+          p5_b: this.record.fields.P5_B,
+        };
+
+        const response = await axios.patch(`${baseURL}/api/records/${id}`, payload);
         this.record = response.data.fields;
         this.feedback = ""; // Clear the feedback form
         console.log("Feedback submitted:", this.feedback);
