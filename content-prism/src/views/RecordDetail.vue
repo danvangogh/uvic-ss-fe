@@ -55,46 +55,52 @@
             v-if="record && record.fields"
             class="styled-table table-row-small-font"
           >
-            <tr>
-              <td>Name</td>
-              <td v-if="record && record.fields">
-                <a
-                  v-if="record.fields['Dropbox Folder URL']"
-                  :href="record.fields['Dropbox Folder URL']"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {{ record.fields.Name || "Fetching article name..." }}
-                </a>
-              </td>
-            </tr>
-            <tr>
-              <td>Template</td>
-              <td v-if="record && record.fields">
-                {{ formattedContentType || "Fetching content type..." }}
-              </td>
-            </tr>
-            <tr v-if="record.fields['Article URL']">
-              <td>Source</td>
-              <td v-if="record && record.fields">
-                <a
-                  :href="record.fields['Article URL']"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {{
-                    record.fields["Article URL"] || "Fetching article source..."
-                  }}
-                </a>
-              </td>
-            </tr>
-            <tr>
-              <td>Status</td>
-              <td v-if="record && record.fields">
-                {{ userFriendlyStatus || "Fetching Status..." }}
-              </td>
-            </tr>
-            <tbody></tbody>
+            <colgroup>
+              <col class="col-label" />
+              <col class="col-content" />
+            </colgroup>
+            <tbody>
+              <tr>
+                <td>Name</td>
+                <td v-if="record && record.fields">
+                  <a
+                    v-if="record.fields['Dropbox Folder URL']"
+                    :href="record.fields['Dropbox Folder URL']"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {{ record.fields.Name || "Fetching article name..." }}
+                  </a>
+                </td>
+              </tr>
+              <tr>
+                <td>Template</td>
+                <td v-if="record && record.fields">
+                  {{ formattedContentType || "Fetching content type..." }}
+                </td>
+              </tr>
+              <tr v-if="record.fields['Article URL']">
+                <td>Source</td>
+                <td v-if="record && record.fields">
+                  <a
+                    :href="record.fields['Article URL']"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {{
+                      record.fields["Article URL"] ||
+                      "Fetching article source..."
+                    }}
+                  </a>
+                </td>
+              </tr>
+              <tr>
+                <td>Status</td>
+                <td v-if="record && record.fields">
+                  {{ userFriendlyStatus || "Fetching Status..." }}
+                </td>
+              </tr>
+            </tbody>
           </table>
         </div>
 
@@ -471,43 +477,64 @@ export default {
   },
   methods: {
     async submitFeedback() {
-      // Navigate to the dashboard
-      this.$router.push({ name: "dashboard" });
-
       try {
         const baseURL =
           process.env.VUE_APP_API_BASE_URL || "http://localhost:3000";
         const id = this.$route.params.id;
+        let webhookURL = "";
 
-        // Send request to the specified URL
+        // Determine the webhook URL based on the content type
+        const contentType = this.record.fields["Name (from Content type)"][0];
+        if (
+          [
+            "Listicle Carousel",
+            "Generic Question Carousel",
+            "Question Carousel (no page count)",
+            "Summary Carousel",
+            "Question and Answer",
+            "Image Feature",
+          ].includes(contentType)
+        ) {
+          webhookURL =
+            "https://hook.us1.make.com/nhtd989jky96b5e08ke64rv5po657e8m";
+        } else if (contentType === "Generic Video Feature (1 image)") {
+          webhookURL =
+            "https://hook.us1.make.com/gi180t8o8kv7qjqp9q549fxjyi1ptw8w";
+        } else if (
+          [
+            "Text-on-image",
+            "Quote over image (text left)",
+            "Quote over image (text right)",
+          ].includes(contentType)
+        ) {
+          webhookURL =
+            "https://hook.us1.make.com/6khx2swcoicv3b6om4fe8b437atng66b";
+        }
+
+        // Send request to the determined webhook URL
         console.log("Sending Generate Imagery to Make.com");
-        await axios.post(
-          "https://hook.us1.make.com/nhtd989jky96b5e08ke64rv5po657e8m",
-          {
-            recordId: id,
-          }
-        );
+        await axios.post(webhookURL, {
+          recordId: id,
+        });
 
-        // Construct the payload with hard-coded values
-        const payload = {
-          P1_A: this.record.fields.P1_A,
-          P1_B: this.record.fields.P1_B,
-          P2_A: this.record.fields.P2_A,
-          P2_B: this.record.fields.P2_B,
-          P3_A: this.record.fields.P3_A,
-          P3_B: this.record.fields.P3_B,
-          P4_A: this.record.fields.P4_A,
-          P4_B: this.record.fields.P4_B,
-          P5_A: this.record.fields.P5_A,
-          P5_B: this.record.fields.P5_B,
-        };
+        // Construct the payload with the current values from the form
+        const payload = {};
+        const fields = this.templateSchema[contentType];
+        for (const key in fields) {
+          payload[key] = this.record.fields[key];
+        }
         console.log("Payload:", payload);
+
+        // Send the payload to the server
         const response = await axios.patch(
           `${baseURL}/api/records/${id}`,
           payload
         );
         this.record = response.data.fields;
-        // this.feedback = ""; // Clear the feedback form
+        console.log("Record updated:", this.record);
+
+        // Navigate to the dashboard
+        this.$router.push({ name: "dashboard" });
       } catch (error) {
         console.error("Error saving:", error.message);
       }
@@ -624,28 +651,52 @@ export default {
   gap: 25px;
 }
 
-.info-table-container,
+.info-table-container {
+  width: 100%; /* Ensures container does not expand */
+  overflow: hidden; /* Prevents content overflow */
+}
+
+.styled-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto; /* Ensures dynamic column sizing */
+  margin-top: 20px;
+}
+
+.col-label {
+  min-width: max-content; /* Ensures it only takes the space needed */
+  padding-right: 15px; /* Adds space between the two columns */
+}
+
+.col-content {
+  width: auto; /* Expands to fill the remaining space */
+}
+
+.styled-table td {
+  padding: 8px;
+  word-wrap: break-word;
+}
+
+.styled-table td a {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word; /* Allows breaking within words */
+  overflow-wrap: break-word; /* Ensures long words wrap */
+}
+
+.info-table-container {
+  flex: 1;
+}
 .captions-container {
   flex: 1; /* Ensure equal width */
   overflow: hidden;
 }
 
-td a {
-  display: block;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 70%;
-  word-break: break-all;
-}
-
 .table-row-small-font a,
 tr {
   font-size: 14px;
-}
-
-table {
-  width: 20px !important;
 }
 
 h2 {

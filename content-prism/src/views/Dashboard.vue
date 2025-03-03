@@ -20,7 +20,8 @@
               v-if="
                 getUserFriendlyStatus(record.status) === 'Ready' ||
                 getUserFriendlyStatus(record.status) === 'Approved' ||
-                getUserFriendlyStatus(record.status) === 'Generating Imagery'
+                getUserFriendlyStatus(record.status) === 'Generating Imagery' ||
+                getUserFriendlyStatus(record.status) === 'Processing'
               "
             >
               <router-link :to="`/record/${record.id}`">
