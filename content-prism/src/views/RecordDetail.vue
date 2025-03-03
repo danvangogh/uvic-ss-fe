@@ -454,7 +454,7 @@ export default {
         this.record &&
         this.record.fields &&
         [
-          "Generating Imagery",
+          "Imagery Generating",
           "Imagery Generated",
           "Uploading to Dropbox",
         ].includes(this.record.fields.Status)

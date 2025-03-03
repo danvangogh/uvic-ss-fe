@@ -20,7 +20,7 @@
               v-if="
                 getUserFriendlyStatus(record.status) === 'Ready' ||
                 getUserFriendlyStatus(record.status) === 'Approved' ||
-                getUserFriendlyStatus(record.status) === 'Generating Imagery' ||
+                getUserFriendlyStatus(record.status) === 'Imagery Generating' ||
                 getUserFriendlyStatus(record.status) === 'Processing'
               "
             >
@@ -87,7 +87,7 @@ export default {
           return "Ready";
         case "Approved":
           return "Approved";
-        case "Generating Imagery":
+        case "Imagery Generating":
         case "Imagery Generated":
         case "Uploading to Dropbox":
           return "Generating Imagery";
