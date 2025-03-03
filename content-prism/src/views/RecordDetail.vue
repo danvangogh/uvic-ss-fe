@@ -4,320 +4,326 @@
   </div>
   <div v-else-if="record && record.fields" class="main-content">
     <!-- ImageryContent Preview -->
-    <div class="imagery-container">
-      <div class="imagery-preview">
-        <img
-          v-for="(src, index) in pngUrls"
-          :key="index"
-          :src="src"
-          alt="Thumbnail"
-          class="thumbnail"
-          @click="openLightbox(index)"
-        />
-      </div>
-      <a
-        :href="record.fields['Dropbox Folder URL']"
-        target="_blank"
-        rel="noopener noreferrer"
-        ><span class="cta-span">Go to Dropbox</span></a
-      >
+    <div v-if="isGeneratingImagery" class="generating-message">
+      Imagery is generating. This will take less than a minute for images, and
+      less than 5 minutes for video. Please come back soon and refresh the page.
     </div>
-
-    <!-- Lightbox -->
-    <div v-if="isLightboxOpen" class="lightbox" @click="closeLightbox">
-      <template v-if="record.fields.Video">
-        <video controls class="lightbox-video" @click.stop>
-          <source :src="record.fields.Video" type="video/mp4" />
-          Your browser does not support the video tag.
-        </video>
-      </template>
-      <template v-else>
-        <img
-          :src="lightboxImage"
-          alt="Full-size image"
-          class="lightbox-image"
-        />
-      </template>
-    </div>
-    <!-- End Lightbox -->
-
-    <!-- Container for Post Info & Captions -->
-    <div class="table-captions-container">
-      <!-- Post Info -->
-      <div class="info-table-container section-card">
-        <h2>Post Info</h2>
-        <table
-          v-if="record && record.fields"
-          class="styled-table table-row-small-font"
+    <div v-else>
+      <div class="imagery-container">
+        <div class="imagery-preview">
+          <img
+            v-for="(src, index) in pngUrls"
+            :key="index"
+            :src="src"
+            alt="Thumbnail"
+            class="thumbnail"
+            @click="openLightbox(index)"
+          />
+        </div>
+        <a
+          :href="record.fields['Dropbox Folder URL']"
+          target="_blank"
+          rel="noopener noreferrer"
+          ><span class="cta-span">Go to Dropbox</span></a
         >
-          <tr>
-            <td>Name</td>
-            <td v-if="record && record.fields">
-              <a
-                v-if="record.fields['Dropbox Folder URL']"
-                :href="record.fields['Dropbox Folder URL']"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {{ record.fields.Name || "Fetching article name..." }}
-              </a>
-            </td>
-          </tr>
-          <tr>
-            <td>Content Format</td>
-            <td v-if="record && record.fields">
-              {{ formattedContentType || "Fetching content type..." }}
-            </td>
-          </tr>
-          <tr v-if="record.fields['Article URL']">
-            <td>Source Content</td>
-            <td v-if="record && record.fields">
-              <a
-                :href="record.fields['Article URL']"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {{
-                  record.fields["Article URL"] || "Fetching article source..."
-                }}
-              </a>
-            </td>
-          </tr>
-          <tr>
-            <td>Status</td>
-            <td v-if="record && record.fields">
-              {{ userFriendlyStatus || "Fetching Status..." }}
-            </td>
-          </tr>
-          <tbody></tbody>
-        </table>
       </div>
 
-      <!-- Captions -->
-      <div
-        class="captions-container section-card"
-        v-if="record && record.fields"
-      >
-        <h2>Post Captions</h2>
-        <div class="caption-platform-selection">
-          <h4
-            class="caption-platform"
-            @click="selectedPlatform = 'Instagram'"
-            :class="{ active: selectedPlatform === 'Instagram' }"
+      <!-- Lightbox -->
+      <div v-if="isLightboxOpen" class="lightbox" @click="closeLightbox">
+        <template v-if="record.fields.Video">
+          <video controls class="lightbox-video" @click.stop>
+            <source :src="record.fields.Video" type="video/mp4" />
+            Your browser does not support the video tag.
+          </video>
+        </template>
+        <template v-else>
+          <img
+            :src="lightboxImage"
+            alt="Full-size image"
+            class="lightbox-image"
+          />
+        </template>
+      </div>
+      <!-- End Lightbox -->
+
+      <!-- Container for Post Info & Captions -->
+      <div class="table-captions-container">
+        <!-- Post Info -->
+        <div class="info-table-container section-card">
+          <h2>Post Info</h2>
+          <table
+            v-if="record && record.fields"
+            class="styled-table table-row-small-font"
           >
-            Instagram
-          </h4>
-          <h4
-            class="caption-platform"
-            @click="selectedPlatform = 'Facebook'"
-            :class="{ active: selectedPlatform === 'Facebook' }"
-          >
-            Facebook
-          </h4>
-          <h4
-            class="caption-platform"
-            @click="selectedPlatform = 'LinkedIn'"
-            :class="{ active: selectedPlatform === 'LinkedIn' }"
-          >
-            LinkedIn
-          </h4>
-          <h4
-            class="caption-platform"
-            @click="selectedPlatform = 'X'"
-            :class="{ active: selectedPlatform === 'X' }"
-          >
-            X
-          </h4>
+            <tr>
+              <td>Name</td>
+              <td v-if="record && record.fields">
+                <a
+                  v-if="record.fields['Dropbox Folder URL']"
+                  :href="record.fields['Dropbox Folder URL']"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {{ record.fields.Name || "Fetching article name..." }}
+                </a>
+              </td>
+            </tr>
+            <tr>
+              <td>Content Format</td>
+              <td v-if="record && record.fields">
+                {{ formattedContentType || "Fetching content type..." }}
+              </td>
+            </tr>
+            <tr v-if="record.fields['Article URL']">
+              <td>Source Content</td>
+              <td v-if="record && record.fields">
+                <a
+                  :href="record.fields['Article URL']"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {{
+                    record.fields["Article URL"] || "Fetching article source..."
+                  }}
+                </a>
+              </td>
+            </tr>
+            <tr>
+              <td>Status</td>
+              <td v-if="record && record.fields">
+                {{ userFriendlyStatus || "Fetching Status..." }}
+              </td>
+            </tr>
+            <tbody></tbody>
+          </table>
         </div>
 
-        <p
-          v-if="record && record.fields && selectedPlatform === 'Instagram'"
-          class="caption-text instagram-caption"
-        >
-          {{ record.fields["Generic_Caption"] || "" }}
-          <span
-            v-if="
-              record.fields['Featured Image'] && record.fields['Image_Credit']
-            "
-          >
-            <br />
-            Image Credit: {{ record.fields["Image_Credit"] }}
-          </span>
-          <br />
-          <span
-            v-if="
-              record.fields['Origin Content Type'] === 'article' &&
-              record.fields['Article URL']
-            "
-          >
-            Read the full article at our link in bio.
-          </span>
-        </p>
-        <p
-          @click="copyToClipboard('instagram-caption')"
-          v-if="selectedPlatform === 'Instagram'"
-          style="
-            font-style: italic;
-            font-weight: 300;
-            font-size: 8px;
-            cursor: pointer;
-          "
-        >
-          Copy to Clipboard
-        </p>
-
-        <p
-          v-if="record && record.fields && selectedPlatform === 'Facebook'"
-          class="caption-text facebook-caption"
-        >
-          {{ record.fields["Generic_Caption"] || "" }}
-          <span
-            v-if="
-              record.fields['Featured Image'] && record.fields['Image_Credit']
-            "
-          >
-            <br />
-            Image Credit: {{ record.fields["Image_Credit"] }}
-          </span>
-          <br />
-          <span
-            v-if="
-              record.fields['Origin Content Type'] === 'article' &&
-              record.fields['Article URL']
-            "
-          >
-            Read the full article at
-            {{ record.fields["Article URL"] }}
-          </span>
-        </p>
-        <p
-          @click="copyToClipboard('facebook-caption')"
-          v-if="selectedPlatform === 'Facebook'"
-          style="
-            font-style: italic;
-            font-weight: 300;
-            font-size: 8px;
-            cursor: pointer;
-          "
-        >
-          Copy to Clipboard
-        </p>
-
-        <p
-          v-if="record && record.fields && selectedPlatform === 'LinkedIn'"
-          class="caption-text linkedin-caption"
-        >
-          {{ record.fields["Generic_Caption"] || "" }}
-          <span
-            v-if="
-              record.fields['Featured Image'] && record.fields['Image_Credit']
-            "
-          >
-            <br />
-            Image Credit: {{ record.fields["Image_Credit"] }}
-          </span>
-          <br />
-          <span
-            v-if="
-              record.fields['Origin Content Type'] === 'article' &&
-              record.fields['Article URL']
-            "
-          >
-            Read the full article at
-            {{ record.fields["Article URL"] }}
-          </span>
-        </p>
-        <p
-          @click="copyToClipboard('linkedin-caption')"
-          v-if="selectedPlatform === 'LinkedIn'"
-          style="
-            font-style: italic;
-            font-weight: 300;
-            font-size: 8px;
-            cursor: pointer;
-          "
-        >
-          Copy to Clipboard
-        </p>
-
-        <p
-          v-if="record && record.fields && selectedPlatform === 'X'"
-          class="caption-text x-caption"
-        >
-          {{ record.fields["X_Caption"] || "" }}
-          <span
-            v-if="
-              record.fields['Featured Image'] && record.fields['Image_Credit']
-            "
-          >
-            <br />
-            Image Credit: {{ record.fields["Image_Credit"] }}
-          </span>
-          <span
-            v-if="
-              record.fields['Origin Content Type'] === 'article' &&
-              record.fields['Article URL']
-            "
-            >. Full article:
-            {{ record.fields["Article URL"] }}
-          </span>
-        </p>
-        <p
-          @click="copyToClipboard('x-caption')"
-          v-if="selectedPlatform === 'X'"
-          style="
-            font-style: italic;
-            font-weight: 300;
-            font-size: 8px;
-            cursor: pointer;
-          "
-        >
-          Copy to Clipboard
-        </p>
-      </div>
-    </div>
-    <!-- End Captions -->
-
-    <!-- Edit Template text fields -->
-    <div class="section-card">
-      <h2>Template Text</h2>
-      <div class="edit-text-field-container" v-if="record && record.fields">
+        <!-- Captions -->
         <div
-          v-for="(fields, key) in templateSchema[
-            record.fields['Name (from Content type)'][0]
-          ]"
-          :key="key"
-          class="edit-text-field"
+          class="captions-container section-card"
+          v-if="record && record.fields"
         >
-          <h5>{{ key }}</h5>
-          <textarea
-            :name="key"
-            :id="key"
-            v-model="record.fields[key]"
-            class="styled-input"
-          ></textarea>
+          <h2>Post Captions</h2>
+          <div class="caption-platform-selection">
+            <h4
+              class="caption-platform"
+              @click="selectedPlatform = 'Instagram'"
+              :class="{ active: selectedPlatform === 'Instagram' }"
+            >
+              Instagram
+            </h4>
+            <h4
+              class="caption-platform"
+              @click="selectedPlatform = 'Facebook'"
+              :class="{ active: selectedPlatform === 'Facebook' }"
+            >
+              Facebook
+            </h4>
+            <h4
+              class="caption-platform"
+              @click="selectedPlatform = 'LinkedIn'"
+              :class="{ active: selectedPlatform === 'LinkedIn' }"
+            >
+              LinkedIn
+            </h4>
+            <h4
+              class="caption-platform"
+              @click="selectedPlatform = 'X'"
+              :class="{ active: selectedPlatform === 'X' }"
+            >
+              X
+            </h4>
+          </div>
+
+          <p
+            v-if="record && record.fields && selectedPlatform === 'Instagram'"
+            class="caption-text instagram-caption"
+          >
+            {{ record.fields["Generic_Caption"] || "" }}
+            <span
+              v-if="
+                record.fields['Featured Image'] && record.fields['Image_Credit']
+              "
+            >
+              <br />
+              Image Credit: {{ record.fields["Image_Credit"] }}
+            </span>
+            <br />
+            <span
+              v-if="
+                record.fields['Origin Content Type'] === 'article' &&
+                record.fields['Article URL']
+              "
+            >
+              Read the full article at our link in bio.
+            </span>
+          </p>
+          <p
+            @click="copyToClipboard('instagram-caption')"
+            v-if="selectedPlatform === 'Instagram'"
+            style="
+              font-style: italic;
+              font-weight: 300;
+              font-size: 8px;
+              cursor: pointer;
+            "
+          >
+            Copy to Clipboard
+          </p>
+
+          <p
+            v-if="record && record.fields && selectedPlatform === 'Facebook'"
+            class="caption-text facebook-caption"
+          >
+            {{ record.fields["Generic_Caption"] || "" }}
+            <span
+              v-if="
+                record.fields['Featured Image'] && record.fields['Image_Credit']
+              "
+            >
+              <br />
+              Image Credit: {{ record.fields["Image_Credit"] }}
+            </span>
+            <br />
+            <span
+              v-if="
+                record.fields['Origin Content Type'] === 'article' &&
+                record.fields['Article URL']
+              "
+            >
+              Read the full article at
+              {{ record.fields["Article URL"] }}
+            </span>
+          </p>
+          <p
+            @click="copyToClipboard('facebook-caption')"
+            v-if="selectedPlatform === 'Facebook'"
+            style="
+              font-style: italic;
+              font-weight: 300;
+              font-size: 8px;
+              cursor: pointer;
+            "
+          >
+            Copy to Clipboard
+          </p>
+
+          <p
+            v-if="record && record.fields && selectedPlatform === 'LinkedIn'"
+            class="caption-text linkedin-caption"
+          >
+            {{ record.fields["Generic_Caption"] || "" }}
+            <span
+              v-if="
+                record.fields['Featured Image'] && record.fields['Image_Credit']
+              "
+            >
+              <br />
+              Image Credit: {{ record.fields["Image_Credit"] }}
+            </span>
+            <br />
+            <span
+              v-if="
+                record.fields['Origin Content Type'] === 'article' &&
+                record.fields['Article URL']
+              "
+            >
+              Read the full article at
+              {{ record.fields["Article URL"] }}
+            </span>
+          </p>
+          <p
+            @click="copyToClipboard('linkedin-caption')"
+            v-if="selectedPlatform === 'LinkedIn'"
+            style="
+              font-style: italic;
+              font-weight: 300;
+              font-size: 8px;
+              cursor: pointer;
+            "
+          >
+            Copy to Clipboard
+          </p>
+
+          <p
+            v-if="record && record.fields && selectedPlatform === 'X'"
+            class="caption-text x-caption"
+          >
+            {{ record.fields["X_Caption"] || "" }}
+            <span
+              v-if="
+                record.fields['Featured Image'] && record.fields['Image_Credit']
+              "
+            >
+              <br />
+              Image Credit: {{ record.fields["Image_Credit"] }}
+            </span>
+            <span
+              v-if="
+                record.fields['Origin Content Type'] === 'article' &&
+                record.fields['Article URL']
+              "
+              >. Full article:
+              {{ record.fields["Article URL"] }}
+            </span>
+          </p>
+          <p
+            @click="copyToClipboard('x-caption')"
+            v-if="selectedPlatform === 'X'"
+            style="
+              font-style: italic;
+              font-weight: 300;
+              font-size: 8px;
+              cursor: pointer;
+            "
+          >
+            Copy to Clipboard
+          </p>
         </div>
       </div>
-    </div>
+      <!-- End Captions -->
 
-    <div v-if="record" style="margin-top: 25px">
-      <!-- Feedback removed -->
-      <!-- <textarea
-        v-model="feedback"
-        class="styled-input"
-        placeholder="General feedback"
-      ></textarea> -->
-      <div class="buttons">
-        <button
-          v-if="record && record.fields"
-          @click="submitFeedback"
-          :disabled="loading"
-        >
-          {{ loading ? "Submitting..." : "Save & Re-Generate Imagery" }}
-        </button>
+      <!-- Edit Template text fields -->
+      <div class="section-card">
+        <h2>Template Text</h2>
+        <div class="edit-text-field-container" v-if="record && record.fields">
+          <div
+            v-for="(fields, key) in templateSchema[
+              record.fields['Name (from Content type)'][0]
+            ]"
+            :key="key"
+            class="edit-text-field"
+          >
+            <h5>{{ key }}</h5>
+            <textarea
+              :name="key"
+              :id="key"
+              v-model="record.fields[key]"
+              class="styled-input"
+            ></textarea>
+          </div>
+        </div>
       </div>
+
+      <div v-if="record" style="margin-top: 25px">
+        <!-- Feedback removed -->
+        <!-- <textarea
+          v-model="feedback"
+          class="styled-input"
+          placeholder="General feedback"
+        ></textarea> -->
+        <div class="buttons">
+          <button
+            v-if="record && record.fields"
+            @click="submitFeedback"
+            :disabled="loading"
+          >
+            {{ loading ? "Submitting..." : "Save & Re-Generate Imagery" }}
+          </button>
+        </div>
+      </div>
+      <p v-if="message">{{ message }}</p>
     </div>
-    <p v-if="message">{{ message }}</p>
   </div>
 </template>
 
@@ -416,6 +422,10 @@ export default {
           return "Ready";
         case "Approved":
           return "Approved";
+        case "Generating Imagery":
+        case "Imagery Generated":
+        case "Uploading to Dropbox":
+          return "Generating Imagery";
         default:
           return "Processing";
       }
@@ -432,6 +442,17 @@ export default {
         { length: 6 },
         (_, i) => this.record.fields[`PNG${i + 1}`]
       ).filter(Boolean);
+    },
+    isGeneratingImagery() {
+      return (
+        this.record &&
+        this.record.fields &&
+        [
+          "Generating Imagery",
+          "Imagery Generated",
+          "Uploading to Dropbox",
+        ].includes(this.record.fields.Status)
+      );
     },
   },
   async created() {
@@ -450,7 +471,8 @@ export default {
   },
   methods: {
     async submitFeedback() {
-      // this.$router.push({ name: "dashboard" }); // Navigate to the dashboard
+      // Navigate to the dashboard
+      this.$router.push({ name: "dashboard" });
 
       try {
         const baseURL =
@@ -591,7 +613,7 @@ export default {
 }
 
 .caption-text {
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.5;
   margin: 0;
   padding: 0;
@@ -619,7 +641,7 @@ td a {
 
 .table-row-small-font a,
 tr {
-  font-size: 12px;
+  font-size: 14px;
 }
 
 table {

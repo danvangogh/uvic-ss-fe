@@ -19,7 +19,8 @@
             <template
               v-if="
                 getUserFriendlyStatus(record.status) === 'Ready' ||
-                getUserFriendlyStatus(record.status) === 'Approved'
+                getUserFriendlyStatus(record.status) === 'Approved' ||
+                getUserFriendlyStatus(record.status) === 'Generating Imagery'
               "
             >
               <router-link :to="`/record/${record.id}`">
@@ -85,6 +86,10 @@ export default {
           return "Ready";
         case "Approved":
           return "Approved";
+        case "Generating Imagery":
+        case "Imagery Generated":
+        case "Uploading to Dropbox":
+          return "Generating Imagery";
         default:
           return "Processing";
       }
