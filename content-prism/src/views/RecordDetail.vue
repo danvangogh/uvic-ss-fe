@@ -69,13 +69,13 @@
               </td>
             </tr>
             <tr>
-              <td>Content Format</td>
+              <td>Template</td>
               <td v-if="record && record.fields">
                 {{ formattedContentType || "Fetching content type..." }}
               </td>
             </tr>
             <tr v-if="record.fields['Article URL']">
-              <td>Source Content</td>
+              <td>Source</td>
               <td v-if="record && record.fields">
                 <a
                   :href="record.fields['Article URL']"
