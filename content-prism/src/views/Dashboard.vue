@@ -20,7 +20,7 @@
               v-if="
                 getUserFriendlyStatus(record.status) === 'Ready' ||
                 getUserFriendlyStatus(record.status) === 'Approved' ||
-                getUserFriendlyStatus(record.status) === 'Imagery Generating' ||
+                getUserFriendlyStatus(record.status) === 'Generating Imagery' ||
                 getUserFriendlyStatus(record.status) === 'Processing'
               "
             >
