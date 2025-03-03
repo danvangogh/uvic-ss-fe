@@ -87,6 +87,10 @@ export default {
           return "Ready";
         case "Approved":
           return "Approved";
+        case "Text Generating":
+        case "Text Generated":
+        case "Pending":
+          return "Pending";
         case "Imagery Generating":
         case "Imagery Generated":
         case "Uploading to Dropbox":
