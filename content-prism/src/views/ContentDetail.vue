@@ -49,13 +49,17 @@
           </div>
           <div class="source-text-container">
             <div class="source-text-summary">
-              <p>
+              <p v-if="content.source_content_main_text">
                 The source text for this begins with "{{
                   getFirstNWords(content.source_content_main_text, 12)
                 }}" and ends with "{{
                   getLastNWords(content.source_content_main_text, 12)
                 }}" and is
                 {{ getWordCount(content.source_content_main_text) }} words long.
+              </p>
+              <p v-else style="color: #dc3545">
+                I'm having trouble accessing the source content. Please click
+                Edit Text, and paste in the source text.
               </p>
             </div>
           </div>
@@ -73,12 +77,32 @@
               Please verify we have captured all the text of the article. If
               not, please paste it in here and click save.
             </p>
-            <textarea
-              v-model="content.source_content_main_text"
-              class="modal-text-editor"
-              placeholder="Enter or edit the source text here..."
-              @input="handleSourceTextChange"
-            ></textarea>
+            <div
+              v-if="
+                !content.source_content_title ||
+                content.source_content_title === 'Pending...'
+              "
+              class="modal-field"
+            >
+              <label for="title">Article Title</label>
+              <input
+                id="title"
+                v-model="content.source_content_title"
+                class="modal-title-input"
+                placeholder="Enter the article title..."
+                @input="handleSourceTextChange"
+              />
+            </div>
+            <div class="modal-field">
+              <label for="mainText">Article Text</label>
+              <textarea
+                id="mainText"
+                v-model="content.source_content_main_text"
+                class="modal-text-editor"
+                placeholder="Enter or edit the source text here..."
+                @input="handleSourceTextChange"
+              ></textarea>
+            </div>
             <div class="modal-actions">
               <button class="cancel-button" @click="cancelEdit">Cancel</button>
               <button
@@ -307,6 +331,7 @@ const saveSourceText = async () => {
       .from("source_content")
       .update({
         source_content_main_text: content.value.source_content_main_text,
+        source_content_title: content.value.source_content_title,
         updated_at: new Date().toISOString(),
       })
       .eq("id", content.value.id);
@@ -979,6 +1004,28 @@ h1 {
   font-size: 0.9rem;
 }
 
+.modal-field {
+  margin-bottom: 1rem;
+}
+
+.modal-field label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #333;
+  font-weight: 500;
+}
+
+.modal-title-input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin-bottom: 1rem;
+}
+
 .modal-text-editor {
   width: 100%;
   min-height: 300px;
@@ -1089,5 +1136,11 @@ h1 {
   .images-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.source-text-error {
+  color: #dc3545;
+  margin: 0;
+  line-height: 1.6;
 }
 </style>

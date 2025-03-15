@@ -10,9 +10,11 @@
         <input
           type="text"
           class="content-input"
-          placeholder="Enter a research/news article you'd like to turn into content"
+          :placeholder="placeholder"
           v-model="articleUrl"
           :disabled="loading"
+          @focus="handleInputFocus"
+          @blur="handleInputBlur"
         />
         <div v-if="error" class="error-message">
           {{ error }}
@@ -84,6 +86,9 @@ const fileInput = ref(null);
 const loading = ref(false);
 const error = ref(null);
 const showSuccess = ref(false);
+const placeholder = ref(
+  "Enter a research/news article you'd like to turn into content"
+);
 
 const canSubmit = computed(() => {
   return (
@@ -203,6 +208,17 @@ const handleSubmit = async () => {
     error.value = err.message;
   } finally {
     loading.value = false;
+  }
+};
+
+const handleInputFocus = () => {
+  placeholder.value = "";
+};
+
+const handleInputBlur = () => {
+  if (!articleUrl.value) {
+    placeholder.value =
+      "Enter a research/news article you'd like to turn into content";
   }
 };
 </script>
