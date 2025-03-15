@@ -29,20 +29,14 @@
             {{ content.template ? content.template.template_name : "Pending" }}
           </td>
           <td class="progress-cell">
-            <div class="progress-indicators">
-              <div class="progress-bar">
-                <div
-                  v-for="(status, index) in statusFlags"
-                  :key="index"
-                  class="status-indicator"
-                  :class="{ completed: content[status.flag] }"
-                  :title="status.label"
-                >
-                  <div class="status-dot"></div>
-                  <div class="status-label">{{ status.shortLabel }}</div>
-                </div>
-                <div class="progress-line"></div>
-              </div>
+            <div class="progress-bar-container">
+              <div
+                class="progress-bar-fill"
+                :style="{
+                  width: `${calculateProgress(content)}%`,
+                }"
+                :title="`${calculateProgress(content)}% complete`"
+              ></div>
             </div>
           </td>
           <td>{{ formatDate(content.created_at) }}</td>
@@ -230,6 +224,14 @@ const formatDate = (dateString) => {
   });
 };
 
+const calculateProgress = (content) => {
+  const totalSteps = statusFlags.length;
+  const completedSteps = statusFlags.filter(
+    (status) => content[status.flag]
+  ).length;
+  return Math.round((completedSteps / totalSteps) * 100);
+};
+
 // Watch for user changes and setup subscription when user becomes available
 watch(user, (newUser) => {
   if (newUser) {
@@ -319,62 +321,24 @@ h1 {
 }
 
 .progress-cell {
-  width: 40px;
-  min-width: 40px;
-  padding: 0.5rem !important;
+  width: 150px;
+  min-width: 150px;
+  padding: 8px 16px;
 }
 
-.progress-indicators {
-  height: 100%;
-  display: flex;
-  justify-content: center;
-}
-
-.progress-bar {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  padding: 3px 0;
-  height: 100%;
-}
-
-.progress-line {
-  position: absolute;
-  top: 8px;
-  bottom: 8px;
-  left: 50%;
-  width: 2px;
+.progress-bar-container {
+  width: 100%;
+  height: 8px;
   background-color: #e9ecef;
-  transform: translateX(-50%);
-  z-index: 0;
+  border-radius: 4px;
+  overflow: hidden;
 }
 
-.status-indicator {
-  position: relative;
-  display: flex;
-  align-items: center;
-  z-index: 1;
-  cursor: help;
-}
-
-.status-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background-color: #e9ecef;
-  border: 2px solid #fff;
-  box-shadow: 0 0 0 1px #e9ecef;
-}
-
-.status-label {
-  display: none;
-}
-
-.status-indicator.completed .status-dot {
+.progress-bar-fill {
+  height: 100%;
   background-color: #28a745;
-  box-shadow: 0 0 0 1px #28a745;
+  border-radius: 4px;
+  transition: width 0.3s ease;
 }
 
 @media (max-width: 768px) {
