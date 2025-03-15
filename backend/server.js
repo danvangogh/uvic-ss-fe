@@ -21,9 +21,9 @@ app.use(history());
 
 app.use(
   cors({
-    origin: BASE_URL, // Allow requests from this origin
+    origin: BASE_URL,
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
-    credentials: true, // Allow cookies to be sent
+    credentials: true,
   })
 );
 
@@ -40,7 +40,7 @@ const upload = multer({ storage: storage });
 
 // Configure AWS SDK for DigitalOcean Spaces
 const s3Client = new S3Client({
-  region: "tor1", // DigitalOcean Spaces uses 'us-east-1' as the region
+  region: "tor1",
   endpoint: "https://tor1.digitaloceanspaces.com",
   credentials: {
     accessKeyId: process.env.DIGITAL_OCEAN_SPACE_ACCESS_KEY,
@@ -67,13 +67,12 @@ console.log = (...args) => {
 
 // Handle image upload
 app.post("/api/upload-image", upload.single("image"), async (req, res) => {
-  console.log("Received image upload request:", req.file); // Log the received file for debugging
+  console.log("Received image upload request:", req.file);
   try {
     const file = req.file;
     if (!file) {
       return res.status(400).send("No file uploaded.");
     }
-    // Replace spaces with underscores in the original name
     const sanitizedFileName = file.originalname.replace(/\s+/g, "_");
     const timestamp = Date.now();
     const params = {
@@ -92,37 +91,9 @@ app.post("/api/upload-image", upload.single("image"), async (req, res) => {
   }
 });
 
-// Handle login request
-app.post("/api/login", (req, res) => {
-  console.log("Received login request:", req.body); // Log the received data for debugging
-  const { username, password } = req.body;
-  const hardcodedUsers = [
-    { username: "Daniel", password: "123", role: "uvicSS" },
-    { username: "Anne", password: "uvic", role: "uvicSS" },
-    { username: "Propero", password: "Accelerate", role: "propero" },
-    { username: "Curtis", password: "Accelerate", role: "propero" },
-    { username: "Scott", password: "Accelerate", role: "propero" },
-    { username: "Sheila", password: "Accelerate", role: "propero" },
-    { username: "Colin", password: "Accelerate", role: "propero" },
-    { username: "Mark", password: "Accelerate", role: "propero" },
-  ];
-
-  const user = hardcodedUsers.find(
-    (u) => u.username === username && u.password === password
-  );
-
-  if (user) {
-    res.json({ success: true, username: user.username, role: user.role });
-  } else {
-    res
-      .status(401)
-      .json({ success: false, message: "Invalid username or password" });
-  }
-});
-
 // Handle content request
 app.post("/api/content-request", async (req, res) => {
-  console.log("Received data in /api/content-request/:", req.body); // Log the received data for debugging
+  console.log("Received data in /api/content-request/:", req.body);
   try {
     const {
       url,
@@ -153,7 +124,7 @@ app.post("/api/content-request", async (req, res) => {
     });
     res.json({ success: true, data: response.data });
   } catch (error) {
-    console.error("Error forwarding request to Make.com:", error.message); // Log the error for debugging
+    console.error("Error forwarding request to Make.com:", error.message);
     res.status(500).send(error.message);
   }
 });
@@ -182,7 +153,6 @@ const airtableApi = axios.create({
 });
 
 // UVIC SS API Routes
-
 app.get("/api/records", async (req, res) => {
   console.log("Fetching records in /api/records...", req.body);
   try {
@@ -222,18 +192,18 @@ app.get("/api/records", async (req, res) => {
         status: record.fields.Status,
         contentType: Array.isArray(record.fields["Name (from Content type)"])
           ? record.fields["Name (from Content type)"][0]
-          : record.fields["Name (from Content type)"], // Ensure contentType is a string
-        createdTime: record.createdTime, // Include createdTime for sorting
+          : record.fields["Name (from Content type)"],
+        createdTime: record.createdTime,
       }))
-      .sort((a, b) => new Date(b.createdTime) - new Date(a.createdTime)); // Sort by most recent
+      .sort((a, b) => new Date(b.createdTime) - new Date(a.createdTime));
     console.log("Sorted records in /api/records", records);
     res.json(records);
   } catch (error) {
-    console.error("Error fetching records:", error.message); // Log the error message
+    console.error("Error fetching records:", error.message);
     console.error(
       "Error details:",
       error.response ? error.response.data : error
-    ); // Log detailed error information
+    );
     res.status(500).send(error.message);
   }
 });
@@ -266,7 +236,6 @@ app.patch("/api/records/:id", async (req, res) => {
 });
 
 // UVIC PDF Parse
-
 app.post("/api/uvic/pdf-parse", async (req, res) => {
   console.log("Received data in /api/uvic/pdf-parse:", req.body);
   try {
@@ -335,7 +304,6 @@ app.post("/api/uvic/pdf-parse", async (req, res) => {
     formData.append("image", fs.createReadStream(pdfPath));
 
     const uploadResponse = await axios.post(
-      // "http://localhost:3000/api/upload-image",
       `${BASE_SERVER_URL}/api/upload-image`,
       formData,
       {
@@ -415,7 +383,6 @@ app.get("/api/propero/records", async (req, res) => {
     let records = response.data.records;
 
     if (tableId !== "tblDq8HRg6JF88OFH") {
-      // Sort records by Posting Date for the default table
       records.sort((a, b) => {
         const dateA = new Date(a.fields["Posting_Date"]);
         const dateB = new Date(b.fields["Posting_Date"]);
@@ -501,7 +468,6 @@ app.post("/api/propero/content-request", async (req, res) => {
     res.json({ success: true, data: response.data });
   } catch (error) {
     console.error("Error creating record in Airtable:", error.message);
-    // Log the error for debugging
     res.status(500).send(error.message);
   }
 });
@@ -552,6 +518,7 @@ app.post("/api/propero/pdf-parse", async (req, res) => {
     }
   });
   console.log("Image URLs:", image_urls);
+
   try {
     if (!image_urls || image_urls.length === 0) {
       return res
@@ -613,6 +580,7 @@ app.post("/api/propero/pdf-parse", async (req, res) => {
       fileUrl: uploadResponse.data.url,
       fileName: req.body.metadata,
     });
+
     console.log("response from /upload-image", uploadResponse.data.url);
     console.log("fileName", req.body.metadata);
 

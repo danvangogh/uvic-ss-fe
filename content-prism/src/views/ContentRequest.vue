@@ -66,16 +66,25 @@
       </div>
       <div>
         <label>Template:</label>
-        <div class="thumbnail-container">
+        <div v-if="loadingTemplates" class="loading-message">
+          Loading templates...
+        </div>
+        <div v-else-if="templateError" class="error-message">
+          {{ templateError }}
+        </div>
+        <div v-else class="thumbnail-container">
           <div
-            v-for="type in filteredContentTypes"
-            :key="type.recordId"
+            v-for="template in dbTemplates"
+            :key="template.id"
             class="thumbnail"
-            :class="{ selected: formData.template === type.recordId }"
-            @click="selectTemplate(type.recordId)"
+            :class="{ selected: formData.template === template.id }"
+            @click="selectTemplate(template.id)"
           >
-            <img :src="type.thumbnail" :alt="type.name" />
-            <p>{{ type.name }}</p>
+            <img
+              :src="template.template_thumbnail_url || '/default-template.png'"
+              :alt="template.template_name"
+            />
+            <p>{{ template.template_name }}</p>
           </div>
         </div>
       </div>
@@ -90,6 +99,7 @@
 import axios from "axios";
 import Cookies from "js-cookie";
 import * as pdfjsLib from "pdfjs-dist/webpack";
+import { supabase } from "../supabase";
 
 export default {
   data() {
@@ -100,7 +110,7 @@ export default {
         password: "",
       },
       formData: {
-        submissionType: "article", // Default to Article submission
+        submissionType: "article",
         url: "",
         pdf: null,
         instructions: "",
@@ -110,74 +120,11 @@ export default {
         image: null,
         imageCredit: "",
       },
-      contentTypes: [
-        {
-          name: "Listicle Carousel",
-          recordId: "recXXGDxTqF6YirP7",
-          thumbnail: "/Listicle_Carousel.png",
-        },
-        {
-          name: "Generic Question Carousel",
-          recordId: "recAj9nl0R6Vk01zW",
-          thumbnail: "/Generic_Question_Carousel.png",
-        },
-        {
-          name: "Summary Carousel",
-          recordId: "recbGyg2IBcrXzwOh",
-          thumbnail: "/Summary_Carousel.png",
-        },
-        {
-          name: "Text-on-image",
-          recordId: "recFzYcIIG6yyQGPK",
-          thumbnail: "/Text_on_image.png",
-        },
-        {
-          name: "Quote over image (text left)",
-          recordId: "recVzxgN0BGBeLjUm",
-          thumbnail: "/Quote_over_Image_text_Left.png",
-        },
-        {
-          name: "Quote over image (text right)",
-          recordId: "recQDBzsUDjEqwIhW",
-          thumbnail: "/Quote_over_Image_Text_Right.png",
-        },
-        {
-          name: "Question and Answer",
-          recordId: "recT5iP1egEwH5z5O",
-          thumbnail: "/Q&A.png",
-        },
-        {
-          name: "Image Feature",
-          recordId: "rechcwCYlQzarNwVB",
-          thumbnail: "/Image_Feature.png",
-        },
-        {
-          name: "Video Feature (1 image)",
-          recordId: "recCASdQbfqDiZpSI",
-          thumbnail: "/Generic_Video_Feature_1Image.png",
-        },
-      ],
+      dbTemplates: [],
+      loadingTemplates: false,
+      templateError: null,
       successMessage: "",
     };
-  },
-  computed: {
-    filteredContentTypes() {
-      // If there's no image, only display Listicle Carousel and Summary Carousel
-      if (
-        (this.formData.submissionType === "pdf" && !this.formData.image) ||
-        (this.formData.submissionType === "article" &&
-          !this.formData.url.includes("uvic.ca") &&
-          !this.formData.image)
-      ) {
-        return this.contentTypes.filter(
-          (type) =>
-            type.name === "Listicle Carousel" ||
-            type.name === "Summary Carousel"
-        );
-      } else {
-        return this.contentTypes;
-      }
-    },
   },
   methods: {
     handleFileUpload(event) {
@@ -207,7 +154,6 @@ export default {
       }
       return "";
     },
-    // Called on Form Submit
     async submitRequest() {
       if (this.formData.submissionType === "article") {
         await this.submitArticle();
@@ -229,16 +175,10 @@ export default {
         const baseURL =
           process.env.VUE_APP_API_BASE_URL || "http://localhost:3000";
 
-        // Get the username from the cookie
         const username = Cookies.get("username");
-
-        // Determine if the source is external
         const externalSource = !this.formData.url.includes("uvic.ca");
-
-        // Upload image and get the URL
         const imageUrl = await this.uploadImage();
 
-        // Prepare JSON data
         const data = {
           submissionType: this.formData.submissionType,
           url: this.formData.url,
@@ -246,10 +186,10 @@ export default {
           platforms: this.formData.platforms,
           template: this.formData.template,
           scraperPromptID: this.formData.scraperPromptID,
-          username: username, // Add the username to the JSON package
-          externalSource: externalSource.toString(), // Set externalSource based on URL
-          imageUrl: imageUrl, // Add the image URL to the JSON package
-          imageCredit: this.formData.imageCredit, // Add image credit to the JSON package
+          username: username,
+          externalSource: externalSource.toString(),
+          imageUrl: imageUrl,
+          imageCredit: this.formData.imageCredit,
         };
 
         await axios.post(`${baseURL}/api/content-request`, data, {
@@ -258,26 +198,8 @@ export default {
           },
         });
 
-        // Clear the form data
-        this.formData = {
-          submissionType: "article",
-          url: "",
-          pdf: null,
-          instructions: "",
-          platforms: [],
-          template: "",
-          scraperPromptID: "",
-          image: null,
-          imageCredit: "", // Clear image credit
-        };
-        // Clear the file input value
-        this.$refs.imageInput.value = "";
-        // Set the success message
-        this.successMessage = "Article submitted successfully!";
-        // Clear the success message after 3000ms
-        setTimeout(() => {
-          this.successMessage = "";
-        }, 3000);
+        this.resetForm();
+        this.showSuccessMessage("Article submitted successfully!");
       } catch (error) {
         console.error("Error submitting article:", error);
       }
@@ -291,17 +213,11 @@ export default {
         const baseURL =
           process.env.VUE_APP_API_BASE_URL || "http://localhost:3000";
 
-        // Extract text from the PDF
         const pdfText = await this.extractTextFromPDF(this.formData.pdf);
-
-        // Truncate pdfText if it exceeds 100,000 characters
         const truncatedPdfText =
           pdfText.length > 100000 ? pdfText.substring(0, 100000) : pdfText;
 
-        // Get the username from the cookie
         const username = Cookies.get("username");
-
-        // Upload image and get the URL
         const imageUrl = await this.uploadImage();
 
         const data = {
@@ -310,13 +226,11 @@ export default {
           platforms: this.formData.platforms,
           template: this.formData.template,
           pdfText: truncatedPdfText,
-          username: username, // Add the username to the JSON package
+          username: username,
           externalSource: "true",
-          imageUrl: imageUrl, // Add the image URL to the JSON package
-          imageCredit: this.formData.imageCredit, // Add image credit to the JSON package
+          imageUrl: imageUrl,
+          imageCredit: this.formData.imageCredit,
         };
-
-        console.log("Data before Axios.post", data);
 
         await axios.post(`${baseURL}/api/content-request`, data, {
           headers: {
@@ -324,26 +238,8 @@ export default {
           },
         });
 
-        // Clear the form data
-        this.formData = {
-          submissionType: "article",
-          url: "",
-          pdf: null,
-          instructions: "",
-          platforms: [],
-          template: "",
-          scraperPromptID: "",
-          image: null,
-          imageCredit: "", // Clear image credit
-        };
-        // Clear the file input value
-        this.$refs.imageInput.value = "";
-        // Set the success message
-        this.successMessage = "PDF submitted successfully!";
-        // Clear the success message after 3000ms
-        setTimeout(() => {
-          this.successMessage = "";
-        }, 3000);
+        this.resetForm();
+        this.showSuccessMessage("PDF submitted successfully!");
       } catch (error) {
         console.error("Error submitting PDF:", error);
       }
@@ -373,14 +269,61 @@ export default {
     checkLogin() {
       const username = Cookies.get("username");
       if (!username) {
-        this.$router.push("/auth"); // Redirect to auth page if not logged in
+        this.$router.push("/auth");
       } else {
         this.isLoggedIn = true;
       }
     },
+    async fetchTemplates() {
+      try {
+        this.loadingTemplates = true;
+        const { data, error } = await supabase.from("content_templates")
+          .select(`
+            id,
+            template_name,
+            template_thumbnail_url,
+            template_content_description,
+            post_type_id,
+            content_template_post_types (
+              content_template_post_type_name
+            )
+          `);
+
+        if (error) throw error;
+        this.dbTemplates = data;
+      } catch (error) {
+        console.error("Error fetching templates:", error);
+        this.templateError = "Failed to load templates";
+      } finally {
+        this.loadingTemplates = false;
+      }
+    },
+    resetForm() {
+      this.formData = {
+        submissionType: "article",
+        url: "",
+        pdf: null,
+        instructions: "",
+        platforms: [],
+        template: "",
+        scraperPromptID: "",
+        image: null,
+        imageCredit: "",
+      };
+      if (this.$refs.imageInput) {
+        this.$refs.imageInput.value = "";
+      }
+    },
+    showSuccessMessage(message) {
+      this.successMessage = message;
+      setTimeout(() => {
+        this.successMessage = "";
+      }, 3000);
+    },
   },
   mounted() {
     this.checkLogin();
+    this.fetchTemplates();
   },
 };
 </script>
@@ -403,22 +346,47 @@ select {
 .thumbnail-container {
   display: flex;
   flex-wrap: wrap;
+  gap: 20px;
+  justify-content: flex-start;
+  padding: 10px;
 }
 .thumbnail {
   border: 1px solid #ccc;
   border-radius: 5px;
-  margin: 5px;
   padding: 10px;
   cursor: pointer;
   text-align: center;
+  width: 125px;
+  box-sizing: border-box;
 }
 .thumbnail.selected {
   border-color: blue;
 }
 .thumbnail img {
-  width: 100px;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
 }
 .thumbnail p {
   font-size: 8px;
+  margin: 5px 0;
+  word-wrap: break-word;
+}
+.loading-message {
+  color: #666;
+  padding: 1rem;
+  text-align: center;
+}
+.error-message {
+  color: red;
+  padding: 1rem;
+  text-align: center;
+}
+.thumbnail small {
+  display: block;
+  font-size: 0.7em;
+  color: #666;
+  margin-top: 0.25rem;
+  word-wrap: break-word;
 }
 </style>
