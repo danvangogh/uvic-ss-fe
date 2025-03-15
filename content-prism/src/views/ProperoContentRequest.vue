@@ -282,7 +282,7 @@ export default {
       const username = Cookies.get("username");
       const userRole = Cookies.get("role"); // Assuming role is stored in a cookie
       if (!username) {
-        this.$router.push("/login"); // Redirect to login page if not logged in
+        this.$router.push("/auth"); // Redirect to auth page if not logged in
       } else {
         this.isLoggedIn = true;
         this.userRole = userRole; // Set the user role
@@ -300,7 +300,7 @@ export default {
       const allowedPaths = accessRules[this.userRole] || [];
 
       if (!allowedPaths.includes(currentPath)) {
-        this.$router.push("/login"); // Redirect to unauthorized page if access is denied
+        this.$router.push("/auth"); // Redirect to auth page if access is denied
       }
     },
     adjustTextareaHeight(event) {

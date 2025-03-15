@@ -1,24 +1,11 @@
 <template>
-  <nav v-if="isPropero" class="propero-nav">
-    <div class="logo-container">
-      <img src="/Propero_Logo.png" alt="" class="logo" />
-    </div>
-    <div class="nav-links">
-      <router-link to="/propero/content-request"
-        >Content Submission Form</router-link
-      >
-      | <router-link to="/propero/dashboard">Dashboard</router-link> |
-      <router-link to="/propero/reports">Reports</router-link> |
-      <a href="#" @click.prevent="logout">Logout</a>
-    </div>
-  </nav>
-  <nav v-else-if="isUvicSS" class="uvic-nav">
+  <nav v-if="user" class="main-nav">
     <div class="logo-container">
       <img src="/UVIC_Logo.png" alt="" class="logo" />
     </div>
     <div class="nav-links">
-      <router-link to="/content-request">Content Request Form</router-link>
-      | <router-link to="/dashboard">Dashboard</router-link> |
+      <router-link to="/content-request">Content Request</router-link> |
+      <router-link to="/dashboard">Dashboard</router-link> |
       <a href="#" @click.prevent="logout">Logout</a>
     </div>
   </nav>
@@ -28,43 +15,25 @@
 </template>
 
 <script>
-import Cookies from "js-cookie";
+import { useAuth } from "./stores/authStore";
+import { useRouter } from "vue-router";
 
 export default {
-  data() {
+  setup() {
+    const { user, signOut } = useAuth();
+    const router = useRouter();
+
+    async function logout() {
+      const { error } = await signOut();
+      if (!error) {
+        router.push("/auth");
+      }
+    }
+
     return {
-      username: Cookies.get("username") || "",
-      role: Cookies.get("role") || "",
+      user,
+      logout,
     };
-  },
-  computed: {
-    isPropero() {
-      return this.role === "propero";
-    },
-    isUvicSS() {
-      return this.role === "uvicSS";
-    },
-  },
-  methods: {
-    logout() {
-      Cookies.remove("username");
-      Cookies.remove("role");
-      this.username = "";
-      this.role = "";
-      console.log(
-        "Username and role cookies removed:",
-        !Cookies.get("username"),
-        !Cookies.get("role")
-      ); // Log to verify cookie removal
-      this.$router.push("/login");
-    },
-    checkLogin() {
-      this.username = Cookies.get("username") || "";
-      this.role = Cookies.get("role") || "";
-    },
-  },
-  created() {
-    this.checkLogin();
   },
 };
 </script>
@@ -76,34 +45,50 @@ export default {
   font-family: Avenir, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  color: #000; /* Set text color to black */
-  text-align: left; /* Default text alignment to left */
+  color: #000;
 }
 
-nav {
+.main-nav {
   padding: 30px;
-  text-align: center; /* Center-align nav items */
-  background-color: #002754; /* Set nav background color */
+  text-align: center;
+  background-color: #002754;
   color: #fff;
   display: flex;
-  flex-direction: column; /* Stack logo and links vertically */
+  flex-direction: column;
   justify-content: center;
   align-items: center;
 }
 
-nav a {
+.nav-links {
+  margin-top: 20px;
+}
+
+.nav-links a {
   font-weight: bold;
-  color: #86819a; /* Set link color */
+  color: #86819a;
   text-decoration: none;
   margin: 0 10px;
+  transition: color 0.3s;
 }
 
-nav a.router-link-exact-active {
-  color: #e6eef7; /* Set active link color */
+.nav-links a:hover {
+  color: #fff;
 }
 
-nav .spacer {
-  flex: 1;
+.nav-links a.router-link-active {
+  color: #e6eef7;
+}
+
+.body-container {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: calc(100vh - 150px);
+  padding: 20px;
+}
+
+.logo {
+  width: 125px;
 }
 
 /* Global styles for headings and paragraphs */
@@ -157,14 +142,6 @@ table th {
 }
 
 /* Center .main-content within .body-container */
-.body-container {
-  display: flex;
-  justify-content: center;
-  align-items: flex-start; /* Align items to the start (top) */
-  min-height: 100vh; /* Ensure the container takes at least the full viewport height */
-  padding-top: 20px; /* Add some padding to the top */
-}
-
 .main-content {
   width: 600px;
   padding: 50px;
@@ -247,9 +224,5 @@ button {
   form > * {
     margin-bottom: 20px;
   }
-}
-
-.logo {
-  width: 125px;
 }
 </style>

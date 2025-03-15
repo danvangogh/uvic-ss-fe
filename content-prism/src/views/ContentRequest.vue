@@ -373,7 +373,7 @@ export default {
     checkLogin() {
       const username = Cookies.get("username");
       if (!username) {
-        this.$router.push("/login"); // Redirect to login page if not logged in
+        this.$router.push("/auth"); // Redirect to auth page if not logged in
       } else {
         this.isLoggedIn = true;
       }

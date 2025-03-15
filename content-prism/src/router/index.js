@@ -1,11 +1,13 @@
 import { createRouter, createWebHistory } from "vue-router";
 import HomeView from "../views/HomeView.vue";
-import Cookies from "js-cookie";
+import { useAuth } from "../stores/authStore";
+import { supabase } from "../supabase";
 // Views
 import ContentRequest from "../views/ContentRequest.vue";
 import Dashboard from "../views/Dashboard.vue";
 import RecordDetail from "../views/RecordDetail.vue";
-import LogIn from "../views/LogIn.vue";
+import Auth from "../views/Auth.vue";
+import Onboarding from "../views/Onboarding.vue";
 import ProperoDashboard from "../views/ProperoDashboard.vue";
 import ProperoRecordDetail from "../views/ProperoRecordDetail.vue";
 import ProperoContentRequest from "../views/ProperoContentRequest.vue";
@@ -19,51 +21,57 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
-    path: "/content-request",
-    name: "ContentRequestView",
-    component: ContentRequest,
-    meta: { requiresAuth: true, role: "uvicSS" },
+    path: "/auth",
+    name: "auth",
+    component: Auth,
+  },
+  {
+    path: "/onboarding",
+    name: "onboarding",
+    component: Onboarding,
+    meta: { requiresAuth: true, requiresProfile: false },
   },
   {
     path: "/dashboard",
     name: "dashboard",
     component: Dashboard,
-    meta: { requiresAuth: true, role: "uvicSS" },
+    meta: { requiresAuth: true, requiresProfile: true },
+  },
+  {
+    path: "/content-request",
+    name: "ContentRequestView",
+    component: ContentRequest,
+    meta: { requiresAuth: true, requiresProfile: true },
   },
   {
     path: "/record/:id",
     name: "recordDetail",
     component: RecordDetail,
-    meta: { requiresAuth: true, role: "uvicSS" },
-  },
-  {
-    path: "/login",
-    name: "login",
-    component: LogIn,
+    meta: { requiresAuth: true, requiresProfile: true },
   },
   {
     path: "/propero/dashboard",
     name: "properoDashboard",
     component: ProperoDashboard,
-    meta: { requiresAuth: true, role: "propero" },
+    meta: { requiresAuth: true, requiresProfile: true },
   },
   {
     path: "/propero/record/:id",
     name: "properoRecordDetail",
     component: ProperoRecordDetail,
-    meta: { requiresAuth: true, role: "propero" },
+    meta: { requiresAuth: true, requiresProfile: true },
   },
   {
     path: "/propero/content-request",
     name: "ProperoContentRequestView",
     component: ProperoContentRequest,
-    meta: { requiresAuth: true, role: "propero" },
+    meta: { requiresAuth: true, requiresProfile: true },
   },
   {
     path: "/propero/reports",
     name: "ProperoReports",
     component: ProperoReports,
-    meta: { requiresAuth: true, role: "propero" },
+    meta: { requiresAuth: true, requiresProfile: true },
   },
 ];
 
@@ -72,29 +80,40 @@ const router = createRouter({
   routes,
 });
 
-// Navigation guard to update the document title
-router.beforeEach((to, from, next) => {
-  const requiresAuth = to.matched.some((record) => record.meta.requiresAuth);
-  const userRole = Cookies.get("role");
+// Navigation guard to check auth and profile completion
+router.beforeEach(async (to) => {
+  const { user, loading } = useAuth();
 
-  if (requiresAuth) {
-    const username = Cookies.get("username");
-    if (!username) {
-      next({ name: "login" });
-    } else {
-      const allowedRole = to.meta.role;
-      if (allowedRole && allowedRole !== userRole) {
-        next({ name: "unauthorized" });
-      } else {
-        next();
-      }
-    }
-  } else {
-    next();
+  // Wait for auth to initialize
+  if (loading.value) {
+    return;
   }
 
-  // Set document title
-  document.title = "Prism of Content"; // Default title
+  const requiresAuth = to.matched.some((record) => record.meta.requiresAuth);
+  const requiresProfile = to.matched.some(
+    (record) => record.meta.requiresProfile
+  );
+
+  if (requiresAuth && !user.value) {
+    return "/auth";
+  }
+
+  if (to.path === "/auth" && user.value) {
+    return "/dashboard";
+  }
+
+  // Check if user needs to complete profile
+  if (requiresProfile && user.value) {
+    const { data: profile } = await supabase
+      .from("user_profiles")
+      .select("institution_id, role_id")
+      .eq("id", user.value.id)
+      .single();
+
+    if (!profile?.institution_id || !profile?.role_id) {
+      return "/onboarding";
+    }
+  }
 });
 
 export default router;
