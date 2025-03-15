@@ -1,134 +1,175 @@
 <template>
-  <div class="main-content">
+  <div class="dashboard">
     <h1>Dashboard</h1>
-    <div v-if="loading">
-      <p>Content is loading...</p>
+
+    <div v-if="loading" class="loading">Loading content...</div>
+
+    <div v-else-if="error" class="error">
+      {{ error }}
     </div>
-    <table v-else-if="records.length">
+
+    <table v-else-if="sourceContent.length" class="content-table">
       <thead>
         <tr>
-          <th>Name</th>
+          <th>Title</th>
           <th>Content Type</th>
           <th>Status</th>
-          <th>Date</th>
+          <th>Created Date</th>
         </tr>
       </thead>
       <tbody>
-        <tr v-for="record in records" :key="record.id">
+        <tr v-for="content in sourceContent" :key="content.id">
+          <td>{{ content.source_content_title }}</td>
           <td>
-            <template
-              v-if="
-                getUserFriendlyStatus(record.status) === 'Ready' ||
-                getUserFriendlyStatus(record.status) === 'Approved' ||
-                getUserFriendlyStatus(record.status) === 'Generating Imagery' ||
-                getUserFriendlyStatus(record.status) === 'Processing'
-              "
-            >
-              <router-link :to="`/record/${record.id}`">
-                {{ record.name || "Fetching article name..." }}
-              </router-link>
-            </template>
-            <template v-else>
-              {{ record.name || "Fetching article name..." }}
-            </template>
+            {{ content.template ? content.template.template_name : "Pending" }}
           </td>
-          <td>{{ record.contentType }}</td>
-          <td>{{ getUserFriendlyStatus(record.status) }}</td>
-          <td style="font-size: 8px">{{ formatDate(record.createdTime) }}</td>
+          <td>{{ content.content_status.status }}</td>
+          <td>{{ formatDate(content.created_at) }}</td>
         </tr>
       </tbody>
     </table>
-    <p v-else>No records found.</p>
+
+    <div v-else class="no-content">
+      No content found. Start by submitting an article or PDF.
+    </div>
   </div>
 </template>
 
-<script>
-import axios from "axios";
-import Cookies from "js-cookie"; // Import Cookies
+<script setup>
+import { ref, onMounted, watch } from "vue";
+import { supabase } from "../supabase";
+import { useAuth } from "../stores/authStore";
 
-export default {
-  data() {
-    return {
-      records: [],
-      loading: true, // Added loading state
-    };
-  },
-  async created() {
-    try {
-      console.log("Fetching records...", process.env.VUE_APP_API_BASE_URL);
-      const baseURL =
-        process.env.VUE_APP_API_BASE_URL || "http://localhost:3000";
+const { user } = useAuth();
+const sourceContent = ref([]);
+const loading = ref(true);
+const error = ref(null);
 
-      // Get the username from the cookie
-      const username = Cookies.get("username");
-      if (!username) {
-        this.$router.push("/auth"); // Redirect to auth page if not logged in
-        return;
-      }
+const fetchContent = async () => {
+  // Reset error state
+  error.value = null;
 
-      // Fetch records with the username in the request headers
-      const response = await axios.get(`${baseURL}/api/records`, {
-        headers: {
-          "X-Username": username,
-        },
-      });
-      this.records = response.data;
-      console.log("Fetched records:", this.records); // Console log the records data
-    } catch (error) {
-      console.error("Error fetching records:", error.message);
-    } finally {
-      this.loading = false;
-    }
-  },
-  methods: {
-    getUserFriendlyStatus(status) {
-      switch (status) {
-        case "Uploaded to Dropbox":
-          return "Ready";
-        case "Approved":
-          return "Approved";
-        case "Text Generating":
-        case "Text Generated":
-        case "Pending":
-          return "Pending";
-        case "Imagery Generating":
-        case "Imagery Generated":
-        case "Uploading to Dropbox":
-          return "Generating Imagery";
-        default:
-          return "Processing";
-      }
-    },
-    formatDate(dateString) {
-      const options = {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      };
-      const date = new Date(dateString);
-      return date.toLocaleDateString(undefined, options);
-    },
-  },
+  // Check if user is available
+  if (!user.value) {
+    loading.value = false;
+    return;
+  }
+
+  try {
+    const { data, error: fetchError } = await supabase
+      .from("source_content")
+      .select(
+        `
+        *,
+        content_status:content_status_id (
+          status
+        ),
+        template:template_id (
+          template_name
+        )
+      `
+      )
+      .eq("user_id", user.value.id)
+      .order("created_at", { ascending: false });
+
+    if (fetchError) throw fetchError;
+    sourceContent.value = data;
+  } catch (err) {
+    console.error("Error fetching content:", err);
+    error.value = "Failed to load content. Please try again later.";
+  } finally {
+    loading.value = false;
+  }
 };
+
+const formatDate = (dateString) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+};
+
+// Watch for user changes and fetch content when user becomes available
+watch(user, (newUser) => {
+  if (newUser) {
+    fetchContent();
+  } else {
+    sourceContent.value = [];
+  }
+});
+
+onMounted(() => {
+  // Only fetch if user is already available
+  if (user.value) {
+    fetchContent();
+  }
+});
 </script>
 
 <style scoped>
-/* Apply .main-content styles only on desktop screens */
-@media (min-width: 1024px) {
-  .main-content {
-    width: 80%;
-    max-width: 1200px;
-  }
+.dashboard {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
-/* Apply .main-content styles on smaller screens */
-@media (max-width: 1023px) {
-  td,
-  a,
-  p {
-    font-size: 12px;
+h1 {
+  margin-bottom: 2rem;
+  color: #333;
+}
+
+.content-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.content-table th,
+.content-table td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.content-table th {
+  background-color: #f8f9fa;
+  font-weight: 600;
+  color: #495057;
+}
+
+.content-table tr:last-child td {
+  border-bottom: none;
+}
+
+.content-table tr:hover {
+  background-color: #f8f9fa;
+}
+
+.loading,
+.error,
+.no-content {
+  text-align: center;
+  padding: 2rem;
+  color: #666;
+}
+
+.error {
+  color: #dc3545;
+}
+
+@media (max-width: 768px) {
+  .dashboard {
+    padding: 1rem;
+  }
+
+  .content-table th,
+  .content-table td {
+    padding: 0.75rem;
   }
 }
 </style>
