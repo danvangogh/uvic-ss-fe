@@ -13,17 +13,38 @@
         <tr>
           <th>Title</th>
           <th>Content Type</th>
-          <th>Status</th>
+          <th>Progress</th>
           <th>Created Date</th>
         </tr>
       </thead>
       <tbody>
-        <tr v-for="content in sourceContent" :key="content.id">
+        <tr
+          v-for="content in sourceContent"
+          :key="content.id"
+          class="content-row"
+          @click="$router.push(`/content/${content.id}`)"
+        >
           <td>{{ content.source_content_title }}</td>
           <td>
             {{ content.template ? content.template.template_name : "Pending" }}
           </td>
-          <td>{{ content.content_status.status }}</td>
+          <td class="progress-cell">
+            <div class="progress-indicators">
+              <div class="progress-bar">
+                <div
+                  v-for="(status, index) in statusFlags"
+                  :key="index"
+                  class="status-indicator"
+                  :class="{ completed: content[status.flag] }"
+                  :title="status.label"
+                >
+                  <div class="status-dot"></div>
+                  <div class="status-label">{{ status.shortLabel }}</div>
+                </div>
+                <div class="progress-line"></div>
+              </div>
+            </div>
+          </td>
           <td>{{ formatDate(content.created_at) }}</td>
         </tr>
       </tbody>
@@ -46,6 +67,37 @@ const loading = ref(true);
 const error = ref(null);
 let subscription = null;
 
+const statusFlags = [
+  { flag: "is_new_submission", label: "New Submission", shortLabel: "N" },
+  {
+    flag: "is_capturing_source_text",
+    label: "Capturing Source Text",
+    shortLabel: "C",
+  },
+  {
+    flag: "is_source_text_captured",
+    label: "Source Text Captured",
+    shortLabel: "SC",
+  },
+  { flag: "is_template_selected", label: "Template Selected", shortLabel: "T" },
+  {
+    flag: "is_generating_post_text",
+    label: "Generating Post Text",
+    shortLabel: "GP",
+  },
+  {
+    flag: "is_post_text_generated",
+    label: "Post Text Generated",
+    shortLabel: "PG",
+  },
+  {
+    flag: "is_generating_imagery",
+    label: "Generating Imagery",
+    shortLabel: "GI",
+  },
+  { flag: "is_imagery_generated", label: "Imagery Generated", shortLabel: "I" },
+];
+
 const fetchContent = async () => {
   // Reset error state
   error.value = null;
@@ -62,9 +114,6 @@ const fetchContent = async () => {
       .select(
         `
         *,
-        content_status:content_status_id (
-          status
-        ),
         template:template_id (
           template_name
         )
@@ -258,6 +307,74 @@ h1 {
 
 .error {
   color: #dc3545;
+}
+
+.content-row {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.content-row:hover {
+  background-color: #f0f0f0 !important;
+}
+
+.progress-cell {
+  width: 40px;
+  min-width: 40px;
+  padding: 0.5rem !important;
+}
+
+.progress-indicators {
+  height: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.progress-bar {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 0;
+  height: 100%;
+}
+
+.progress-line {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 50%;
+  width: 2px;
+  background-color: #e9ecef;
+  transform: translateX(-50%);
+  z-index: 0;
+}
+
+.status-indicator {
+  position: relative;
+  display: flex;
+  align-items: center;
+  z-index: 1;
+  cursor: help;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #e9ecef;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px #e9ecef;
+}
+
+.status-label {
+  display: none;
+}
+
+.status-indicator.completed .status-dot {
+  background-color: #28a745;
+  box-shadow: 0 0 0 1px #28a745;
 }
 
 @media (max-width: 768px) {

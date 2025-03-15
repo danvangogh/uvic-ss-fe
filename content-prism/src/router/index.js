@@ -13,6 +13,7 @@ import ProperoRecordDetail from "../views/ProperoRecordDetail.vue";
 import ProperoContentRequest from "../views/ProperoContentRequest.vue";
 import ProperoReports from "../views/ProperoReports.vue";
 import CreateContent from "../views/CreateContent.vue";
+import ContentDetail from "../views/ContentDetail.vue";
 
 const routes = [
   {
@@ -42,6 +43,12 @@ const routes = [
     path: "/content-request",
     name: "ContentRequestView",
     component: ContentRequest,
+    meta: { requiresAuth: true, requiresProfile: true },
+  },
+  {
+    path: "/content/:id",
+    name: "contentDetail",
+    component: ContentDetail,
     meta: { requiresAuth: true, requiresProfile: true },
   },
   {

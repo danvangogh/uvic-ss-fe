@@ -64,7 +64,7 @@
 
       <!-- Success Message -->
       <div v-if="showSuccess" class="success-message">
-        Content submitted successfully! Redirecting to dashboard...
+        Content submitted successfully! Redirecting to content detail...
       </div>
     </div>
   </div>
@@ -115,15 +115,6 @@ const getUserProfile = async () => {
 };
 
 const createSourceContent = async (url, institutionId) => {
-  // Get the ID of the 'New Submission' status
-  const { data: statusData, error: statusError } = await supabase
-    .from("content_status")
-    .select("id")
-    .eq("status", "New Submission")
-    .single();
-
-  if (statusError) throw statusError;
-
   const { data, error } = await supabase
     .from("source_content")
     .insert([
@@ -134,7 +125,14 @@ const createSourceContent = async (url, institutionId) => {
         institution_id: institutionId,
         source_content_title: "Pending...", // Will be updated by scraper
         source_content_main_text: null, // Will be updated by scraper
-        content_status_id: statusData.id, // Set the initial status
+        is_new_submission: true,
+        is_capturing_source_text: true, // Set to true as we're about to start scraping
+        is_source_text_captured: false,
+        is_template_selected: false,
+        is_generating_post_text: false,
+        is_post_text_generated: false,
+        is_generating_imagery: false,
+        is_imagery_generated: false,
       },
     ])
     .select();
@@ -193,7 +191,7 @@ const handleSubmit = async () => {
       // Show success message and redirect
       showSuccess.value = true;
       setTimeout(() => {
-        router.push("/dashboard");
+        router.push(`/content/${sourceContent.id}`);
       }, 2000);
 
       // Clear form
