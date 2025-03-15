@@ -115,6 +115,15 @@ const getUserProfile = async () => {
 };
 
 const createSourceContent = async (url, institutionId) => {
+  // Get the ID of the 'New Submission' status
+  const { data: statusData, error: statusError } = await supabase
+    .from("content_status")
+    .select("id")
+    .eq("status", "New Submission")
+    .single();
+
+  if (statusError) throw statusError;
+
   const { data, error } = await supabase
     .from("source_content")
     .insert([
@@ -125,6 +134,7 @@ const createSourceContent = async (url, institutionId) => {
         institution_id: institutionId,
         source_content_title: "Pending...", // Will be updated by scraper
         source_content_main_text: null, // Will be updated by scraper
+        content_status_id: statusData.id, // Set the initial status
       },
     ])
     .select();
