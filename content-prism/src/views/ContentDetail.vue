@@ -77,13 +77,7 @@
               Please verify we have captured all the text of the article. If
               not, please paste it in here and click save.
             </p>
-            <div
-              v-if="
-                !content.source_content_title ||
-                content.source_content_title === 'Pending...'
-              "
-              class="modal-field"
-            >
+            <div class="modal-field">
               <label for="title">Article Title</label>
               <input
                 id="title"
