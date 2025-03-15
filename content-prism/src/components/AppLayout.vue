@@ -69,7 +69,7 @@
       <!-- Top Brand Bar -->
       <header class="brand-bar">
         <div class="brand-logo">
-          <img src="/favicon.ico" alt="Logo" class="logo" />
+          <img :src="brandLogo || '/favicon.ico'" alt="Logo" class="logo" />
         </div>
         <div class="brand-actions">
           <button
@@ -90,10 +90,15 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useRoute } from "vue-router";
+import { supabase } from "../supabase";
+import { useAuth } from "../stores/authStore";
 
 const route = useRoute();
+const { user } = useAuth();
+const brandLogo = ref(null);
+
 const expandedSection = ref("content"); // Default expanded section
 const activeSection = computed(() => {
   const path = route.path;
@@ -106,6 +111,33 @@ const activeSection = computed(() => {
 const toggleSection = (section) => {
   expandedSection.value = expandedSection.value === section ? null : section;
 };
+
+// Fetch brand assets for the user's institution
+onMounted(async () => {
+  try {
+    // First get the user's institution_id from their profile
+    const { data: profile } = await supabase
+      .from("user_profiles")
+      .select("institution_id")
+      .eq("id", user.value.id)
+      .single();
+
+    if (profile?.institution_id) {
+      // Then fetch the brand assets for that institution
+      const { data: brandAssets } = await supabase
+        .from("brand_assets")
+        .select("logo")
+        .eq("institution_id", profile.institution_id)
+        .single();
+
+      if (brandAssets?.logo) {
+        brandLogo.value = brandAssets.logo;
+      }
+    }
+  } catch (error) {
+    console.error("Error fetching brand assets:", error);
+  }
+});
 </script>
 
 <style scoped>
@@ -203,6 +235,18 @@ const toggleSection = (section) => {
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid #eaeaea;
+}
+
+.brand-logo {
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.brand-logo .logo {
+  height: 32px;
+  width: auto;
+  display: block;
 }
 
 .create-button {

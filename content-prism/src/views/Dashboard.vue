@@ -36,7 +36,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from "vue";
+import { ref, onMounted, watch, onUnmounted } from "vue";
 import { supabase } from "../supabase";
 import { useAuth } from "../stores/authStore";
 
@@ -44,6 +44,7 @@ const { user } = useAuth();
 const sourceContent = ref([]);
 const loading = ref(true);
 const error = ref(null);
+let subscription = null;
 
 const fetchContent = async () => {
   // Reset error state
@@ -82,6 +83,95 @@ const fetchContent = async () => {
   }
 };
 
+const setupRealtimeSubscription = () => {
+  if (!user.value) return;
+
+  console.log("Setting up real-time subscription for user:", user.value.id);
+
+  // Clean up any existing subscription
+  if (subscription) {
+    console.log("Cleaning up existing subscription");
+    subscription.unsubscribe();
+  }
+
+  // Test the real-time connection first
+  subscription = supabase
+    .channel("test")
+    .on("system", { event: "*" }, (payload) => {
+      console.log("System event received:", payload);
+    })
+    .subscribe((status, err) => {
+      console.log("Initial subscription status:", status);
+      if (err) {
+        console.error("Subscription error:", err);
+        return;
+      }
+
+      // If basic connection works, set up the actual subscriptions
+      subscription = supabase
+        .channel("dashboard_changes")
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "source_content",
+            filter: `user_id=eq.${user.value.id}`,
+          },
+          (payload) => {
+            console.log("Source content change received:", payload);
+            fetchContent();
+          }
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "content_status",
+          },
+          (payload) => {
+            console.log("Content status change received:", payload);
+            fetchContent();
+          }
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "content_templates",
+          },
+          (payload) => {
+            console.log("Content template change received:", payload);
+            fetchContent();
+          }
+        )
+        .subscribe((status, err) => {
+          if (err) {
+            console.error("Error setting up real-time subscription:", err);
+            error.value =
+              "Failed to setup live updates. Please refresh the page.";
+          } else {
+            console.log("Real-time subscription status:", status);
+          }
+        });
+    });
+
+  // Add connection status check
+  setTimeout(() => {
+    const state = subscription?.state;
+    console.log("Current subscription state:", state);
+    // Check for both possible connected states
+    if (state !== "SUBSCRIBED" && state !== "joined") {
+      console.error("Subscription not connected. State:", state);
+      error.value = "Live updates may not be working. Please refresh the page.";
+    } else {
+      console.log("Subscription successfully connected with state:", state);
+    }
+  }, 5000);
+};
+
 const formatDate = (dateString) => {
   const date = new Date(dateString);
   return date.toLocaleDateString("en-US", {
@@ -91,20 +181,28 @@ const formatDate = (dateString) => {
   });
 };
 
-// Watch for user changes and fetch content when user becomes available
+// Watch for user changes and setup subscription when user becomes available
 watch(user, (newUser) => {
   if (newUser) {
     fetchContent();
+    setupRealtimeSubscription();
   } else {
     sourceContent.value = [];
+    if (subscription) subscription.unsubscribe();
   }
 });
 
 onMounted(() => {
-  // Only fetch if user is already available
+  // Only fetch and subscribe if user is already available
   if (user.value) {
     fetchContent();
+    setupRealtimeSubscription();
   }
+});
+
+onUnmounted(() => {
+  // Clean up subscription when component is unmounted
+  if (subscription) subscription.unsubscribe();
 });
 </script>
 
