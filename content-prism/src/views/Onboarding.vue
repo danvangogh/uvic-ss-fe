@@ -89,9 +89,29 @@ export default {
       role: "",
     });
 
-    // Fetch institutions on component mount
+    // Check if profile is already complete
     onMounted(async () => {
       try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) {
+          router.push("/auth");
+          return;
+        }
+
+        const { data: profile } = await supabase
+          .from("user_profiles")
+          .select("institution_id, role_id")
+          .eq("id", user.id)
+          .single();
+
+        if (profile?.institution_id && profile?.role_id) {
+          router.push("/dashboard");
+          return;
+        }
+
+        // Fetch institutions only if profile is incomplete
         const { data, error: fetchError } = await supabase
           .from("institutions")
           .select("institution_name")
@@ -100,7 +120,8 @@ export default {
         if (fetchError) throw fetchError;
         institutions.value = data;
       } catch (err) {
-        console.error("Error fetching institutions:", err);
+        console.error("Error checking profile:", err);
+        error.value = "An error occurred while loading your profile";
       }
     });
 

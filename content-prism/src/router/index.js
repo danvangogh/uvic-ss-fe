@@ -94,25 +94,58 @@ router.beforeEach(async (to) => {
     (record) => record.meta.requiresProfile
   );
 
+  // Always allow access to auth page if not logged in
+  if (to.path === "/auth" && !user.value) {
+    return true;
+  }
+
+  // Require auth for protected routes
   if (requiresAuth && !user.value) {
     return "/auth";
   }
 
-  if (to.path === "/auth" && user.value) {
-    return "/dashboard";
-  }
+  try {
+    // For authenticated users, check their profile status
+    if (user.value) {
+      const { data: profile, error } = await supabase
+        .from("user_profiles")
+        .select("institution_id, role_id")
+        .eq("id", user.value.id)
+        .single();
 
-  // Check if user needs to complete profile
-  if (requiresProfile && user.value) {
-    const { data: profile } = await supabase
-      .from("user_profiles")
-      .select("institution_id, role_id")
-      .eq("id", user.value.id)
-      .single();
+      if (error) {
+        console.error("Supabase error checking profile:", error);
+        // If there's an error checking the profile, allow access to onboarding
+        if (to.path === "/onboarding") {
+          return true;
+        }
+        return "/auth";
+      }
 
-    if (!profile?.institution_id || !profile?.role_id) {
-      return "/onboarding";
+      // Handle navigation based on profile completion
+      const isProfileComplete = profile?.institution_id && profile?.role_id;
+
+      // Redirect from auth page if already logged in
+      if (to.path === "/auth") {
+        return isProfileComplete ? "/dashboard" : "/onboarding";
+      }
+
+      // Prevent access to onboarding if profile is complete
+      if (to.path === "/onboarding" && isProfileComplete) {
+        return "/dashboard";
+      }
+
+      // Redirect to onboarding if profile is incomplete and route requires profile
+      if (requiresProfile && !isProfileComplete) {
+        return "/onboarding";
+      }
     }
+
+    return true;
+  } catch (error) {
+    console.error("Unexpected error in router guard:", error);
+    // For unexpected errors, redirect to auth
+    return "/auth";
   }
 });
 

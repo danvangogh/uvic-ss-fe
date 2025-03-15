@@ -66,16 +66,31 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- Create triggers for updated_at
-CREATE TRIGGER update_source_content_updated_at
-    BEFORE UPDATE ON source_content
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
+-- Create triggers for updated_at if they don't exist
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger 
+        WHERE tgname = 'update_source_content_updated_at'
+        AND tgrelid = 'source_content'::regclass
+    ) THEN
+        CREATE TRIGGER update_source_content_updated_at
+            BEFORE UPDATE ON source_content
+            FOR EACH ROW
+            EXECUTE FUNCTION update_updated_at_column();
+    END IF;
 
-CREATE TRIGGER update_images_updated_at
-    BEFORE UPDATE ON images
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger 
+        WHERE tgname = 'update_images_updated_at'
+        AND tgrelid = 'images'::regclass
+    ) THEN
+        CREATE TRIGGER update_images_updated_at
+            BEFORE UPDATE ON images
+            FOR EACH ROW
+            EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+END $$;
 
 -- Enable RLS
 ALTER TABLE source_content ENABLE ROW LEVEL SECURITY;
@@ -92,115 +107,137 @@ DROP POLICY IF EXISTS "Users can update images for their source content" ON imag
 DROP POLICY IF EXISTS "Users can delete their own images" ON images;
 
 -- Create RLS policies for source_content
-CREATE POLICY "Users can view their own source content"
-    ON source_content FOR SELECT
-    TO authenticated
-    USING (
-        user_id = auth.uid() AND
-        EXISTS (
-            SELECT 1 FROM user_profiles
-            WHERE user_profiles.id = auth.uid()
-            AND user_profiles.institution_id = source_content.institution_id
-        )
-    );
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can view their own source content' AND tablename = 'source_content') THEN
+        CREATE POLICY "Users can view their own source content"
+            ON source_content FOR SELECT
+            TO authenticated
+            USING (
+                user_id = auth.uid() AND
+                EXISTS (
+                    SELECT 1 FROM user_profiles
+                    WHERE user_profiles.id = auth.uid()
+                    AND user_profiles.institution_id = source_content.institution_id
+                )
+            );
+    END IF;
 
-CREATE POLICY "Users can insert their own source content"
-    ON source_content FOR INSERT
-    TO authenticated
-    WITH CHECK (
-        source_content.user_id = auth.uid() AND
-        EXISTS (
-            SELECT 1 FROM user_profiles
-            WHERE user_profiles.id = auth.uid()
-            AND user_profiles.institution_id = source_content.institution_id
-        )
-    );
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can insert their own source content' AND tablename = 'source_content') THEN
+        CREATE POLICY "Users can insert their own source content"
+            ON source_content FOR INSERT
+            TO authenticated
+            WITH CHECK (
+                source_content.user_id = auth.uid() AND
+                EXISTS (
+                    SELECT 1 FROM user_profiles
+                    WHERE user_profiles.id = auth.uid()
+                    AND user_profiles.institution_id = source_content.institution_id
+                )
+            );
+    END IF;
 
-CREATE POLICY "Users can update their own source content"
-    ON source_content FOR UPDATE
-    TO authenticated
-    USING (
-        user_id = auth.uid() AND
-        EXISTS (
-            SELECT 1 FROM user_profiles
-            WHERE user_profiles.id = auth.uid()
-            AND user_profiles.institution_id = source_content.institution_id
-        )
-    )
-    WITH CHECK (
-        source_content.user_id = auth.uid() AND
-        EXISTS (
-            SELECT 1 FROM user_profiles
-            WHERE user_profiles.id = auth.uid()
-            AND user_profiles.institution_id = source_content.institution_id
-        )
-    );
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can update their own source content' AND tablename = 'source_content') THEN
+        CREATE POLICY "Users can update their own source content"
+            ON source_content FOR UPDATE
+            TO authenticated
+            USING (
+                user_id = auth.uid() AND
+                EXISTS (
+                    SELECT 1 FROM user_profiles
+                    WHERE user_profiles.id = auth.uid()
+                    AND user_profiles.institution_id = source_content.institution_id
+                )
+            )
+            WITH CHECK (
+                source_content.user_id = auth.uid() AND
+                EXISTS (
+                    SELECT 1 FROM user_profiles
+                    WHERE user_profiles.id = auth.uid()
+                    AND user_profiles.institution_id = source_content.institution_id
+                )
+            );
+    END IF;
 
-CREATE POLICY "Users can delete their own source content"
-    ON source_content FOR DELETE
-    TO authenticated
-    USING (
-        user_id = auth.uid() AND
-        EXISTS (
-            SELECT 1 FROM user_profiles
-            WHERE user_profiles.id = auth.uid()
-            AND user_profiles.institution_id = source_content.institution_id
-        )
-    );
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can delete their own source content' AND tablename = 'source_content') THEN
+        CREATE POLICY "Users can delete their own source content"
+            ON source_content FOR DELETE
+            TO authenticated
+            USING (
+                user_id = auth.uid() AND
+                EXISTS (
+                    SELECT 1 FROM user_profiles
+                    WHERE user_profiles.id = auth.uid()
+                    AND user_profiles.institution_id = source_content.institution_id
+                )
+            );
+    END IF;
+END $$;
 
 -- Create RLS policies for images
-CREATE POLICY "Users can view their own images"
-    ON images FOR SELECT
-    TO authenticated
-    USING (
-        user_id = auth.uid() AND
-        EXISTS (
-            SELECT 1 FROM user_profiles
-            WHERE user_profiles.id = auth.uid()
-            AND user_profiles.institution_id = images.institution_id
-        )
-    );
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can view their own images' AND tablename = 'images') THEN
+        CREATE POLICY "Users can view their own images"
+            ON images FOR SELECT
+            TO authenticated
+            USING (
+                user_id = auth.uid() AND
+                EXISTS (
+                    SELECT 1 FROM user_profiles
+                    WHERE user_profiles.id = auth.uid()
+                    AND user_profiles.institution_id = images.institution_id
+                )
+            );
+    END IF;
 
-CREATE POLICY "Users can insert their own images"
-    ON images FOR INSERT
-    TO authenticated
-    WITH CHECK (
-        images.user_id = auth.uid() AND
-        EXISTS (
-            SELECT 1 FROM user_profiles
-            WHERE user_profiles.id = auth.uid()
-            AND user_profiles.institution_id = images.institution_id
-        )
-    );
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can insert their own images' AND tablename = 'images') THEN
+        CREATE POLICY "Users can insert their own images"
+            ON images FOR INSERT
+            TO authenticated
+            WITH CHECK (
+                images.user_id = auth.uid() AND
+                EXISTS (
+                    SELECT 1 FROM user_profiles
+                    WHERE user_profiles.id = auth.uid()
+                    AND user_profiles.institution_id = images.institution_id
+                )
+            );
+    END IF;
 
-CREATE POLICY "Users can update their own images"
-    ON images FOR UPDATE
-    TO authenticated
-    USING (
-        user_id = auth.uid() AND
-        EXISTS (
-            SELECT 1 FROM user_profiles
-            WHERE user_profiles.id = auth.uid()
-            AND user_profiles.institution_id = images.institution_id
-        )
-    )
-    WITH CHECK (
-        images.user_id = auth.uid() AND
-        EXISTS (
-            SELECT 1 FROM user_profiles
-            WHERE user_profiles.id = auth.uid()
-            AND user_profiles.institution_id = images.institution_id
-        )
-    );
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can update their own images' AND tablename = 'images') THEN
+        CREATE POLICY "Users can update their own images"
+            ON images FOR UPDATE
+            TO authenticated
+            USING (
+                user_id = auth.uid() AND
+                EXISTS (
+                    SELECT 1 FROM user_profiles
+                    WHERE user_profiles.id = auth.uid()
+                    AND user_profiles.institution_id = images.institution_id
+                )
+            )
+            WITH CHECK (
+                images.user_id = auth.uid() AND
+                EXISTS (
+                    SELECT 1 FROM user_profiles
+                    WHERE user_profiles.id = auth.uid()
+                    AND user_profiles.institution_id = images.institution_id
+                )
+            );
+    END IF;
 
-CREATE POLICY "Users can delete their own images"
-    ON images FOR DELETE
-    TO authenticated
-    USING (
-        user_id = auth.uid() AND
-        EXISTS (
-            SELECT 1 FROM user_profiles
-            WHERE user_profiles.id = auth.uid()
-            AND user_profiles.institution_id = images.institution_id
-        )
-    ); 
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can delete their own images' AND tablename = 'images') THEN
+        CREATE POLICY "Users can delete their own images"
+            ON images FOR DELETE
+            TO authenticated
+            USING (
+                user_id = auth.uid() AND
+                EXISTS (
+                    SELECT 1 FROM user_profiles
+                    WHERE user_profiles.id = auth.uid()
+                    AND user_profiles.institution_id = images.institution_id
+                )
+            );
+    END IF;
+END $$; 

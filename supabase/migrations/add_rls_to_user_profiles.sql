@@ -1,46 +1,33 @@
--- Enable RLS on user_profiles
-ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
+-- First, disable RLS to ensure clean state
+ALTER TABLE public.user_profiles DISABLE ROW LEVEL SECURITY;
 
--- Drop existing policies if they exist
+-- Drop ALL existing policies
 DROP POLICY IF EXISTS "Users can view own profile" ON public.user_profiles;
 DROP POLICY IF EXISTS "Users can update own profile" ON public.user_profiles;
 DROP POLICY IF EXISTS "Users can insert own profile" ON public.user_profiles;
 DROP POLICY IF EXISTS "Users can delete own profile" ON public.user_profiles;
 DROP POLICY IF EXISTS "Users can view profiles from same institution" ON public.user_profiles;
 
--- Users can view their own profile
-CREATE POLICY "Users can view own profile"
+-- Re-enable RLS
+ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
+
+-- Create simple policies
+CREATE POLICY "Enable read for users"
     ON public.user_profiles FOR SELECT
     TO authenticated
     USING (id = auth.uid());
 
--- Users can update their own profile
-CREATE POLICY "Users can update own profile"
-    ON public.user_profiles FOR UPDATE
-    TO authenticated
-    USING (id = auth.uid())
-    WITH CHECK (id = auth.uid());
-
--- Users can insert their own profile
-CREATE POLICY "Users can insert own profile"
+CREATE POLICY "Enable insert for users"
     ON public.user_profiles FOR INSERT
     TO authenticated
     WITH CHECK (id = auth.uid());
 
--- Users can delete their own profile
-CREATE POLICY "Users can delete own profile"
-    ON public.user_profiles FOR DELETE
+CREATE POLICY "Enable update for users"
+    ON public.user_profiles FOR UPDATE
     TO authenticated
     USING (id = auth.uid());
 
--- Allow users to view profiles from their own institution
-CREATE POLICY "Users can view profiles from same institution"
-    ON public.user_profiles FOR SELECT
+CREATE POLICY "Enable delete for users"
+    ON public.user_profiles FOR DELETE
     TO authenticated
-    USING (
-        institution_id IN (
-            SELECT institution_id 
-            FROM public.user_profiles 
-            WHERE id = auth.uid()
-        )
-    ); 
+    USING (id = auth.uid()); 
