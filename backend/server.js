@@ -9,6 +9,8 @@ const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const dotenv = require("dotenv");
 const { PDFDocument, rgb } = require("pdf-lib");
 const FormData = require("form-data");
+const cheerio = require("cheerio");
+const { createClient } = require("@supabase/supabase-js");
 
 dotenv.config();
 
@@ -47,6 +49,23 @@ const s3Client = new S3Client({
     secretAccessKey: process.env.DIGITAL_OCEAN_SPACE_SECRET_KEY,
   },
 });
+
+// Initialize Supabase client
+const supabase = createClient(
+  process.env.VUE_APP_SUPABASE_URL,
+  process.env.VUE_APP_SUPABASE_ANON_KEY,
+  {
+    auth: {
+      persistSession: false,
+    },
+  }
+);
+
+// Add debug logging for Supabase configuration
+console.log(
+  "Supabase client initialized with URL:",
+  process.env.VUE_APP_SUPABASE_URL
+);
 
 // Include timestamps in all console.log statements
 const originalLog = console.log;
@@ -592,5 +611,250 @@ app.post("/api/propero/pdf-parse", async (req, res) => {
   } catch (error) {
     console.error("Error creating PDF:", error.message);
     res.status(500).send("Error creating PDF");
+  }
+});
+
+// Web scraping endpoint
+app.post("/api/scrape-content", async (req, res) => {
+  try {
+    const { sourceContentId, url, accessToken } = req.body;
+    console.log("=== Starting content scraping ===");
+    console.log("Source Content ID:", sourceContentId);
+    console.log("URL to scrape:", url);
+
+    if (!sourceContentId || !url || !accessToken) {
+      console.log("Missing required parameters");
+      return res.status(400).json({
+        error:
+          "Missing required parameters: sourceContentId, url, and accessToken",
+      });
+    }
+
+    // Create a new Supabase client with the user's access token
+    const authenticatedSupabase = createClient(
+      process.env.VUE_APP_SUPABASE_URL,
+      process.env.VUE_APP_SUPABASE_ANON_KEY,
+      {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        },
+        global: {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        },
+      }
+    );
+
+    console.log("Created authenticated Supabase client");
+
+    console.log("Fetching webpage content...");
+    const response = await axios.get(url);
+    console.log(
+      "Webpage fetched successfully, content length:",
+      response.data.length
+    );
+
+    const $ = cheerio.load(response.data);
+    console.log("HTML parsed with cheerio");
+
+    // Initialize variables for content
+    let title = "";
+    let mainText = "";
+
+    // Extract title - try different common selectors
+    console.log("Attempting to extract title...");
+    const titleSelectors = [
+      "h1",
+      "article h1",
+      "main h1",
+      ".article-title",
+      ".post-title",
+      "title",
+    ];
+
+    for (const selector of titleSelectors) {
+      const titleText = $(selector).first().text().trim();
+      if (titleText) {
+        title = titleText;
+        console.log(`Found title using selector "${selector}":`, title);
+        break;
+      }
+    }
+
+    if (!title) {
+      console.log("Warning: No title found with any selector");
+    }
+
+    // Extract main content - try different common selectors
+    console.log("Attempting to extract main content...");
+    const contentSelectors = [
+      "article",
+      "main",
+      ".article-content",
+      ".post-content",
+      "#content",
+      ".content",
+    ];
+
+    // Try each selector until we find content
+    for (const selector of contentSelectors) {
+      const element = $(selector).first();
+      if (element.length) {
+        console.log(`Found content using selector "${selector}"`);
+        // Remove unwanted elements
+        element
+          .find(
+            "script, style, nav, header, footer, .social-share, .advertisement"
+          )
+          .remove();
+        mainText = element.text().trim();
+        if (mainText) {
+          console.log("Content length before cleanup:", mainText.length);
+          break;
+        }
+      }
+    }
+
+    // If no content found, try paragraphs
+    if (!mainText) {
+      console.log("No content found with main selectors, trying paragraphs...");
+      const paragraphs = $("p")
+        .map((_, el) => $(el).text().trim())
+        .get()
+        .filter((text) => text.length > 50);
+
+      console.log("Found", paragraphs.length, "paragraphs with length > 50");
+      mainText = paragraphs.join("\n\n");
+    }
+
+    // Clean up the text
+    if (mainText) {
+      console.log("Content length before final cleanup:", mainText.length);
+      mainText = mainText
+        .replace(/\s+/g, " ")
+        .replace(/\n\s*\n/g, "\n\n")
+        .trim();
+      console.log("Content length after cleanup:", mainText.length);
+    } else {
+      console.log("Warning: No main content found");
+    }
+
+    if (!title && !mainText) {
+      console.log("Error: Could not extract any content");
+      throw new Error("Could not extract content from the webpage");
+    }
+
+    // Prepare update data
+    const updateData = {
+      source_content_title: title || "Untitled Article",
+      source_content_main_text: mainText || null,
+      updated_at: new Date().toISOString(),
+    };
+    console.log("Preparing to update Supabase with data:", {
+      title: updateData.source_content_title,
+      textLength: updateData.source_content_main_text?.length || 0,
+      id: sourceContentId,
+    });
+
+    // First verify the row exists
+    console.log("Verifying source_content row exists...");
+
+    // First check if we can access the table at all
+    const { count: totalCount, error: countError } = await authenticatedSupabase
+      .from("source_content")
+      .select("*", { count: "exact", head: true });
+
+    if (countError) {
+      console.error("Error accessing source_content table:", countError);
+      throw new Error(
+        `Cannot access source_content table: ${countError.message}`
+      );
+    }
+
+    console.log("Total rows in source_content table:", totalCount);
+
+    // Now try to get the specific row
+    const { data: existingRow, error: fetchError } = await authenticatedSupabase
+      .from("source_content")
+      .select("*")
+      .eq("id", sourceContentId)
+      .single();
+
+    if (fetchError) {
+      console.error("Error fetching source_content row:", fetchError);
+      // Log more details about the error
+      console.error("Full error details:", {
+        error: fetchError,
+        sourceContentId,
+        errorCode: fetchError.code,
+        errorMessage: fetchError.message,
+        errorDetails: fetchError.details,
+        hint: fetchError.hint,
+      });
+
+      throw new Error(`Failed to find source_content row with id ${sourceContentId}. 
+        Table has ${totalCount} total rows.
+        This could be because: 
+        1. The row wasn't created successfully
+        2. The row ID is incorrect
+        3. RLS policies are preventing access
+        Please check the logs for more details.`);
+    }
+
+    console.log("Found existing row:", {
+      id: existingRow.id,
+      url: existingRow.url,
+      created_at: existingRow.created_at,
+      user_id: existingRow.user_id,
+      institution_id: existingRow.institution_id,
+    });
+
+    // Update the source_content record in Supabase
+    console.log("Updating Supabase record with ID:", sourceContentId);
+    const { data, error: updateError } = await authenticatedSupabase
+      .from("source_content")
+      .update(updateData)
+      .eq("id", sourceContentId)
+      .select("id, source_content_title, source_content_main_text");
+
+    if (updateError) {
+      console.error("Supabase update error:", updateError);
+      throw updateError;
+    }
+
+    if (!data || data.length === 0) {
+      console.error("Update succeeded but no data returned");
+      throw new Error("Update succeeded but no data returned");
+    }
+
+    console.log("Supabase update successful. Updated row data:", data[0]);
+
+    res.json({
+      success: true,
+      data: {
+        title,
+        mainText,
+        sourceContent: data[0],
+      },
+    });
+    console.log("=== Scraping process completed successfully ===");
+  } catch (error) {
+    console.error("=== Error in scraping process ===");
+    console.error("Error type:", error.constructor.name);
+    console.error("Error message:", error.message);
+    console.error("Error stack:", error.stack);
+    if (error.response) {
+      console.error("HTTP Error Response:", {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        data: error.response.data,
+      });
+    }
+    res.status(500).json({
+      error: "Failed to scrape content",
+      details: error.message,
+    });
   }
 });

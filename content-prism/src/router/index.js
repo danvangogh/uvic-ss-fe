@@ -12,6 +12,7 @@ import ProperoDashboard from "../views/ProperoDashboard.vue";
 import ProperoRecordDetail from "../views/ProperoRecordDetail.vue";
 import ProperoContentRequest from "../views/ProperoContentRequest.vue";
 import ProperoReports from "../views/ProperoReports.vue";
+import CreateContent from "../views/CreateContent.vue";
 
 const routes = [
   {
@@ -73,6 +74,12 @@ const routes = [
     component: ProperoReports,
     meta: { requiresAuth: true, requiresProfile: true },
   },
+  {
+    path: "/create-content",
+    name: "createContent",
+    component: CreateContent,
+    meta: { requiresAuth: true, requiresProfile: true },
+  },
 ];
 
 const router = createRouter({
@@ -127,7 +134,7 @@ router.beforeEach(async (to) => {
 
       // Redirect from auth page if already logged in
       if (to.path === "/auth") {
-        return isProfileComplete ? "/dashboard" : "/onboarding";
+        return isProfileComplete ? "/create-content" : "/onboarding";
       }
 
       // Prevent access to onboarding if profile is complete
