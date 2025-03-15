@@ -90,7 +90,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useRoute } from "vue-router";
 import { supabase } from "../supabase";
 import { useAuth } from "../stores/authStore";
@@ -112,8 +112,7 @@ const toggleSection = (section) => {
   expandedSection.value = expandedSection.value === section ? null : section;
 };
 
-// Fetch brand assets for the user's institution
-onMounted(async () => {
+const fetchBrandLogo = async () => {
   try {
     // First get the user's institution_id from their profile
     const { data: profile } = await supabase
@@ -136,6 +135,22 @@ onMounted(async () => {
     }
   } catch (error) {
     console.error("Error fetching brand assets:", error);
+  }
+};
+
+// Fetch logo when component is mounted
+onMounted(() => {
+  if (user.value) {
+    fetchBrandLogo();
+  }
+});
+
+// Watch for user changes
+watch(user, (newUser) => {
+  if (newUser) {
+    fetchBrandLogo();
+  } else {
+    brandLogo.value = null;
   }
 });
 </script>
