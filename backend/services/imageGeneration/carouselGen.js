@@ -1,6 +1,7 @@
 const axios = require("axios");
 const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
 const { createClient } = require("@supabase/supabase-js");
+const { PDFDocument } = require("pdf-lib");
 const path = require("path");
 const dotenv = require("dotenv");
 
@@ -86,6 +87,60 @@ class CarouselGenerator {
     }
   }
 
+  async generatePDF(urls) {
+    try {
+      console.log("Generating PDF from carousel images...");
+      const pdfDoc = await PDFDocument.create();
+
+      // Fetch each image and add it to the PDF
+      for (const url of urls) {
+        const response = await axios.get(url, {
+          responseType: "arraybuffer",
+        });
+        const imageBytes = response.data;
+        const image = await pdfDoc.embedPng(imageBytes);
+        const page = pdfDoc.addPage([image.width, image.height]);
+        page.drawImage(image, {
+          x: 0,
+          y: 0,
+          width: image.width,
+          height: image.height,
+        });
+      }
+
+      // Serialize the PDF document to bytes
+      const pdfBytes = await pdfDoc.save();
+      return Buffer.from(pdfBytes);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      throw error;
+    }
+  }
+
+  async uploadPDFToDigitalOcean(pdfBuffer, sourceContentId) {
+    try {
+      console.log("Uploading PDF to DigitalOcean Space...");
+      const timestamp = Date.now();
+      const key = `uploads/carousel/${sourceContentId}/${timestamp}_carousel.pdf`;
+
+      const params = {
+        Bucket: process.env.DO_SPACES_BUCKET,
+        Key: key,
+        Body: pdfBuffer,
+        ACL: "public-read",
+        ContentType: "application/pdf",
+      };
+
+      const command = new PutObjectCommand(params);
+      await s3Client.send(command);
+
+      return `https://${process.env.DO_SPACES_BUCKET}.tor1.digitaloceanspaces.com/${key}`;
+    } catch (error) {
+      console.error("Error uploading PDF to DigitalOcean:", error);
+      throw error;
+    }
+  }
+
   async saveToDatabase(sourceContentId, urls, content) {
     try {
       console.log("Saving URLs to database...");
@@ -94,12 +149,20 @@ class CarouselGenerator {
         return acc;
       }, {});
 
+      // Generate and upload PDF
+      const pdfBuffer = await this.generatePDF(urls);
+      const pdfUrl = await this.uploadPDFToDigitalOcean(
+        pdfBuffer,
+        sourceContentId
+      );
+
       const { data, error } = await supabase.from("created_content").insert([
         {
           source_content_id: sourceContentId,
           url_object: urlObject,
           user_id: content.user_id,
           institution_id: content.institution_id,
+          pdf_url: pdfUrl,
         },
       ]);
 
