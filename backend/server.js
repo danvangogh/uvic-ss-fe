@@ -11,6 +11,7 @@ const { PDFDocument, rgb } = require("pdf-lib");
 const FormData = require("form-data");
 const cheerio = require("cheerio");
 const { createClient } = require("@supabase/supabase-js");
+const OpenAI = require("openai");
 
 dotenv.config();
 
@@ -50,22 +51,19 @@ const s3Client = new S3Client({
   },
 });
 
-// Initialize Supabase client
+// Initialize OpenAI
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+// Initialize Supabase
 const supabase = createClient(
-  process.env.VUE_APP_SUPABASE_URL,
-  process.env.VUE_APP_SUPABASE_ANON_KEY,
-  {
-    auth: {
-      persistSession: false,
-    },
-  }
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
 // Add debug logging for Supabase configuration
-console.log(
-  "Supabase client initialized with URL:",
-  process.env.VUE_APP_SUPABASE_URL
-);
+console.log("Supabase client initialized with URL:", process.env.SUPABASE_URL);
 
 // Include timestamps in all console.log statements
 const originalLog = console.log;
@@ -632,8 +630,8 @@ app.post("/api/scrape-content", async (req, res) => {
 
     // Create a new Supabase client with the user's access token
     const authenticatedSupabase = createClient(
-      process.env.VUE_APP_SUPABASE_URL,
-      process.env.VUE_APP_SUPABASE_ANON_KEY,
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_ANON_KEY,
       {
         auth: {
           persistSession: false,
@@ -860,6 +858,150 @@ app.post("/api/scrape-content", async (req, res) => {
     res.status(500).json({
       error: "Failed to scrape content",
       details: error.message,
+    });
+  }
+});
+
+// Text Generation Endpoint
+app.post("/api/generate-text", async (req, res) => {
+  const startTime = Date.now();
+  console.log("\n=== Starting Text Generation Process ===");
+  console.log("Request received at:", new Date().toISOString());
+  console.log("Request payload:", {
+    contentId: req.body.contentId,
+    templateId: req.body.templateId,
+    institutionId: req.body.institutionId,
+  });
+
+  try {
+    const { contentId, templateId, institutionId } = req.body;
+
+    // Fetch brand voice description
+    console.log("\n[1/3] Fetching brand voice description...");
+    const { data: brandData, error: brandError } = await supabase
+      .from("brand_assets")
+      .select("brand_voice_description")
+      .eq("institution_id", institutionId)
+      .single();
+
+    if (brandError) {
+      console.error("Error fetching brand voice:", brandError);
+      throw brandError;
+    }
+    console.log("✓ Brand voice fetched successfully");
+
+    // Fetch template details
+    console.log("\n[2/3] Fetching template details...");
+    const { data: templateData, error: templateError } = await supabase
+      .from("content_templates")
+      .select("template_content_description, template_content_schema")
+      .eq("id", templateId)
+      .single();
+
+    if (templateError) {
+      console.error("Error fetching template:", templateError);
+      throw templateError;
+    }
+    console.log("✓ Template details fetched successfully");
+    console.log("Template schema:", templateData.template_content_schema);
+
+    // Fetch source content
+    console.log("\n[3/3] Fetching source content...");
+    const { data: sourceData, error: sourceError } = await supabase
+      .from("source_content")
+      .select("source_content_main_text")
+      .eq("id", contentId)
+      .single();
+
+    if (sourceError) {
+      console.error("Error fetching source content:", sourceError);
+      throw sourceError;
+    }
+    console.log("✓ Source content fetched successfully");
+    console.log(
+      "Source content length:",
+      sourceData.source_content_main_text?.length || 0,
+      "characters"
+    );
+
+    // Construct the prompt
+    console.log("\nConstructing OpenAI prompt...");
+    const systemPrompt = `You are a professional social media content writer. Your task is to generate engaging social media post text based on the provided source content, template requirements, and brand voice.
+
+Brand Voice Description:
+${brandData.brand_voice_description}
+
+Template Description:
+${templateData.template_content_description}
+
+Template Schema:
+${templateData.template_content_schema}
+
+IMPORTANT: Your response MUST be valid JSON that matches the template schema structure. Each key in the schema represents a text field that needs to be filled. Format your response as a JSON object with the exact same keys as the schema.
+
+For example, if the schema has keys "p1a" and "p1b", your response should look like:
+{
+  "p1a": "Your generated text for p1a",
+  "p1b": "Your generated text for p1b"
+}`;
+
+    const userPrompt = `Please generate text based on the following source content. Remember to format your entire response as a valid JSON object that matches the template schema structure:
+
+${sourceData.source_content_main_text}`;
+
+    console.log("System prompt length:", systemPrompt.length);
+    console.log("User prompt length:", userPrompt.length);
+
+    // Call OpenAI API
+    console.log("\nCalling OpenAI API...");
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4-turbo-preview",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.3,
+      response_format: { type: "json_object" }, // Force JSON response
+    });
+
+    // Parse the response
+    console.log("\nProcessing OpenAI response...");
+    const generatedText = completion.choices[0].message.content;
+    console.log("Generated text:", generatedText); // Log the actual response
+
+    // Validate JSON before sending
+    try {
+      const parsedJson = JSON.parse(generatedText);
+      console.log("Successfully parsed JSON response");
+
+      // Send the response
+      res.json({ success: true, text: generatedText });
+    } catch (parseError) {
+      console.error("Error parsing OpenAI response as JSON:", parseError);
+      throw new Error("Generated text is not valid JSON");
+    }
+  } catch (error) {
+    console.error("\n=== Error in Text Generation Process ===");
+    console.error("Error type:", error.constructor.name);
+    console.error("Error message:", error.message);
+    console.error("Error stack:", error.stack);
+
+    // Log API-specific errors if available
+    if (error.response) {
+      console.error("API Error Response:", {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        data: error.response.data,
+      });
+    }
+
+    const processingTime = Date.now() - startTime;
+    console.log(`Failed after ${processingTime}ms`);
+
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      errorType: error.constructor.name,
     });
   }
 });

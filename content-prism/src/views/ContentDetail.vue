@@ -39,33 +39,98 @@
       </header>
 
       <div class="content-body">
-        <!-- Source Text Section -->
-        <section class="content-section">
-          <div class="section-header">
-            <h2>Source Text</h2>
-            <button class="edit-button" @click="showEditModal = true">
-              Edit Text
-            </button>
-          </div>
-          <div class="source-text-container">
-            <div class="source-text-summary">
-              <p v-if="content.source_content_main_text">
-                The source text for this begins with "<strong>{{
-                  getFirstNWords(content.source_content_main_text, 12)
-                }}</strong
-                >" and ends with "<strong>{{
-                  getLastNWords(content.source_content_main_text, 12)
-                }}</strong
-                >" and is
-                {{ getWordCount(content.source_content_main_text) }} words long.
-              </p>
-              <p v-else style="color: #dc3545">
-                I'm having trouble accessing the source content. Please click
-                Edit Text, and paste in the source text.
-              </p>
+        <!-- Wrap the first two sections -->
+        <div class="top-sections-wrapper">
+          <!-- Source Text Section -->
+          <section class="content-section">
+            <div class="section-header">
+              <h2>Source Text</h2>
+              <button class="edit-button" @click="showEditModal = true">
+                Edit Text
+              </button>
             </div>
-          </div>
-        </section>
+            <div class="source-text-container">
+              <div class="source-text-summary">
+                <p v-if="content.source_content_main_text">
+                  The source text for this begins with "<strong>{{
+                    getFirstNWords(content.source_content_main_text, 12)
+                  }}</strong
+                  >" and ends with "<strong>{{
+                    getLastNWords(content.source_content_main_text, 12)
+                  }}</strong
+                  >" and is
+                  {{ getWordCount(content.source_content_main_text) }} words
+                  long.
+                </p>
+                <p v-else style="color: #dc3545">
+                  I'm having trouble accessing the source content. Please click
+                  Edit Text, and paste in the source text.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <!-- Images Section -->
+          <section class="content-section">
+            <div class="section-header">
+              <h2>Images</h2>
+              <div class="image-upload">
+                <input
+                  type="file"
+                  ref="imageInput"
+                  @change="handleImageUpload"
+                  accept="image/*"
+                  class="hidden"
+                />
+                <button class="upload-button" @click="triggerImageUpload">
+                  Upload New Image
+                </button>
+                <span v-if="uploadSuccess" class="upload-success">
+                  <i class="fas fa-check"></i> Image uploaded successfully
+                </span>
+              </div>
+            </div>
+            <div class="images-container">
+              <div class="images-grid" v-if="images.length">
+                <draggable
+                  v-model="images"
+                  :animation="200"
+                  item-key="id"
+                  class="images-grid"
+                  handle=".drag-handle"
+                  @end="updateSequences(images)"
+                >
+                  <template #item="{ element: image }">
+                    <div class="image-item">
+                      <div class="drag-handle">
+                        <i class="fas fa-grip-vertical"></i>
+                      </div>
+                      <img :src="image.image_url" :alt="image.image_title" />
+                      <div class="image-info">
+                        <div class="image-text">
+                          <span class="upload-status"
+                            >Image uploaded successfully</span
+                          >
+                          <span class="image-title">{{
+                            image.image_title
+                          }}</span>
+                        </div>
+                        <button
+                          class="delete-button"
+                          @click="deleteImage(image.id)"
+                          title="Delete image"
+                        >
+                          <i class="fas fa-trash"></i>
+                        </button>
+                      </div>
+                    </div>
+                  </template>
+                </draggable>
+              </div>
+              <p v-else class="no-images">No images uploaded yet</p>
+            </div>
+          </section>
+        </div>
 
         <!-- Edit Text Modal -->
         <div
@@ -114,65 +179,6 @@
           </div>
         </div>
 
-        <!-- Images Section -->
-        <section class="content-section">
-          <div class="section-header">
-            <h2>Images</h2>
-            <div class="image-upload">
-              <input
-                type="file"
-                ref="imageInput"
-                @change="handleImageUpload"
-                accept="image/*"
-                class="hidden"
-              />
-              <button class="upload-button" @click="triggerImageUpload">
-                Upload New Image
-              </button>
-              <span v-if="uploadSuccess" class="upload-success">
-                <i class="fas fa-check"></i> Image uploaded successfully
-              </span>
-            </div>
-          </div>
-          <div class="images-container">
-            <div class="images-grid" v-if="images.length">
-              <draggable
-                v-model="images"
-                :animation="200"
-                item-key="id"
-                class="images-grid"
-                handle=".drag-handle"
-                @end="updateSequences(images)"
-              >
-                <template #item="{ element: image }">
-                  <div class="image-item">
-                    <div class="drag-handle">
-                      <i class="fas fa-grip-vertical"></i>
-                    </div>
-                    <img :src="image.image_url" :alt="image.image_title" />
-                    <div class="image-info">
-                      <div class="image-text">
-                        <span class="upload-status"
-                          >Image uploaded successfully</span
-                        >
-                        <span class="image-title">{{ image.image_title }}</span>
-                      </div>
-                      <button
-                        class="delete-button"
-                        @click="deleteImage(image.id)"
-                        title="Delete image"
-                      >
-                        <i class="fas fa-trash"></i>
-                      </button>
-                    </div>
-                  </div>
-                </template>
-              </draggable>
-            </div>
-            <p v-else class="no-images">No images uploaded yet</p>
-          </div>
-        </section>
-
         <!-- Template Selection Section -->
         <section class="content-section">
           <h2>Template Selection</h2>
@@ -207,8 +213,26 @@
         <section class="content-section">
           <div class="section-header">
             <h2>Post Text</h2>
+            <button
+              class="generate-button"
+              @click="generatePostText"
+              :disabled="isGeneratingText || !content?.template_id"
+            >
+              <template v-if="isGeneratingText">
+                <i class="fas fa-spinner fa-spin"></i>
+                Generating...
+              </template>
+              <template v-else> Generate Text </template>
+            </button>
           </div>
-          <div class="post-text-container" v-if="post_text">
+          <div v-if="isGeneratingText" class="generating-text">
+            <div class="loading-spinner"></div>
+            <p>Generating post text using AI...</p>
+          </div>
+          <div
+            class="post-text-container"
+            v-else-if="post_text && activeTemplateSchema"
+          >
             <div class="post-text-grid">
               <div
                 v-for="field in visiblePostTextFields"
@@ -224,7 +248,12 @@
               </div>
             </div>
           </div>
-          <p v-else class="no-post-text">No post text available</p>
+          <p v-else-if="!content?.template_id" class="no-post-text">
+            Please select a template first to generate post text.
+          </p>
+          <p v-else class="no-post-text">
+            No post text available. Click 'Generate Text' to create content.
+          </p>
         </section>
       </div>
     </div>
@@ -252,6 +281,7 @@ const originalSourceText = ref("");
 const showEditModal = ref(false);
 const uploadSuccess = ref(false);
 const post_text = ref(null);
+const isGeneratingText = ref(false);
 
 // Add computed property for active template schema
 const activeTemplateSchema = computed(() => {
@@ -378,6 +408,7 @@ const fetchTemplates = async () => {
 
 const fetchPostText = async () => {
   try {
+    console.log("Fetching post text...");
     const { data, error: fetchError } = await supabase
       .from("post_text")
       .select("*")
@@ -385,7 +416,11 @@ const fetchPostText = async () => {
       .single();
 
     if (fetchError && fetchError.code !== "PGRST116") throw fetchError;
-    post_text.value = data || {
+
+    console.log("Fetched post text data:", data);
+
+    // Initialize with empty strings for all possible fields
+    const defaultPostText = {
       p1a: "",
       p1b: "",
       p2a: "",
@@ -399,6 +434,12 @@ const fetchPostText = async () => {
       p6a: "",
       p6b: "",
     };
+
+    // Create a new object reference with merged data
+    post_text.value = data
+      ? { ...defaultPostText, ...data }
+      : { ...defaultPostText };
+    console.log("Initialized post_text.value:", post_text.value);
   } catch (err) {
     console.error("Error fetching post text:", err);
     error.value = "Failed to load post text. Please try again later.";
@@ -656,6 +697,173 @@ const savePostText = async () => {
   }
 };
 
+const generatePostText = async () => {
+  try {
+    if (!content.value?.template_id) {
+      error.value = "Please select a template first";
+      return;
+    }
+
+    isGeneratingText.value = true;
+    error.value = null; // Clear any previous errors
+
+    // Update status to generating
+    const { error: statusError } = await supabase
+      .from("source_content")
+      .update({
+        is_generating_post_text: true,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", content.value.id);
+
+    if (statusError) throw statusError;
+
+    // Call the backend endpoint
+    const response = await fetch(
+      `${process.env.VUE_APP_API_BASE_URL}/api/generate-text`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contentId: content.value.id,
+          templateId: content.value.template_id,
+          institutionId: content.value.institution_id,
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const responseData = await response.json();
+    console.log("Raw API response:", responseData);
+
+    if (!responseData.success || !responseData.text) {
+      throw new Error(responseData.error || "Failed to generate text");
+    }
+
+    // Log the text before attempting to parse
+    console.log("Text to parse:", responseData.text);
+
+    // Parse the response text as JSON
+    let generatedContent;
+    try {
+      generatedContent =
+        typeof responseData.text === "string"
+          ? JSON.parse(responseData.text)
+          : responseData.text;
+
+      console.log("Generated content parsed:", generatedContent);
+    } catch (parseError) {
+      console.error("JSON Parse Error:", parseError);
+      console.error("Failed to parse text:", responseData.text);
+      throw new Error(
+        `Invalid JSON format: ${
+          parseError.message
+        }. Raw text: ${responseData.text.substring(0, 100)}...`
+      );
+    }
+
+    // Validate the generated content matches our schema
+    if (!generatedContent || typeof generatedContent !== "object") {
+      console.error("Invalid content structure:", generatedContent);
+      throw new Error(
+        `Generated content is not a valid object: ${JSON.stringify(
+          generatedContent
+        )}`
+      );
+    }
+
+    // Check for required fields based on template schema
+    if (activeTemplateSchema.value) {
+      const requiredFields = Object.keys(activeTemplateSchema.value);
+      const missingFields = requiredFields.filter(
+        (field) => !(field.toLowerCase() in generatedContent)
+      );
+
+      if (missingFields.length > 0) {
+        console.error("Missing required fields:", missingFields);
+        throw new Error(
+          `Generated content is missing required fields: ${missingFields.join(
+            ", "
+          )}`
+        );
+      }
+    }
+
+    // Initialize with empty strings and merge with generated content
+    const postTextData = {
+      source_content_id: content.value.id,
+      user_id: user.value.id,
+      institution_id: content.value.institution_id,
+      p1a: "",
+      p1b: "",
+      p2a: "",
+      p2b: "",
+      p3a: "",
+      p3b: "",
+      p4a: "",
+      p4b: "",
+      p5a: "",
+      p5b: "",
+      p6a: "",
+      p6b: "",
+      ...generatedContent,
+    };
+
+    // Update local state immediately for better UX
+    post_text.value = { ...postTextData };
+    console.log("Updated post_text.value:", post_text.value);
+
+    const { error: upsertError } = await supabase
+      .from("post_text")
+      .upsert(postTextData);
+
+    if (upsertError) {
+      console.error("Error upserting post text:", upsertError);
+      throw new Error("Failed to save generated text to database");
+    }
+
+    // Update is_post_text_generated to true but keep is_generating_post_text as true
+    const { error: finalStatusError } = await supabase
+      .from("source_content")
+      .update({
+        is_post_text_generated: true,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", content.value.id);
+
+    if (finalStatusError) throw finalStatusError;
+  } catch (err) {
+    console.error("Error generating post text:", err);
+    error.value =
+      err.message || "Failed to generate post text. Please try again.";
+
+    // On error, we should reset the generating state
+    try {
+      const { error: resetError } = await supabase
+        .from("source_content")
+        .update({
+          is_generating_post_text: false,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", content.value.id);
+
+      if (resetError) {
+        console.error("Error resetting status:", resetError);
+      }
+    } catch (resetErr) {
+      console.error("Error during status reset:", resetErr);
+    }
+  } finally {
+    // Only update the local UI state
+    isGeneratingText.value = false;
+  }
+};
+
 // Watch for route changes to handle direct navigation
 watch(
   () => route.params.id,
@@ -733,8 +941,25 @@ onMounted(() => {
       filter: `source_content_id=eq.${route.params.id}`,
     },
     async (payload) => {
+      console.log("Post text change detected:", payload);
       if (payload.eventType === "INSERT" || payload.eventType === "UPDATE") {
-        post_text.value = payload.new;
+        // Create a new object reference to ensure Vue reactivity
+        post_text.value = {
+          p1a: "",
+          p1b: "",
+          p2a: "",
+          p2b: "",
+          p3a: "",
+          p3b: "",
+          p4a: "",
+          p4b: "",
+          p5a: "",
+          p5b: "",
+          p6a: "",
+          p6b: "",
+          ...payload.new,
+        };
+        console.log("Updated post_text:", post_text.value);
       } else if (payload.eventType === "DELETE") {
         post_text.value = {
           p1a: "",
@@ -870,6 +1095,9 @@ h1 {
 
 .content-body {
   padding: 2rem;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
 }
 
 .loading,
@@ -885,7 +1113,7 @@ h1 {
 }
 
 .content-section {
-  margin-bottom: 2rem;
+  margin-bottom: 0;
   padding: 1.5rem;
   background: #f8f9fa;
   border-radius: 8px;
@@ -1318,7 +1546,7 @@ h1 {
 
 .post-text-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
+  grid-template-columns: 1fr;
   gap: 1rem;
 }
 
@@ -1338,7 +1566,7 @@ h1 {
   resize: none;
   padding: 8px;
   font-family: inherit;
-  line-height: 1.5;
+  line-height: 1;
 }
 
 .text-preview::placeholder {
@@ -1355,11 +1583,82 @@ h1 {
   padding: 1rem;
 }
 
+.generate-button {
+  padding: 0.5rem 1rem;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.generate-button:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.generate-button:not(:disabled):hover {
+  background-color: #218838;
+}
+
+.generating-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  text-align: center;
+  color: #666;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #28a745;
+  border-radius: 50%;
+  margin-bottom: 1rem;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.fa-spinner {
+  animation: spin 1s linear infinite;
+}
+
 .field-description {
   font-size: 0.85rem;
   color: #666;
   margin: 0.25rem 0;
   font-style: italic;
   line-height: 1.4;
+}
+
+/* Add a wrapper for the first two sections */
+.top-sections-wrapper {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+}
+
+/* Adjust media query for mobile responsiveness */
+@media (max-width: 768px) {
+  .top-sections-wrapper {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
