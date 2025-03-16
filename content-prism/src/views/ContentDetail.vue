@@ -255,6 +255,34 @@
             No post text available. Click 'Generate Text' to create content.
           </p>
         </section>
+
+        <!-- Image Generation Section -->
+        <section class="content-section">
+          <div class="section-header">
+            <h2>Image Generation</h2>
+            <button
+              class="generate-button"
+              @click="generateImagery"
+              :disabled="!canGenerateImagery"
+            >
+              <template v-if="isGeneratingImagery">
+                <i class="fas fa-spinner fa-spin"></i>
+                Generating...
+              </template>
+              <template v-else> Generate Imagery </template>
+            </button>
+          </div>
+          <div v-if="isGeneratingImagery" class="generating-text">
+            <div class="loading-spinner"></div>
+            <p>Generating imagery using AI...</p>
+          </div>
+          <p v-if="!content?.template_id" class="no-imagery">
+            Please select a template first to generate imagery.
+          </p>
+          <p v-else-if="!content?.is_post_text_generated" class="no-imagery">
+            Please generate post text before generating imagery.
+          </p>
+        </section>
       </div>
     </div>
 
@@ -282,6 +310,7 @@ const showEditModal = ref(false);
 const uploadSuccess = ref(false);
 const post_text = ref(null);
 const isGeneratingText = ref(false);
+const isGeneratingImagery = ref(false);
 
 // Add computed property for active template schema
 const activeTemplateSchema = computed(() => {
@@ -313,6 +342,15 @@ const visiblePostTextFields = computed(() => {
   if (!activeTemplateSchema.value) return [];
   return Object.keys(activeTemplateSchema.value).map((key) =>
     key.toLowerCase()
+  );
+});
+
+// Add computed property to check if imagery can be generated
+const canGenerateImagery = computed(() => {
+  return (
+    content.value?.template_id &&
+    content.value?.is_post_text_generated &&
+    !isGeneratingImagery.value
   );
 });
 
@@ -861,6 +899,79 @@ const generatePostText = async () => {
   } finally {
     // Only update the local UI state
     isGeneratingText.value = false;
+  }
+};
+
+// Add generateImagery function
+const generateImagery = async () => {
+  if (!canGenerateImagery.value) return;
+
+  try {
+    isGeneratingImagery.value = true;
+    error.value = null;
+
+    // Update status to generating imagery
+    const { error: statusError } = await supabase
+      .from("source_content")
+      .update({
+        is_generating_imagery: true,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", content.value.id);
+
+    if (statusError) throw statusError;
+
+    // Make API call to backend to generate imagery
+    const response = await fetch(
+      `${process.env.VUE_APP_API_BASE_URL}/api/generate-imagery/generate`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contentId: content.value.id,
+          templateId: content.value.template_id,
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.error || "Failed to generate imagery");
+    }
+
+    console.log("Imagery generation initiated:", data);
+
+    // The backend will handle updating is_imagery_generated when complete
+    return data;
+  } catch (err) {
+    console.error("Error generating imagery:", err);
+    error.value =
+      err.message || "Failed to generate imagery. Please try again.";
+
+    // Reset the generating state on error
+    try {
+      const { error: resetError } = await supabase
+        .from("source_content")
+        .update({
+          is_generating_imagery: false,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", content.value.id);
+
+      if (resetError) {
+        console.error("Error resetting status:", resetError);
+      }
+    } catch (resetErr) {
+      console.error("Error during status reset:", resetErr);
+    }
+  } finally {
+    isGeneratingImagery.value = false;
   }
 };
 
@@ -1660,5 +1771,11 @@ h1 {
   .top-sections-wrapper {
     grid-template-columns: 1fr;
   }
+}
+
+.no-imagery {
+  text-align: center;
+  color: #666;
+  padding: 1rem;
 }
 </style>

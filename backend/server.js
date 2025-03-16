@@ -12,36 +12,48 @@ const FormData = require("form-data");
 const cheerio = require("cheerio");
 const { createClient } = require("@supabase/supabase-js");
 const OpenAI = require("openai");
-
-dotenv.config();
-
-const app = express();
-const PORT = process.env.PORT || 3000;
-const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
-const BASE_SERVER_URL = process.env.BASE_SERVER_URL;
 const history = require("connect-history-api-fallback");
-app.use(history());
 
-app.use(
-  cors({
-    origin: BASE_URL,
-    methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
-    credentials: true,
-  })
+// Load environment variables from the backend .env file
+dotenv.config({ path: path.resolve(__dirname, ".env") });
+
+// Log the current working directory and .env file path for debugging
+console.log("Current working directory:", process.cwd());
+console.log("Loading .env file from:", path.resolve(__dirname, ".env"));
+
+// Validate critical environment variables
+const requiredEnvVars = [
+  "DIGITAL_OCEAN_SPACE_ACCESS_KEY",
+  "DIGITAL_OCEAN_SPACE_SECRET_KEY",
+  "DO_SPACES_BUCKET",
+  "SUPABASE_URL",
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "BANNERBEAR_API_KEY",
+  "OPENAI_API_KEY",
+];
+
+const missingEnvVars = requiredEnvVars.filter(
+  (varName) => !process.env[varName]
 );
 
-// Increase payload size limit
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
+if (missingEnvVars.length > 0) {
+  console.error(
+    "Missing required environment variables:",
+    missingEnvVars.join(", ")
+  );
+  console.error(
+    "Please check your .env file at:",
+    path.resolve(__dirname, ".env")
+  );
+  throw new Error(
+    `Missing required environment variables: ${missingEnvVars.join(", ")}`
+  );
+}
 
-app.use(express.json());
-app.use(express.static(path.join(__dirname, "../content-prism/dist")));
+// Log successful environment variable loading
+console.log("Successfully loaded all required environment variables");
 
-// Configure multer for file uploads
-const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
-
-// Configure AWS SDK for DigitalOcean Spaces
+// Initialize all clients after environment validation
 const s3Client = new S3Client({
   region: "tor1",
   endpoint: "https://tor1.digitaloceanspaces.com",
@@ -51,21 +63,48 @@ const s3Client = new S3Client({
   },
 });
 
-// Initialize OpenAI
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
-// Initialize Supabase
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// Add debug logging for Supabase configuration
-console.log("Supabase client initialized with URL:", process.env.SUPABASE_URL);
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
-// Include timestamps in all console.log statements
+// Add debug logging for initialized clients
+console.log("Supabase client initialized with URL:", process.env.SUPABASE_URL);
+console.log("S3 client initialized for DigitalOcean Spaces");
+console.log("OpenAI client initialized");
+
+// Import routes after environment variables are loaded
+const imageGenerationRoutes = require("./routes/imageGeneration");
+
+// Initialize Express app and configure middleware
+const app = express();
+const PORT = process.env.PORT || 3000;
+const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
+const BASE_SERVER_URL = process.env.BASE_SERVER_URL;
+
+app.use(history());
+app.use(
+  cors({
+    origin: BASE_URL,
+    methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+    credentials: true,
+  })
+);
+
+// Configure Express middleware
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
+app.use(express.static(path.join(__dirname, "../content-prism/dist")));
+
+// Configure multer for file uploads
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
+
+// Configure console.log with timestamps
 const originalLog = console.log;
 console.log = (...args) => {
   const now = new Date();
@@ -1005,3 +1044,6 @@ ${sourceData.source_content_main_text}`;
     });
   }
 });
+
+// Use routes
+app.use("/api/generate-imagery", imageGenerationRoutes);
