@@ -50,11 +50,13 @@
           <div class="source-text-container">
             <div class="source-text-summary">
               <p v-if="content.source_content_main_text">
-                The source text for this begins with "{{
+                The source text for this begins with "<strong>{{
                   getFirstNWords(content.source_content_main_text, 12)
-                }}" and ends with "{{
+                }}</strong
+                >" and ends with "<strong>{{
                   getLastNWords(content.source_content_main_text, 12)
-                }}" and is
+                }}</strong
+                >" and is
                 {{ getWordCount(content.source_content_main_text) }} words long.
               </p>
               <p v-else style="color: #dc3545">
@@ -200,6 +202,30 @@
             <p v-else class="no-templates">No templates available</p>
           </div>
         </section>
+
+        <!-- Post Text Section -->
+        <section class="content-section">
+          <div class="section-header">
+            <h2>Post Text</h2>
+          </div>
+          <div class="post-text-container" v-if="post_text">
+            <div class="post-text-grid">
+              <div
+                v-for="field in visiblePostTextFields"
+                :key="field"
+                class="post-text-item"
+              >
+                <textarea
+                  v-model="post_text[field]"
+                  class="text-preview"
+                  :placeholder="'Not set'"
+                  @input="savePostText"
+                ></textarea>
+              </div>
+            </div>
+          </div>
+          <p v-else class="no-post-text">No post text available</p>
+        </section>
       </div>
     </div>
 
@@ -208,7 +234,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, onUnmounted } from "vue";
+import { ref, onMounted, watch, onUnmounted, computed } from "vue";
 import { useRoute } from "vue-router";
 import { supabase } from "../supabase";
 import { useAuth } from "../stores/authStore";
@@ -225,6 +251,40 @@ const isSourceTextChanged = ref(false);
 const originalSourceText = ref("");
 const showEditModal = ref(false);
 const uploadSuccess = ref(false);
+const post_text = ref(null);
+
+// Add computed property for active template schema
+const activeTemplateSchema = computed(() => {
+  if (!content.value?.template_id || !templates.value?.length) return null;
+  const template = templates.value.find(
+    (t) => t.id === content.value.template_id
+  );
+  if (!template?.template_content_schema) return null;
+  try {
+    // Normalize the schema string by replacing curly quotes with straight quotes
+    const normalizedSchema =
+      typeof template.template_content_schema === "string"
+        ? template.template_content_schema
+            .replace(/[""]/g, '"') // Replace curly double quotes
+            .replace(/['']/g, "'") // Replace curly single quotes
+        : template.template_content_schema;
+
+    return typeof normalizedSchema === "string"
+      ? JSON.parse(normalizedSchema)
+      : normalizedSchema;
+  } catch (err) {
+    console.error("Error parsing template schema:", err);
+    return null;
+  }
+});
+
+// Add computed property for visible post text fields
+const visiblePostTextFields = computed(() => {
+  if (!activeTemplateSchema.value) return [];
+  return Object.keys(activeTemplateSchema.value).map((key) =>
+    key.toLowerCase()
+  );
+});
 
 const statusFlags = [
   { flag: "is_new_submission", label: "New Submission" },
@@ -276,8 +336,7 @@ const fetchContent = async () => {
 
     content.value = data;
     originalSourceText.value = data.source_content_main_text;
-    await fetchImages();
-    await fetchTemplates();
+    await Promise.all([fetchImages(), fetchTemplates(), fetchPostText()]);
   } catch (err) {
     console.error("Error fetching content:", err);
     error.value = "Failed to load content. Please try again later.";
@@ -303,14 +362,46 @@ const fetchImages = async () => {
 
 const fetchTemplates = async () => {
   try {
-    const { data, error: templatesError } = await supabase
-      .from("content_templates")
-      .select("*");
+    const { data, error: templatesError } = await supabase.from(
+      "content_templates"
+    ).select(`
+        *,
+        template_content_schema
+      `);
 
     if (templatesError) throw templatesError;
     templates.value = data || [];
   } catch (err) {
     console.error("Error fetching templates:", err);
+  }
+};
+
+const fetchPostText = async () => {
+  try {
+    const { data, error: fetchError } = await supabase
+      .from("post_text")
+      .select("*")
+      .eq("source_content_id", route.params.id)
+      .single();
+
+    if (fetchError && fetchError.code !== "PGRST116") throw fetchError;
+    post_text.value = data || {
+      p1a: "",
+      p1b: "",
+      p2a: "",
+      p2b: "",
+      p3a: "",
+      p3b: "",
+      p4a: "",
+      p4b: "",
+      p5a: "",
+      p5b: "",
+      p6a: "",
+      p6b: "",
+    };
+  } catch (err) {
+    console.error("Error fetching post text:", err);
+    error.value = "Failed to load post text. Please try again later.";
   }
 };
 
@@ -544,6 +635,27 @@ const updateSequences = async (reorderedImages) => {
   }
 };
 
+const savePostText = async () => {
+  try {
+    const postTextData = {
+      source_content_id: route.params.id,
+      user_id: user.value.id,
+      institution_id: content.value.institution_id,
+      ...post_text.value,
+    };
+
+    const { error: upsertError } = await supabase
+      .from("post_text")
+      .upsert(postTextData)
+      .eq("source_content_id", route.params.id);
+
+    if (upsertError) throw upsertError;
+  } catch (err) {
+    console.error("Error saving post text:", err);
+    error.value = "Failed to save post text. Please try again.";
+  }
+};
+
 // Watch for route changes to handle direct navigation
 watch(
   () => route.params.id,
@@ -557,42 +669,102 @@ watch(
 onMounted(() => {
   fetchContent();
 
-  // Subscribe to real-time changes
-  const imagesSubscription = supabase
-    .channel("images_changes")
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "images",
-        filter: `source_content_id=eq.${route.params.id}`,
-      },
-      (payload) => {
-        // Handle different types of changes
-        if (payload.eventType === "INSERT") {
-          const newImage = payload.new;
-          if (!images.value.find((img) => img.id === newImage.id)) {
-            images.value = [...images.value, newImage].sort(
-              (a, b) => a.sequence - b.sequence
-            );
-          }
-        } else if (payload.eventType === "DELETE") {
-          images.value = images.value.filter(
-            (img) => img.id !== payload.old.id
+  // Create a channel for all subscriptions
+  const channel = supabase.channel("content_detail_changes");
+
+  // Subscribe to image changes
+  channel.on(
+    "postgres_changes",
+    {
+      event: "*",
+      schema: "public",
+      table: "images",
+      filter: `source_content_id=eq.${route.params.id}`,
+    },
+    (payload) => {
+      // Handle different types of changes
+      if (payload.eventType === "INSERT") {
+        const newImage = payload.new;
+        if (!images.value.find((img) => img.id === newImage.id)) {
+          images.value = [...images.value, newImage].sort(
+            (a, b) => a.sequence - b.sequence
           );
-        } else if (payload.eventType === "UPDATE") {
-          images.value = images.value
-            .map((img) => (img.id === payload.new.id ? payload.new : img))
-            .sort((a, b) => a.sequence - b.sequence);
+        }
+      } else if (payload.eventType === "DELETE") {
+        images.value = images.value.filter((img) => img.id !== payload.old.id);
+      } else if (payload.eventType === "UPDATE") {
+        images.value = images.value
+          .map((img) => (img.id === payload.new.id ? payload.new : img))
+          .sort((a, b) => a.sequence - b.sequence);
+      }
+    }
+  );
+
+  // Subscribe to source_content changes (for template updates)
+  channel.on(
+    "postgres_changes",
+    {
+      event: "*",
+      schema: "public",
+      table: "source_content",
+      filter: `id=eq.${route.params.id}`,
+    },
+    async (payload) => {
+      if (payload.eventType === "UPDATE") {
+        const newData = payload.new;
+        // Only refetch if template related fields changed
+        if (
+          newData.template_id !== content.value?.template_id ||
+          newData.is_template_selected !== content.value?.is_template_selected
+        ) {
+          await fetchContent();
         }
       }
-    )
-    .subscribe();
+    }
+  );
 
-  // Cleanup subscription on component unmount
+  // Subscribe to post_text changes
+  channel.on(
+    "postgres_changes",
+    {
+      event: "*",
+      schema: "public",
+      table: "post_text",
+      filter: `source_content_id=eq.${route.params.id}`,
+    },
+    async (payload) => {
+      if (payload.eventType === "INSERT" || payload.eventType === "UPDATE") {
+        post_text.value = payload.new;
+      } else if (payload.eventType === "DELETE") {
+        post_text.value = {
+          p1a: "",
+          p1b: "",
+          p2a: "",
+          p2b: "",
+          p3a: "",
+          p3b: "",
+          p4a: "",
+          p4b: "",
+          p5a: "",
+          p5b: "",
+          p6a: "",
+          p6b: "",
+        };
+      }
+    }
+  );
+
+  // Subscribe to the channel
+  channel.subscribe((status, err) => {
+    if (err) {
+      console.error("Error subscribing to changes:", err);
+      error.value = "Failed to setup live updates. Please refresh the page.";
+    }
+  });
+
+  // Cleanup subscriptions on component unmount
   onUnmounted(() => {
-    imagesSubscription.unsubscribe();
+    channel.unsubscribe();
   });
 });
 </script>
@@ -806,7 +978,7 @@ h1 {
 }
 
 .image-item {
-  flex: 0 0 200px; /* Fixed width for each image item */
+  flex: 0 0 160px;
   position: relative;
   border: 1px solid #ddd;
   border-radius: 4px;
@@ -817,7 +989,7 @@ h1 {
 
 .image-item img {
   width: 100%;
-  height: 150px;
+  height: 120px;
   object-fit: cover;
 }
 
@@ -858,6 +1030,7 @@ h1 {
   align-items: center;
   background: white;
   gap: 0.5rem;
+  border-top: 1px solid #ddd;
 }
 
 .image-text {
@@ -1136,5 +1309,57 @@ h1 {
   color: #dc3545;
   margin: 0;
   line-height: 1.6;
+}
+
+/* Post Text Styles */
+.post-text-container {
+  padding: 0.5rem;
+}
+
+.post-text-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
+  gap: 1rem;
+}
+
+.post-text-item {
+  padding: 0;
+}
+
+.text-preview {
+  font-size: 0.9rem;
+  color: #333;
+  white-space: pre-wrap;
+  min-height: 1rem;
+  height: 40px;
+  width: 100%;
+  background: white;
+  border: none;
+  resize: none;
+  padding: 8px;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+.text-preview::placeholder {
+  color: #999;
+}
+
+.text-preview:focus {
+  outline: none;
+}
+
+.no-post-text {
+  text-align: center;
+  color: #666;
+  padding: 1rem;
+}
+
+.field-description {
+  font-size: 0.85rem;
+  color: #666;
+  margin: 0.25rem 0;
+  font-style: italic;
+  line-height: 1.4;
 }
 </style>
