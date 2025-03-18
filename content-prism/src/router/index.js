@@ -47,6 +47,12 @@ const routes = [
     meta: { requiresAuth: true, requiresProfile: true },
   },
   {
+    path: "/content",
+    name: "content",
+    redirect: "/create-content",
+    meta: { requiresAuth: true, requiresProfile: true },
+  },
+  {
     path: "/content/:id",
     name: "contentDetail",
     component: ContentDetail,

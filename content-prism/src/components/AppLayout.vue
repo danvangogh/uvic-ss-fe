@@ -12,7 +12,7 @@
           class="nav-section"
           :class="{ active: activeSection === 'content' }"
         >
-          <div class="section-header" @click="toggleSection('content')">
+          <div class="section-header" @click="navigateToContent">
             <span class="section-title">Content</span>
             <i
               class="arrow"
@@ -127,6 +127,14 @@ const navigateToBrand = () => {
   router.push("/brand"); // This will redirect to /brand/assets
   if (expandedSection.value !== "brand") {
     expandedSection.value = "brand";
+  }
+};
+
+// Combined function to navigate to content page and toggle the section
+const navigateToContent = () => {
+  router.push("/content"); // This will redirect to /create-content
+  if (expandedSection.value !== "content") {
+    expandedSection.value = "content";
   }
 };
 
