@@ -72,22 +72,23 @@ class ImageGenerationService {
         console.log(`Polling attempt ${attempt + 1}, status:`, status);
 
         if (status.status === "completed") {
-          // Update both flags only on successful completion
+          // Only update is_imagery_generated to true, keep is_generating_imagery true
+          // The frontend will handle setting is_generating_imagery to false when appropriate
           await supabase
             .from("source_content")
             .update({
               is_imagery_generated: true,
-              is_generating_imagery: false,
               updated_at: new Date().toISOString(),
             })
             .eq("id", contentId);
 
           return status;
         } else if (status.status === "failed") {
-          // On failure, keep is_generating_imagery true but update the timestamp
+          // On failure, set both flags to indicate the process is done
           await supabase
             .from("source_content")
             .update({
+              is_generating_imagery: false,
               updated_at: new Date().toISOString(),
             })
             .eq("id", contentId);
@@ -167,7 +168,6 @@ class ImageGenerationService {
         .from("source_content")
         .update({
           is_imagery_generated: true,
-          is_generating_imagery: false,
           updated_at: new Date().toISOString(),
         })
         .eq("id", contentId);

@@ -4,7 +4,11 @@ const cors = require("cors");
 const fs = require("fs");
 const path = require("path");
 const multer = require("multer");
-const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
+const {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+} = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const dotenv = require("dotenv");
 const { PDFDocument, rgb } = require("pdf-lib");
@@ -1047,3 +1051,70 @@ ${sourceData.source_content_main_text}`;
 
 // Use routes
 app.use("/api/generate-imagery", imageGenerationRoutes);
+
+// Add get-signed-url endpoint
+app.post("/api/get-signed-url", async (req, res) => {
+  try {
+    const { url } = req.body;
+    if (!url) {
+      return res.status(400).json({ error: "URL is required" });
+    }
+
+    // Extract the key (path) from the URL
+    // Example URL: https://bucket.tor1.digitaloceanspaces.com/path/to/file.png
+    const urlObj = new URL(url);
+    const key = urlObj.pathname.substring(1); // Remove leading slash
+
+    // Create a GetObject command
+    const command = new GetObjectCommand({
+      Bucket: process.env.DO_SPACES_BUCKET,
+      Key: key,
+    });
+
+    // Generate signed URL
+    const signedUrl = await getSignedUrl(s3Client, command, {
+      expiresIn: 3600,
+    }); // URL expires in 1 hour
+
+    res.json({ signedUrl });
+  } catch (error) {
+    console.error("Error generating signed URL:", error);
+    res.status(500).json({ error: "Failed to generate signed URL" });
+  }
+});
+
+// Add download-file endpoint to proxy requests to DigitalOcean Spaces
+app.post("/api/download-file", async (req, res) => {
+  try {
+    const { url } = req.body;
+    if (!url) {
+      return res.status(400).json({ error: "URL is required" });
+    }
+
+    // Extract the key from the URL
+    const key = url.split("uvicss.tor1.digitaloceanspaces.com/")[1];
+    if (!key) {
+      return res.status(400).json({ error: "Invalid URL format" });
+    }
+
+    // Get the object from DigitalOcean Spaces
+    const getObjectCommand = new GetObjectCommand({
+      Bucket: process.env.DO_SPACES_BUCKET,
+      Key: key,
+    });
+
+    const response = await s3Client.send(getObjectCommand);
+
+    // Set appropriate headers
+    res.setHeader("Content-Type", response.ContentType);
+    if (response.ContentLength) {
+      res.setHeader("Content-Length", response.ContentLength);
+    }
+
+    // Stream the file directly to the response
+    response.Body.pipe(res);
+  } catch (error) {
+    console.error("Error downloading file:", error);
+    res.status(500).json({ error: "Failed to download file" });
+  }
+});

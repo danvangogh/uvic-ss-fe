@@ -20,6 +20,29 @@
             <span class="date"
               >Created {{ formatDate(content.created_at) }}</span
             >
+
+            <!-- Add image previews -->
+            <div v-if="generatedImages.length" class="image-previews-section">
+              <div class="image-previews">
+                <img
+                  v-for="(url, index) in generatedImages"
+                  :key="index"
+                  :src="url"
+                  :alt="`Generated image ${index + 1}`"
+                  class="preview-thumbnail"
+                  @click="openLightbox(url)"
+                />
+              </div>
+              <button
+                class="download-post-button"
+                @click="downloadAllContent"
+                :disabled="isDownloading"
+              >
+                <i v-if="isDownloading" class="fas fa-spinner fa-spin"></i>
+                <i v-else class="fas fa-download"></i>
+                {{ isDownloading ? "Preparing Download..." : "Download Post" }}
+              </button>
+            </div>
           </div>
           <div class="progress-section">
             <div class="progress-bar">
@@ -37,6 +60,30 @@
           </div>
         </div>
       </header>
+
+      <!-- Add lightbox -->
+      <div v-if="lightboxOpen" class="lightbox" @click="closeLightbox">
+        <button
+          v-if="generatedImages.length > 1"
+          class="lightbox-nav prev"
+          @click.stop="navigateImage('prev')"
+        >
+          <i class="fas fa-chevron-left"></i>
+        </button>
+        <img
+          :src="lightboxImage"
+          alt="Full size preview"
+          class="lightbox-image"
+          @click.stop
+        />
+        <button
+          v-if="generatedImages.length > 1"
+          class="lightbox-nav next"
+          @click.stop="navigateImage('next')"
+        >
+          <i class="fas fa-chevron-right"></i>
+        </button>
+      </div>
 
       <div class="content-body">
         <!-- Wrap the first two sections -->
@@ -229,10 +276,7 @@
             <div class="loading-spinner"></div>
             <p>Generating post text using AI...</p>
           </div>
-          <div
-            class="post-text-container"
-            v-else-if="post_text && activeTemplateSchema"
-          >
+          <div class="post-text-container" v-else>
             <div class="post-text-grid">
               <div
                 v-for="field in visiblePostTextFields"
@@ -240,19 +284,17 @@
                 class="post-text-item"
               >
                 <textarea
+                  :id="field"
                   v-model="post_text[field]"
                   class="text-preview"
-                  :placeholder="'Not set'"
+                  :placeholder="'Enter text for ' + field"
                   @input="savePostText"
                 ></textarea>
               </div>
             </div>
           </div>
-          <p v-else-if="!content?.template_id" class="no-post-text">
+          <p v-if="!content?.template_id" class="no-post-text">
             Please select a template first to generate post text.
-          </p>
-          <p v-else class="no-post-text">
-            No post text available. Click 'Generate Text' to create content.
           </p>
         </section>
 
@@ -296,6 +338,8 @@ import { useRoute } from "vue-router";
 import { supabase } from "../supabase";
 import { useAuth } from "../stores/authStore";
 import draggable from "vuedraggable";
+import JSZip from "jszip";
+import { saveAs } from "file-saver";
 
 const { user } = useAuth();
 const route = useRoute();
@@ -311,6 +355,12 @@ const uploadSuccess = ref(false);
 const post_text = ref(null);
 const isGeneratingText = ref(false);
 const isGeneratingImagery = ref(false);
+const generatedImages = ref([]);
+const lightboxOpen = ref(false);
+const lightboxImage = ref("");
+const currentImageIndex = ref(0);
+const channel = ref(null);
+const isDownloading = ref(false);
 
 // Add computed property for active template schema
 const activeTemplateSchema = computed(() => {
@@ -328,21 +378,29 @@ const activeTemplateSchema = computed(() => {
             .replace(/['']/g, "'") // Replace curly single quotes
         : template.template_content_schema;
 
-    return typeof normalizedSchema === "string"
-      ? JSON.parse(normalizedSchema)
-      : normalizedSchema;
+    const parsedSchema =
+      typeof normalizedSchema === "string"
+        ? JSON.parse(normalizedSchema)
+        : normalizedSchema;
+
+    // Ensure we return an object with the expected structure
+    return parsedSchema || {};
   } catch (err) {
     console.error("Error parsing template schema:", err);
-    return null;
+    return {};
   }
 });
 
 // Add computed property for visible post text fields
 const visiblePostTextFields = computed(() => {
-  if (!activeTemplateSchema.value) return [];
-  return Object.keys(activeTemplateSchema.value).map((key) =>
-    key.toLowerCase()
-  );
+  // Default fields if no schema is available
+  const defaultFields = ["p1a", "p1b", "p2a", "p2b", "p3a", "p3b"];
+
+  if (!activeTemplateSchema.value) return defaultFields;
+
+  // Get fields from schema or use defaults
+  const schemaFields = Object.keys(activeTemplateSchema.value);
+  return schemaFields.length > 0 ? schemaFields : defaultFields;
 });
 
 // Add computed property to check if imagery can be generated
@@ -366,45 +424,89 @@ const statusFlags = [
 ];
 
 const fetchContent = async () => {
-  const contentId = route.params.id;
-  if (!contentId) {
-    error.value = "No content ID provided";
-    loading.value = false;
-    return;
-  }
-
   try {
     loading.value = true;
     error.value = null;
 
-    const { data, error: fetchError } = await supabase
+    const { data, error: contentError } = await supabase
       .from("source_content")
       .select(
         `
         *,
         template:template_id (
           template_name,
-          template_content_description,
-          post_type_id,
-          content_template_post_types (
-            content_template_post_type_name
-          )
+          template_content_schema
         )
       `
       )
-      .eq("id", contentId)
+      .eq("id", route.params.id)
       .single();
 
-    if (fetchError) throw fetchError;
-
-    if (!data) {
-      error.value = "Content not found";
-      return;
-    }
-
+    if (contentError) throw contentError;
     content.value = data;
     originalSourceText.value = data.source_content_main_text;
-    await Promise.all([fetchImages(), fetchTemplates(), fetchPostText()]);
+
+    // Fetch post text data
+    const { data: postTextData, error: postTextError } = await supabase
+      .from("post_text")
+      .select("*")
+      .eq("source_content_id", route.params.id)
+      .single();
+
+    if (!postTextError) {
+      post_text.value = {
+        p1a: "",
+        p1b: "",
+        p2a: "",
+        p2b: "",
+        p3a: "",
+        p3b: "",
+        p4a: "",
+        p4b: "",
+        p5a: "",
+        p5b: "",
+        p6a: "",
+        p6b: "",
+        ...postTextData,
+      };
+    } else {
+      // Initialize with empty values if no post text exists
+      post_text.value = {
+        p1a: "",
+        p1b: "",
+        p2a: "",
+        p2b: "",
+        p3a: "",
+        p3b: "",
+        p4a: "",
+        p4b: "",
+        p5a: "",
+        p5b: "",
+        p6a: "",
+        p6b: "",
+      };
+    }
+
+    // Fetch generated images after content is loaded
+    await fetchGeneratedImages();
+
+    // Fetch templates
+    const { data: templatesData, error: templatesError } = await supabase
+      .from("content_templates")
+      .select("*");
+
+    if (templatesError) throw templatesError;
+    templates.value = templatesData;
+
+    // Fetch images
+    const { data: imagesData, error: imagesError } = await supabase
+      .from("images")
+      .select("*")
+      .eq("source_content_id", route.params.id)
+      .order("sequence");
+
+    if (imagesError) throw imagesError;
+    images.value = imagesData;
   } catch (err) {
     console.error("Error fetching content:", err);
     error.value = "Failed to load content. Please try again later.";
@@ -413,74 +515,23 @@ const fetchContent = async () => {
   }
 };
 
-const fetchImages = async () => {
+const fetchGeneratedImages = async () => {
   try {
-    const { data, error: imagesError } = await supabase
-      .from("images")
-      .select("*")
-      .eq("source_content_id", route.params.id)
-      .order("sequence", { ascending: true });
-
-    if (imagesError) throw imagesError;
-    images.value = data || [];
-  } catch (err) {
-    console.error("Error fetching images:", err);
-  }
-};
-
-const fetchTemplates = async () => {
-  try {
-    const { data, error: templatesError } = await supabase.from(
-      "content_templates"
-    ).select(`
-        *,
-        template_content_schema
-      `);
-
-    if (templatesError) throw templatesError;
-    templates.value = data || [];
-  } catch (err) {
-    console.error("Error fetching templates:", err);
-  }
-};
-
-const fetchPostText = async () => {
-  try {
-    console.log("Fetching post text...");
-    const { data, error: fetchError } = await supabase
-      .from("post_text")
-      .select("*")
-      .eq("source_content_id", route.params.id)
+    const { data, error } = await supabase
+      .from("created_content")
+      .select("url_object")
+      .eq("source_content_id", content.value.id)
       .single();
 
-    if (fetchError && fetchError.code !== "PGRST116") throw fetchError;
-
-    console.log("Fetched post text data:", data);
-
-    // Initialize with empty strings for all possible fields
-    const defaultPostText = {
-      p1a: "",
-      p1b: "",
-      p2a: "",
-      p2b: "",
-      p3a: "",
-      p3b: "",
-      p4a: "",
-      p4b: "",
-      p5a: "",
-      p5b: "",
-      p6a: "",
-      p6b: "",
-    };
-
-    // Create a new object reference with merged data
-    post_text.value = data
-      ? { ...defaultPostText, ...data }
-      : { ...defaultPostText };
-    console.log("Initialized post_text.value:", post_text.value);
+    if (error) throw error;
+    if (data?.url_object) {
+      // Extract PNG URLs from url_object
+      generatedImages.value = Object.values(data.url_object).filter(
+        (url) => url
+      );
+    }
   } catch (err) {
-    console.error("Error fetching post text:", err);
-    error.value = "Failed to load post text. Please try again later.";
+    console.error("Error fetching generated images:", err);
   }
 };
 
@@ -564,8 +615,8 @@ const handleImageUpload = async (event) => {
       uploadSuccess.value = false;
     }, 3000);
 
-    // Refresh images
-    await fetchImages();
+    // Refresh content which includes images
+    await fetchContent();
   } catch (err) {
     console.error("Error uploading image:", err);
     error.value = "Failed to upload image. Please try again.";
@@ -603,7 +654,7 @@ const deleteImage = async (imageId) => {
       .eq("id", imageId);
 
     if (deleteError) throw deleteError;
-    await fetchImages();
+    await fetchContent();
   } catch (err) {
     console.error("Error deleting image:", err);
     error.value = "Failed to delete image. Please try again.";
@@ -706,11 +757,12 @@ const updateSequences = async (reorderedImages) => {
 
       if (updateError) throw updateError;
     }
+
+    // Refresh content which includes images
+    await fetchContent();
   } catch (err) {
     console.error("Error updating sequences:", err);
     error.value = "Failed to update image order. Please try again.";
-    // Revert to original order if update fails
-    await fetchImages();
   }
 };
 
@@ -988,121 +1040,344 @@ watch(
 onMounted(() => {
   fetchContent();
 
-  // Create a channel for all subscriptions
-  const channel = supabase.channel("content_detail_changes");
+  // Only create channel if it doesn't exist
+  if (!channel.value) {
+    // Create a channel for all subscriptions
+    channel.value = supabase.channel("content_detail_changes");
 
-  // Subscribe to image changes
-  channel.on(
-    "postgres_changes",
-    {
-      event: "*",
-      schema: "public",
-      table: "images",
-      filter: `source_content_id=eq.${route.params.id}`,
-    },
-    (payload) => {
-      // Handle different types of changes
-      if (payload.eventType === "INSERT") {
-        const newImage = payload.new;
-        if (!images.value.find((img) => img.id === newImage.id)) {
-          images.value = [...images.value, newImage].sort(
-            (a, b) => a.sequence - b.sequence
-          );
+    // Subscribe to image changes
+    channel.value
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "images",
+          filter: `source_content_id=eq.${route.params.id}`,
+        },
+        (payload) => {
+          // Handle different types of changes
+          if (payload.eventType === "INSERT") {
+            const newImage = payload.new;
+            if (!images.value.find((img) => img.id === newImage.id)) {
+              images.value = [...images.value, newImage].sort(
+                (a, b) => a.sequence - b.sequence
+              );
+            }
+          } else if (payload.eventType === "DELETE") {
+            images.value = images.value.filter(
+              (img) => img.id !== payload.old.id
+            );
+          } else if (payload.eventType === "UPDATE") {
+            images.value = images.value
+              .map((img) => (img.id === payload.new.id ? payload.new : img))
+              .sort((a, b) => a.sequence - b.sequence);
+          }
         }
-      } else if (payload.eventType === "DELETE") {
-        images.value = images.value.filter((img) => img.id !== payload.old.id);
-      } else if (payload.eventType === "UPDATE") {
-        images.value = images.value
-          .map((img) => (img.id === payload.new.id ? payload.new : img))
-          .sort((a, b) => a.sequence - b.sequence);
-      }
-    }
-  );
-
-  // Subscribe to source_content changes (for template updates)
-  channel.on(
-    "postgres_changes",
-    {
-      event: "*",
-      schema: "public",
-      table: "source_content",
-      filter: `id=eq.${route.params.id}`,
-    },
-    async (payload) => {
-      if (payload.eventType === "UPDATE") {
-        const newData = payload.new;
-        // Only refetch if template related fields changed
-        if (
-          newData.template_id !== content.value?.template_id ||
-          newData.is_template_selected !== content.value?.is_template_selected
-        ) {
-          await fetchContent();
+      )
+      // Subscribe to source_content changes (for template updates)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "source_content",
+          filter: `id=eq.${route.params.id}`,
+        },
+        async (payload) => {
+          if (payload.eventType === "UPDATE") {
+            const newData = payload.new;
+            // Only refetch if template related fields changed
+            if (
+              newData.template_id !== content.value?.template_id ||
+              newData.is_template_selected !==
+                content.value?.is_template_selected
+            ) {
+              await fetchContent();
+            }
+          }
         }
-      }
-    }
-  );
-
-  // Subscribe to post_text changes
-  channel.on(
-    "postgres_changes",
-    {
-      event: "*",
-      schema: "public",
-      table: "post_text",
-      filter: `source_content_id=eq.${route.params.id}`,
-    },
-    async (payload) => {
-      console.log("Post text change detected:", payload);
-      if (payload.eventType === "INSERT" || payload.eventType === "UPDATE") {
-        // Create a new object reference to ensure Vue reactivity
-        post_text.value = {
-          p1a: "",
-          p1b: "",
-          p2a: "",
-          p2b: "",
-          p3a: "",
-          p3b: "",
-          p4a: "",
-          p4b: "",
-          p5a: "",
-          p5b: "",
-          p6a: "",
-          p6b: "",
-          ...payload.new,
-        };
-        console.log("Updated post_text:", post_text.value);
-      } else if (payload.eventType === "DELETE") {
-        post_text.value = {
-          p1a: "",
-          p1b: "",
-          p2a: "",
-          p2b: "",
-          p3a: "",
-          p3b: "",
-          p4a: "",
-          p4b: "",
-          p5a: "",
-          p5b: "",
-          p6a: "",
-          p6b: "",
-        };
-      }
-    }
-  );
-
-  // Subscribe to the channel
-  channel.subscribe((status, err) => {
-    if (err) {
-      console.error("Error subscribing to changes:", err);
-      error.value = "Failed to setup live updates. Please refresh the page.";
-    }
-  });
-
-  // Cleanup subscriptions on component unmount
-  onUnmounted(() => {
-    channel.unsubscribe();
-  });
+      )
+      // Subscribe to post_text changes
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "post_text",
+          filter: `source_content_id=eq.${route.params.id}`,
+        },
+        async (payload) => {
+          console.log("Post text change detected:", payload);
+          if (
+            payload.eventType === "INSERT" ||
+            payload.eventType === "UPDATE"
+          ) {
+            // Create a new object reference to ensure Vue reactivity
+            post_text.value = {
+              p1a: "",
+              p1b: "",
+              p2a: "",
+              p2b: "",
+              p3a: "",
+              p3b: "",
+              p4a: "",
+              p4b: "",
+              p5a: "",
+              p5b: "",
+              p6a: "",
+              p6b: "",
+              ...payload.new,
+            };
+            console.log("Updated post_text:", post_text.value);
+          } else if (payload.eventType === "DELETE") {
+            post_text.value = {
+              p1a: "",
+              p1b: "",
+              p2a: "",
+              p2b: "",
+              p3a: "",
+              p3b: "",
+              p4a: "",
+              p4b: "",
+              p5a: "",
+              p5b: "",
+              p6a: "",
+              p6b: "",
+            };
+          }
+        }
+      )
+      // Subscribe to created_content changes
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "created_content",
+          filter: `source_content_id=eq.${route.params.id}`,
+        },
+        () => {
+          // Refetch generated images when created_content changes
+          fetchGeneratedImages();
+        }
+      )
+      .subscribe((status, err) => {
+        if (err) {
+          console.error("Error subscribing to changes:", err);
+          error.value =
+            "Failed to setup live updates. Please refresh the page.";
+        }
+      });
+  }
 });
+
+// Cleanup subscriptions on component unmount
+onUnmounted(() => {
+  if (channel.value) {
+    channel.value.unsubscribe();
+    channel.value = null;
+  }
+  // Clean up event listener if lightbox is open when component unmounts
+  window.removeEventListener("keydown", handleKeyPress);
+});
+
+const openLightbox = (url) => {
+  currentImageIndex.value = generatedImages.value.findIndex(
+    (image) => image === url
+  );
+  lightboxImage.value = url;
+  lightboxOpen.value = true;
+  // Add event listener when lightbox opens
+  window.addEventListener("keydown", handleKeyPress);
+};
+
+const closeLightbox = () => {
+  lightboxOpen.value = false;
+  // Remove event listener when lightbox closes
+  window.removeEventListener("keydown", handleKeyPress);
+};
+
+const handleKeyPress = (event) => {
+  if (!lightboxOpen.value) return;
+
+  switch (event.key) {
+    case "ArrowLeft":
+      navigateImage("prev");
+      break;
+    case "ArrowRight":
+      navigateImage("next");
+      break;
+    case "Escape":
+      closeLightbox();
+      break;
+  }
+};
+
+const navigateImage = (direction) => {
+  const totalImages = generatedImages.value.length;
+  if (totalImages <= 1) return;
+
+  let newIndex;
+  if (direction === "next") {
+    newIndex = (currentImageIndex.value + 1) % totalImages;
+  } else {
+    newIndex = (currentImageIndex.value - 1 + totalImages) % totalImages;
+  }
+
+  currentImageIndex.value = newIndex;
+  lightboxImage.value = generatedImages.value[newIndex];
+};
+
+// Add download functionality
+const downloadAllContent = async () => {
+  try {
+    isDownloading.value = true;
+
+    // Fetch the created_content record
+    const { data: createdContent, error: fetchError } = await supabase
+      .from("created_content")
+      .select("*")
+      .eq("source_content_id", content.value.id)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    console.log("Created content record:", createdContent);
+    console.log("URL object structure:", createdContent.url_object);
+
+    // Create a new zip file
+    const zip = new JSZip();
+
+    // Add PNG files
+    if (createdContent.url_object) {
+      // Get all URLs from the url_object, regardless of key name
+      const pngUrls = Object.entries(createdContent.url_object)
+        .filter(
+          ([, url]) =>
+            url && typeof url === "string" && url.toLowerCase().endsWith(".png")
+        )
+        .map(([key, url]) => ({ key, url }));
+
+      console.log("Found PNG URLs:", pngUrls);
+
+      for (const { key, url } of pngUrls) {
+        try {
+          console.log(`Downloading PNG from ${key}:`, url);
+          // Download through our backend proxy
+          const response = await fetch(
+            `${process.env.VUE_APP_API_BASE_URL}/api/download-file`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ url }),
+            }
+          );
+
+          if (!response.ok) {
+            console.error(
+              `Failed to download PNG ${key}:`,
+              response.status,
+              response.statusText
+            );
+            throw new Error(
+              `Failed to download PNG ${key}: ${response.statusText}`
+            );
+          }
+
+          const blob = await response.blob();
+          console.log(`Successfully downloaded PNG ${key}, size:`, blob.size);
+          zip.file(`${key}.png`, blob);
+        } catch (err) {
+          console.error(`Error downloading PNG ${key}:`, err);
+        }
+      }
+    }
+
+    // Add PDF if available
+    if (createdContent.pdf_url) {
+      try {
+        console.log("Downloading PDF from:", createdContent.pdf_url);
+        // Download through our backend proxy
+        const response = await fetch(
+          `${process.env.VUE_APP_API_BASE_URL}/api/download-file`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ url: createdContent.pdf_url }),
+          }
+        );
+
+        if (!response.ok) {
+          console.error(
+            "Failed to download PDF:",
+            response.status,
+            response.statusText
+          );
+          throw new Error(`Failed to download PDF: ${response.statusText}`);
+        }
+
+        const blob = await response.blob();
+        console.log("Successfully downloaded PDF, size:", blob.size);
+        zip.file("post.pdf", blob);
+      } catch (err) {
+        console.error("Error downloading PDF:", err);
+      }
+    }
+
+    // Add video if available
+    if (createdContent.video_url) {
+      try {
+        console.log("Downloading video from:", createdContent.video_url);
+        // Download through our backend proxy
+        const response = await fetch(
+          `${process.env.VUE_APP_API_BASE_URL}/api/download-file`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ url: createdContent.video_url }),
+          }
+        );
+
+        if (!response.ok) {
+          console.error(
+            "Failed to download video:",
+            response.status,
+            response.statusText
+          );
+          throw new Error(`Failed to download video: ${response.statusText}`);
+        }
+
+        const blob = await response.blob();
+        console.log("Successfully downloaded video, size:", blob.size);
+        zip.file("post.mp4", blob);
+      } catch (err) {
+        console.error("Error downloading video:", err);
+      }
+    }
+
+    // Generate the zip file
+    console.log("Generating zip file...");
+    const zipBlob = await zip.generateAsync({ type: "blob" });
+    console.log("Zip file generated, size:", zipBlob.size);
+
+    // Download the zip file
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    saveAs(zipBlob, `post_content_${timestamp}.zip`);
+    console.log("Zip file download initiated");
+  } catch (err) {
+    console.error("Error preparing download:", err);
+    error.value = "Failed to prepare download. Please try again.";
+  } finally {
+    isDownloading.value = false;
+  }
+};
 </script>
 
 <style scoped>
@@ -1658,26 +1933,28 @@ h1 {
 .post-text-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .post-text-item {
-  padding: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .text-preview {
   font-size: 0.9rem;
   color: #333;
   white-space: pre-wrap;
-  min-height: 1rem;
-  height: 40px;
+  height: 30px;
   width: 100%;
   background: white;
-  border: none;
+  border: 1px solid #ddd;
+  border-radius: 4px;
   resize: none;
-  padding: 8px;
+  padding: 4px 8px;
   font-family: inherit;
-  line-height: 1;
+  line-height: 1.4;
+  overflow-y: hidden;
 }
 
 .text-preview::placeholder {
@@ -1686,6 +1963,7 @@ h1 {
 
 .text-preview:focus {
   outline: none;
+  border-color: #007bff;
 }
 
 .no-post-text {
@@ -1777,5 +2055,125 @@ h1 {
   text-align: center;
   color: #666;
   padding: 1rem;
+}
+
+.image-previews-section {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-top: 15px;
+}
+
+.download-post-button {
+  align-self: flex-start;
+  padding: 8px 16px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.download-post-button:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+
+.download-post-button:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.download-post-button i {
+  font-size: 1rem;
+}
+
+.image-previews {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+  flex-wrap: wrap;
+}
+
+.preview-thumbnail {
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.preview-thumbnail:hover {
+  transform: scale(1.05);
+}
+
+.lightbox {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.lightbox-image {
+  max-width: 90%;
+  max-height: 90vh;
+  object-fit: contain;
+}
+
+.lightbox-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: white;
+  padding: 1rem;
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease;
+  z-index: 1001;
+}
+
+.lightbox-nav:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.lightbox-nav.prev {
+  left: 20px;
+}
+
+.lightbox-nav.next {
+  right: 20px;
+}
+
+.lightbox-nav i {
+  font-size: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .image-previews {
+    justify-content: center;
+  }
+
+  .preview-thumbnail {
+    width: 80px;
+    height: 80px;
+  }
 }
 </style>
