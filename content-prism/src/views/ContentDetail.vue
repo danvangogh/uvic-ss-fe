@@ -744,9 +744,7 @@ const cancelEdit = () => {
 
 const handleTemplateClick = (template) => {
   if (template.requires_image && !images.value.length) {
-    error.value =
-      "Please upload at least one image before selecting this template";
-    return;
+    return; // Do nothing if template requires images and no images are uploaded
   }
   selectTemplate(template.id);
 };
@@ -931,9 +929,13 @@ const generatePostText = async () => {
     post_text.value = { ...postTextData };
     console.log("Updated post_text.value:", post_text.value);
 
+    // Use upsert to update existing row or create new one if it doesn't exist
     const { error: upsertError } = await supabase
       .from("post_text")
-      .upsert(postTextData);
+      .upsert(postTextData, {
+        onConflict: "source_content_id", // Specify the unique key for conflict resolution
+        ignoreDuplicates: false, // We want to update existing rows
+      });
 
     if (upsertError) {
       console.error("Error upserting post text:", upsertError);
@@ -1679,7 +1681,7 @@ h1 {
 }
 
 .template-item.disabled {
-  opacity: 0.6;
+  opacity: 0.4;
   cursor: not-allowed;
   background: #f8f9fa;
 }
