@@ -23,6 +23,9 @@
 
             <!-- Add image previews -->
             <div v-if="generatedImages.length" class="image-previews-section">
+              <div class="image-previews-header">
+                <h3>Generated Images</h3>
+              </div>
               <div class="image-previews">
                 <img
                   v-for="(url, index) in generatedImages"
@@ -516,6 +519,7 @@ const fetchContent = async () => {
 };
 
 const fetchGeneratedImages = async () => {
+  console.log("Starting fetchGeneratedImages");
   try {
     const { data, error } = await supabase
       .from("created_content")
@@ -523,15 +527,34 @@ const fetchGeneratedImages = async () => {
       .eq("source_content_id", content.value.id)
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error("Error fetching generated images:", error);
+      throw error;
+    }
+
+    console.log("Fetched created_content data:", data);
+
     if (data?.url_object) {
-      // Extract PNG URLs from url_object
-      generatedImages.value = Object.values(data.url_object).filter(
-        (url) => url
-      );
+      // Extract PNG URLs and update the state
+      const pngUrls = Object.entries(data.url_object)
+        .filter(
+          ([, url]) =>
+            url && typeof url === "string" && url.toLowerCase().endsWith(".png")
+        )
+        .map(([, url]) => url);
+
+      console.log("Current generatedImages:", generatedImages.value);
+      console.log("New PNG URLs:", pngUrls);
+
+      // Always update the images to ensure we have the latest
+      generatedImages.value = pngUrls;
+      console.log("Updated generatedImages:", generatedImages.value);
+    } else {
+      console.log("No url_object found in data");
+      generatedImages.value = [];
     }
   } catch (err) {
-    console.error("Error fetching generated images:", err);
+    console.error("Error in fetchGeneratedImages:", err);
   }
 };
 
@@ -956,9 +979,17 @@ const generatePostText = async () => {
 
 // Add generateImagery function
 const generateImagery = async () => {
-  if (!canGenerateImagery.value) return;
+  if (!canGenerateImagery.value) {
+    console.log("Cannot generate imagery:", {
+      hasTemplateId: !!content.value?.template_id,
+      isPostTextGenerated: content.value?.is_post_text_generated,
+      isGeneratingImagery: isGeneratingImagery.value,
+    });
+    return;
+  }
 
   try {
+    console.log("Starting imagery generation");
     isGeneratingImagery.value = true;
     error.value = null;
 
@@ -972,8 +1003,10 @@ const generateImagery = async () => {
       .eq("id", content.value.id);
 
     if (statusError) throw statusError;
+    console.log("Updated is_generating_imagery status to true");
 
     // Make API call to backend to generate imagery
+    console.log("Calling generate-imagery API endpoint");
     const response = await fetch(
       `${process.env.VUE_APP_API_BASE_URL}/api/generate-imagery/generate`,
       {
@@ -993,21 +1026,29 @@ const generateImagery = async () => {
     }
 
     const data = await response.json();
+    console.log("Generate imagery API response:", data);
+
     if (!data.success) {
       throw new Error(data.error || "Failed to generate imagery");
     }
 
-    console.log("Imagery generation initiated:", data);
+    // Check if we need to wait for the subscription to catch up
+    console.log("Waiting briefly for created_content update...");
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
-    // The backend will handle updating is_imagery_generated when complete
+    // Force a refresh if the subscription hasn't caught it
+    console.log("Forcing page refresh");
+    window.location.reload();
+
     return data;
   } catch (err) {
-    console.error("Error generating imagery:", err);
+    console.error("Error in generateImagery:", err);
     error.value =
       err.message || "Failed to generate imagery. Please try again.";
 
     // Reset the generating state on error
     try {
+      console.log("Resetting is_generating_imagery status due to error");
       const { error: resetError } = await supabase
         .from("source_content")
         .update({
@@ -1023,162 +1064,77 @@ const generateImagery = async () => {
       console.error("Error during status reset:", resetErr);
     }
   } finally {
+    console.log("Imagery generation process completed");
     isGeneratingImagery.value = false;
   }
 };
 
-// Watch for route changes to handle direct navigation
+// Add this new function
+const setupSubscriptions = () => {
+  console.log("Setting up subscriptions for content ID:", route.params.id);
+
+  // Clean up existing subscription if any
+  if (channel.value) {
+    channel.value.unsubscribe();
+    channel.value = null;
+  }
+
+  // Create a new channel
+  channel.value = supabase
+    .channel("content_detail_changes")
+    .on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "created_content",
+        filter: `source_content_id=eq.${route.params.id}`,
+      },
+      () => {
+        console.log("Created content updated - refreshing page");
+        window.location.reload();
+      }
+    )
+    .subscribe((status) => {
+      console.log("Subscription status:", status);
+      if (status === "SUBSCRIBED") {
+        console.log("Successfully subscribed to created_content changes");
+      }
+    });
+};
+
+// Modify onMounted to use the new function
+onMounted(() => {
+  console.log("Component mounted, initializing...");
+  fetchContent();
+  setupSubscriptions();
+
+  // Check if we need to scroll to top (after page reload)
+  if (sessionStorage.getItem("scrollToTop")) {
+    console.log("Scrolling to top after reload");
+    window.scrollTo(0, 0);
+    sessionStorage.removeItem("scrollToTop");
+  }
+});
+
+// Add a watcher for route changes to handle navigation
 watch(
   () => route.params.id,
   (newId) => {
+    console.log("Route ID changed to:", newId);
     if (newId) {
       fetchContent();
+      setupSubscriptions(); // Re-setup subscriptions when route changes
     }
   }
 );
 
-onMounted(() => {
-  fetchContent();
-
-  // Only create channel if it doesn't exist
-  if (!channel.value) {
-    // Create a channel for all subscriptions
-    channel.value = supabase.channel("content_detail_changes");
-
-    // Subscribe to image changes
-    channel.value
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "images",
-          filter: `source_content_id=eq.${route.params.id}`,
-        },
-        (payload) => {
-          // Handle different types of changes
-          if (payload.eventType === "INSERT") {
-            const newImage = payload.new;
-            if (!images.value.find((img) => img.id === newImage.id)) {
-              images.value = [...images.value, newImage].sort(
-                (a, b) => a.sequence - b.sequence
-              );
-            }
-          } else if (payload.eventType === "DELETE") {
-            images.value = images.value.filter(
-              (img) => img.id !== payload.old.id
-            );
-          } else if (payload.eventType === "UPDATE") {
-            images.value = images.value
-              .map((img) => (img.id === payload.new.id ? payload.new : img))
-              .sort((a, b) => a.sequence - b.sequence);
-          }
-        }
-      )
-      // Subscribe to source_content changes (for template updates)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "source_content",
-          filter: `id=eq.${route.params.id}`,
-        },
-        async (payload) => {
-          if (payload.eventType === "UPDATE") {
-            const newData = payload.new;
-            // Only refetch if template related fields changed
-            if (
-              newData.template_id !== content.value?.template_id ||
-              newData.is_template_selected !==
-                content.value?.is_template_selected
-            ) {
-              await fetchContent();
-            }
-          }
-        }
-      )
-      // Subscribe to post_text changes
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "post_text",
-          filter: `source_content_id=eq.${route.params.id}`,
-        },
-        async (payload) => {
-          console.log("Post text change detected:", payload);
-          if (
-            payload.eventType === "INSERT" ||
-            payload.eventType === "UPDATE"
-          ) {
-            // Create a new object reference to ensure Vue reactivity
-            post_text.value = {
-              p1a: "",
-              p1b: "",
-              p2a: "",
-              p2b: "",
-              p3a: "",
-              p3b: "",
-              p4a: "",
-              p4b: "",
-              p5a: "",
-              p5b: "",
-              p6a: "",
-              p6b: "",
-              ...payload.new,
-            };
-            console.log("Updated post_text:", post_text.value);
-          } else if (payload.eventType === "DELETE") {
-            post_text.value = {
-              p1a: "",
-              p1b: "",
-              p2a: "",
-              p2b: "",
-              p3a: "",
-              p3b: "",
-              p4a: "",
-              p4b: "",
-              p5a: "",
-              p5b: "",
-              p6a: "",
-              p6b: "",
-            };
-          }
-        }
-      )
-      // Subscribe to created_content changes
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "created_content",
-          filter: `source_content_id=eq.${route.params.id}`,
-        },
-        () => {
-          // Refetch generated images when created_content changes
-          fetchGeneratedImages();
-        }
-      )
-      .subscribe((status, err) => {
-        if (err) {
-          console.error("Error subscribing to changes:", err);
-          error.value =
-            "Failed to setup live updates. Please refresh the page.";
-        }
-      });
-  }
-});
-
-// Cleanup subscriptions on component unmount
+// Modify onUnmounted to clean up subscriptions
 onUnmounted(() => {
   if (channel.value) {
     channel.value.unsubscribe();
     channel.value = null;
   }
-  // Clean up event listener if lightbox is open when component unmounts
   window.removeEventListener("keydown", handleKeyPress);
 });
 
@@ -2175,5 +2131,18 @@ h1 {
     width: 80px;
     height: 80px;
   }
+}
+
+.image-previews-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.image-previews-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #333;
 }
 </style>

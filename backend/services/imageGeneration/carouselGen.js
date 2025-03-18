@@ -156,19 +156,44 @@ class CarouselGenerator {
         sourceContentId
       );
 
-      const { data, error } = await supabase.from("created_content").insert([
-        {
-          source_content_id: sourceContentId,
-          url_object: urlObject,
-          user_id: content.user_id,
-          institution_id: content.institution_id,
-          pdf_url: pdfUrl,
-        },
-      ]);
+      // Check if record exists
+      const { data: existingRecord } = await supabase
+        .from("created_content")
+        .select("id")
+        .eq("source_content_id", sourceContentId)
+        .single();
 
-      if (error) throw error;
-      console.log("Successfully saved to database:", data);
-      return data;
+      if (existingRecord) {
+        // Update existing record
+        const { error: updateError } = await supabase
+          .from("created_content")
+          .update({
+            url_object: urlObject,
+            pdf_url: pdfUrl,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("source_content_id", sourceContentId);
+
+        if (updateError) throw updateError;
+      } else {
+        // Insert new record
+        const { error: insertError } = await supabase
+          .from("created_content")
+          .insert([
+            {
+              source_content_id: sourceContentId,
+              url_object: urlObject,
+              user_id: content.user_id,
+              institution_id: content.institution_id,
+              pdf_url: pdfUrl,
+            },
+          ]);
+
+        if (insertError) throw insertError;
+      }
+
+      console.log("Successfully saved to database");
+      return { success: true };
     } catch (error) {
       console.error("Error saving to database:", error);
       throw error;
@@ -193,32 +218,53 @@ class CarouselGenerator {
       const payload = {
         template_set: template.template_set_id,
         modifications: [
-          // First slide
           {
-            name: "title_1",
+            name: "p1_a",
             text: post_text.p1a,
           },
           {
-            name: "subtitle_1",
+            name: "p1_b",
             text: post_text.p1b,
           },
-          // Second slide
           {
-            name: "title_2",
+            name: "p2_a",
             text: post_text.p2a,
           },
           {
-            name: "subtitle_2",
+            name: "p2_b",
             text: post_text.p2b,
           },
-          // Third slide
           {
-            name: "title_3",
+            name: "p3_a",
             text: post_text.p3a,
           },
           {
-            name: "subtitle_3",
+            name: "p3_b",
             text: post_text.p3b,
+          },
+          {
+            name: "p4_a",
+            text: post_text.p4a,
+          },
+          {
+            name: "p4_b",
+            text: post_text.p4b,
+          },
+          {
+            name: "p5_a",
+            text: post_text.p5a,
+          },
+          {
+            name: "p5_b",
+            text: post_text.p5b,
+          },
+          {
+            name: "p6_a",
+            text: post_text.p6a,
+          },
+          {
+            name: "p6_b",
+            text: post_text.p6b,
           },
         ],
       };
@@ -380,6 +426,67 @@ class CarouselGenerator {
         },
       });
       throw new Error(`Failed to check collection status: ${error.message}`);
+    }
+  }
+
+  async updateCreatedContent(contentId, urls, type = "images") {
+    try {
+      const timestamp = new Date().toISOString();
+
+      // First, get the existing record
+      const { data: existingContent, error: fetchError } = await supabase
+        .from("created_content")
+        .select("url_object, generation_metadata")
+        .eq("source_content_id", contentId)
+        .single();
+
+      if (fetchError && fetchError.code !== "PGRST116") {
+        // PGRST116 is "not found"
+        throw fetchError;
+      }
+
+      // Prepare the generation metadata
+      const generationMetadata = {
+        last_generated_at: timestamp,
+        generation_count: existingContent?.generation_metadata?.generation_count
+          ? existingContent.generation_metadata.generation_count + 1
+          : 1,
+        last_generation_type: type,
+      };
+
+      // If this is a new record
+      if (!existingContent) {
+        const { error: insertError } = await supabase
+          .from("created_content")
+          .insert([
+            {
+              source_content_id: contentId,
+              url_object: urls,
+              generation_metadata: generationMetadata,
+              created_at: timestamp,
+              updated_at: timestamp,
+            },
+          ]);
+
+        if (insertError) throw insertError;
+      } else {
+        // Update existing record
+        const { error: updateError } = await supabase
+          .from("created_content")
+          .update({
+            url_object: urls,
+            generation_metadata: generationMetadata,
+            updated_at: timestamp,
+          })
+          .eq("source_content_id", contentId);
+
+        if (updateError) throw updateError;
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error("Error updating created content:", error);
+      throw error;
     }
   }
 }
