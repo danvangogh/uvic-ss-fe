@@ -39,12 +39,21 @@
 
         <!-- Brand Section -->
         <div class="nav-section" :class="{ active: activeSection === 'brand' }">
-          <div class="section-header" @click="toggleSection('brand')">
+          <div class="section-header" @click="navigateToBrand">
             <span class="section-title">Brand</span>
             <i
               class="arrow"
               :class="{ expanded: expandedSection === 'brand' }"
             ></i>
+          </div>
+          <div class="section-items" v-show="expandedSection === 'brand'">
+            <router-link
+              to="/brand/assets"
+              class="nav-item"
+              :class="{ active: $route.name === 'brandAssets' }"
+            >
+              Assets
+            </router-link>
           </div>
         </div>
 
@@ -91,11 +100,12 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { supabase } from "../supabase";
 import { useAuth } from "../stores/authStore";
 
 const route = useRoute();
+const router = useRouter();
 const { user } = useAuth();
 const brandLogo = ref(null);
 
@@ -110,6 +120,14 @@ const activeSection = computed(() => {
 
 const toggleSection = (section) => {
   expandedSection.value = expandedSection.value === section ? null : section;
+};
+
+// Combined function to navigate to brand page and toggle the section
+const navigateToBrand = () => {
+  router.push("/brand"); // This will redirect to /brand/assets
+  if (expandedSection.value !== "brand") {
+    expandedSection.value = "brand";
+  }
 };
 
 const fetchBrandLogo = async () => {

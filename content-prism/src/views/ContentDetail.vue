@@ -102,13 +102,11 @@
             <div class="source-text-container">
               <div class="source-text-summary">
                 <p v-if="content.source_content_main_text">
-                  The source text for this begins with "<strong>{{
+                  The source text for this begins with "{{
                     getFirstNWords(content.source_content_main_text, 12)
-                  }}</strong
-                  >" and ends with "<strong>{{
+                  }}" and ends with "{{
                     getLastNWords(content.source_content_main_text, 12)
-                  }}</strong
-                  >" and is
+                  }}" and is
                   {{ getWordCount(content.source_content_main_text) }} words
                   long.
                 </p>
@@ -319,7 +317,7 @@
           </div>
           <div v-if="isGeneratingImagery" class="generating-text">
             <div class="loading-spinner"></div>
-            <p>Generating imagery using AI...</p>
+            <p>Generating imagery (this could take a minute...)</p>
           </div>
           <p v-if="!content?.template_id" class="no-imagery">
             Please select a template first to generate imagery.
@@ -408,11 +406,19 @@ const visiblePostTextFields = computed(() => {
 
 // Add computed property to check if imagery can be generated
 const canGenerateImagery = computed(() => {
-  return (
-    content.value?.template_id &&
-    content.value?.is_post_text_generated &&
-    !isGeneratingImagery.value
-  );
+  // Check if we have a template and we're not currently generating
+  if (!content.value?.template_id || isGeneratingImagery.value) {
+    return false;
+  }
+
+  // Check if there's any text content in the post_text fields
+  const hasText =
+    post_text.value &&
+    Object.values(post_text.value).some(
+      (text) => typeof text === "string" && text.trim().length > 0
+    );
+
+  return hasText;
 });
 
 const statusFlags = [
@@ -823,6 +829,7 @@ const generatePostText = async () => {
       .from("source_content")
       .update({
         is_generating_post_text: true,
+        is_post_text_generated: false, // Reset this flag when starting generation
         updated_at: new Date().toISOString(),
       })
       .eq("id", content.value.id);
@@ -933,8 +940,8 @@ const generatePostText = async () => {
     const { error: upsertError } = await supabase
       .from("post_text")
       .upsert(postTextData, {
-        onConflict: "source_content_id", // Specify the unique key for conflict resolution
-        ignoreDuplicates: false, // We want to update existing rows
+        onConflict: "source_content_id",
+        ignoreDuplicates: false,
       });
 
     if (upsertError) {
@@ -942,7 +949,7 @@ const generatePostText = async () => {
       throw new Error("Failed to save generated text to database");
     }
 
-    // Update is_post_text_generated to true but keep is_generating_post_text as true
+    // Update only is_post_text_generated to true, keep is_generating_post_text as true
     const { error: finalStatusError } = await supabase
       .from("source_content")
       .update({
@@ -952,17 +959,24 @@ const generatePostText = async () => {
       .eq("id", content.value.id);
 
     if (finalStatusError) throw finalStatusError;
+
+    // Update local state
+    content.value = {
+      ...content.value,
+      is_post_text_generated: true,
+    };
   } catch (err) {
     console.error("Error generating post text:", err);
     error.value =
       err.message || "Failed to generate post text. Please try again.";
 
-    // On error, we should reset the generating state
+    // On error, reset both flags
     try {
       const { error: resetError } = await supabase
         .from("source_content")
         .update({
           is_generating_post_text: false,
+          is_post_text_generated: false,
           updated_at: new Date().toISOString(),
         })
         .eq("id", content.value.id);
@@ -970,11 +984,18 @@ const generatePostText = async () => {
       if (resetError) {
         console.error("Error resetting status:", resetError);
       }
+
+      // Update local state on error
+      content.value = {
+        ...content.value,
+        is_generating_post_text: false,
+        is_post_text_generated: false,
+      };
     } catch (resetErr) {
       console.error("Error during status reset:", resetErr);
     }
   } finally {
-    // Only update the local UI state
+    // Only update the local UI state for isGeneratingText
     isGeneratingText.value = false;
   }
 };
@@ -1817,13 +1838,12 @@ h1 {
 .section-header {
   display: flex;
   align-items: center;
-  gap: 50px;
+  justify-content: space-between;
   margin-bottom: 1rem;
 }
 
 .section-header h2 {
   margin: 0;
-  flex-shrink: 0;
 }
 
 .section-header .image-upload {
@@ -1831,8 +1851,6 @@ h1 {
   display: flex;
   align-items: center;
   gap: 1rem;
-  flex-grow: 1;
-  justify-content: flex-start;
 }
 
 .edit-button {

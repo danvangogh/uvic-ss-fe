@@ -14,6 +14,7 @@ import ProperoContentRequest from "../views/ProperoContentRequest.vue";
 import ProperoReports from "../views/ProperoReports.vue";
 import CreateContent from "../views/CreateContent.vue";
 import ContentDetail from "../views/ContentDetail.vue";
+import BrandAssets from "../views/BrandAssets.vue";
 
 const routes = [
   {
@@ -85,6 +86,18 @@ const routes = [
     path: "/create-content",
     name: "createContent",
     component: CreateContent,
+    meta: { requiresAuth: true, requiresProfile: true },
+  },
+  {
+    path: "/brand",
+    name: "brand",
+    redirect: "/brand/assets",
+    meta: { requiresAuth: true, requiresProfile: true },
+  },
+  {
+    path: "/brand/assets",
+    name: "brandAssets",
+    component: BrandAssets,
     meta: { requiresAuth: true, requiresProfile: true },
   },
 ];
