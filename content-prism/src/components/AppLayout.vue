@@ -34,6 +34,13 @@
             >
               Dashboard
             </router-link>
+            <router-link
+              to="/charts"
+              class="nav-item"
+              :class="{ active: $route.name === 'chartCreator' }"
+            >
+              Charts
+            </router-link>
           </div>
         </div>
 

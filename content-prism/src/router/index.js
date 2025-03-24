@@ -15,6 +15,7 @@ import ProperoReports from "../views/ProperoReports.vue";
 import CreateContent from "../views/CreateContent.vue";
 import ContentDetail from "../views/ContentDetail.vue";
 import BrandAssets from "../views/BrandAssets.vue";
+import ChartCreator from "../views/ChartCreator.vue";
 
 const routes = [
   {
@@ -104,6 +105,12 @@ const routes = [
     path: "/brand/assets",
     name: "brandAssets",
     component: BrandAssets,
+    meta: { requiresAuth: true, requiresProfile: true },
+  },
+  {
+    path: "/charts",
+    name: "chartCreator",
+    component: ChartCreator,
     meta: { requiresAuth: true, requiresProfile: true },
   },
 ];

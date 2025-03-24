@@ -11,6 +11,7 @@
     "@supabase/supabase-js": "^2.49.1",
     "autoprefixer": "^10",
     "axios": "^1.7.7",
+    "chart.js": "^4.4.8",
     "core-js": "^3.8.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
@@ -21,7 +22,8 @@
     "openai": "^4.87.3",
     "pdfjs-dist": "^4.7.76",
     "vue": "^3.2.13",
-    "vue-router": "^4.0.3"
+    "vue-router": "^4.0.3",
+    "vuedraggable": "^4.1.0"
   },
   "devDependencies": {
     "@babel/core": "^7.12.16",
