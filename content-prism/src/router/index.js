@@ -16,6 +16,7 @@ import CreateContent from "../views/CreateContent.vue";
 import ContentDetail from "../views/ContentDetail.vue";
 import BrandAssets from "../views/BrandAssets.vue";
 import ChartCreator from "../views/ChartCreator.vue";
+import Research from "../views/Research.vue";
 
 const routes = [
   {
@@ -111,6 +112,12 @@ const routes = [
     path: "/charts",
     name: "chartCreator",
     component: ChartCreator,
+    meta: { requiresAuth: true, requiresProfile: true },
+  },
+  {
+    path: "/research",
+    name: "research",
+    component: Research,
     meta: { requiresAuth: true, requiresProfile: true },
   },
 ];

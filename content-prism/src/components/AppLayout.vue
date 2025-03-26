@@ -41,6 +41,13 @@
             >
               Charts
             </router-link>
+            <router-link
+              to="/research"
+              class="nav-item"
+              :class="{ active: $route.name === 'research' }"
+            >
+              Research
+            </router-link>
           </div>
         </div>
 
