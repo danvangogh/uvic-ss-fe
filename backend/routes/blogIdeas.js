@@ -22,10 +22,15 @@ const openai = new OpenAI({
 // Get user prompts
 router.get('/prompts', async (req, res) => {
   try {
+    const { user_profile_id } = req.query;
+    if (!user_profile_id) {
+      return res.status(400).json({ error: 'User Profile ID is required' });
+    }
+
     const { data: prompts, error } = await supabase
       .from('user_prompts')
       .select('*')
-      .eq('user_profile_id', req.user.id)
+      .eq('user_profile_id', user_profile_id)
       .single();
 
     if (error) throw error;
@@ -39,12 +44,16 @@ router.get('/prompts', async (req, res) => {
 // Update user prompts
 router.put('/prompts', async (req, res) => {
   try {
-    const { blog_prompt, interview_prompt, summary_prompt, question_prompt } = req.body;
+    const { blog_prompt, interview_prompt, summary_prompt, question_prompt, user_profile_id } = req.body;
+    
+    if (!user_profile_id) {
+      return res.status(400).json({ error: 'User Profile ID is required' });
+    }
     
     const { data, error } = await supabase
       .from('user_prompts')
       .upsert({
-        user_profile_id: req.user.id,
+        user_profile_id,
         blog_prompt,
         interview_prompt,
         summary_prompt,
@@ -92,32 +101,91 @@ router.post('/generate', async (req, res) => {
 
     if (brandError) throw brandError;
 
-    // Prepare the prompt for OpenAI
-    const systemPrompt = `You are a content strategist helping to generate blog ideas based on research and brand voice. 
+    // Get user's custom prompt
+    const { data: userPrompts, error: promptError } = await supabase
+      .from('user_prompts')
+      .select('blog_prompt')
+      .eq('user_profile_id', user_id)
+      .single();
+
+    if (promptError) throw promptError;
+
+    console.log('User custom prompt:', userPrompts?.blog_prompt);
+    console.log('Using custom prompt:', !!userPrompts?.blog_prompt);
+
+    // Prepare the messages for OpenAI
+    const systemPrompt = userPrompts?.blog_prompt || `You are a content strategist helping to generate blog ideas based on research and brand voice. 
     The institution's brand voice is: ${brandAssets.brand_voice_description}
-    
-    Using the following research:
-    Title: ${research_title}
-    Content: ${research_text}
     
     Generate 5 unique blog ideas that align with the brand voice and are based on the research.
     Format each idea as a clear, concise concept that could be developed into a full blog post.
-    Return ONLY the two ideas, one per line, without any additional text or numbering.`;
+    
+    IMPORTANT FORMATTING INSTRUCTIONS:
+    - Return ONLY a JSON array of strings
+    - Each string should be a complete blog idea
+    - Do not include any additional text or explanation
+    - The response should be valid JSON that can be parsed
+    
+    Example format:
+    ["Exploring the impact of climate change on coastal communities", "The role of technology in modern education", "Sustainable practices in urban development"]`;
+
+    console.log('Final system prompt being used:', systemPrompt);
+
+    const userMessage = `Using the following research:
+    Title: ${research_title}
+    Content: ${research_text}`;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4-turbo-preview",
       messages: [
-        { role: "system", content: systemPrompt }
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userMessage }
       ],
+      functions: [
+        {
+          name: "generate_blog_ideas",
+          description: "Generate blog ideas based on research",
+          parameters: {
+            type: "object",
+            properties: {
+              ideas: {
+                type: "array",
+                items: {
+                  type: "string"
+                },
+                description: "Array of blog ideas"
+              }
+            },
+            required: ["ideas"]
+          }
+        }
+      ],
+      function_call: { name: "generate_blog_ideas" },
       temperature: 0.7,
       max_tokens: 1000
     });
 
-    // Split the response into individual ideas
-    const ideas = completion.choices[0].message.content
-      .split('\n')
-      .map(idea => idea.trim())
-      .filter(idea => idea.length > 0);
+    // Parse the function call response and validate
+    let ideas;
+    try {
+      const functionCall = completion.choices[0].message.function_call;
+      if (!functionCall || functionCall.name !== "generate_blog_ideas") {
+        throw new Error('Invalid function call response');
+      }
+      const args = JSON.parse(functionCall.arguments);
+      ideas = args.ideas;
+      if (!Array.isArray(ideas)) {
+        throw new Error('Response is not an array');
+      }
+      ideas = ideas.map(idea => idea.trim()).filter(idea => idea.length > 0);
+    } catch (error) {
+      console.error('Error parsing blog ideas:', error);
+      throw new Error('Failed to parse blog ideas response');
+    }
+
+    if (ideas.length === 0) {
+      throw new Error('No valid blog ideas were generated');
+    }
 
     // Save each idea to the blogs table
     const blogPromises = ideas.map(idea => 

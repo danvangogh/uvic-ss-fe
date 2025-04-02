@@ -70,9 +70,33 @@
         <div class="blog-ideas-section">
           <h3>Blog Ideas</h3>
           <div class="blog-ideas-header">
+            <button @click="showPromptLightbox = true; fetchUserPrompt()" class="prompt-button">
+              <i class="fas fa-cog"></i> Prompt
+            </button>
             <button @click="generateBlogIdeas" class="generate-button" :disabled="generating">
               {{ generating ? 'Generating...' : 'Generate Blog Ideas' }}
             </button>
+          </div>
+
+          <!-- Prompt Lightbox -->
+          <div v-if="showPromptLightbox" class="lightbox" @click="showPromptLightbox = false">
+            <div class="lightbox-content" @click.stop>
+              <div class="lightbox-header">
+                <h3>Edit Blog Prompt</h3>
+                <button class="close-button" @click="showPromptLightbox = false">&times;</button>
+              </div>
+              <div class="lightbox-body">
+                <div v-if="promptLoading" class="loading">Loading prompt...</div>
+                <div v-else>
+                  <textarea
+                    v-model="userPrompt"
+                    class="prompt-textarea"
+                    placeholder="Enter your blog prompt..."
+                  ></textarea>
+                  <button @click="updateUserPrompt" class="submit-button">Save Prompt</button>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Blog Ideas List -->
@@ -128,6 +152,11 @@ const blogIdeas = ref(null);
 const generating = ref(false);
 const blogs = ref([]);
 let blogSubscription = null;
+
+// Prompt related refs
+const showPromptLightbox = ref(false);
+const userPrompt = ref('');
+const promptLoading = ref(false);
 
 const fetchResearch = async () => {
   if (!user.value) {
@@ -410,6 +439,46 @@ const generateBlogIdeas = async () => {
   }
 };
 
+// Function to fetch user prompt
+const fetchUserPrompt = async () => {
+  if (!user.value) return;
+  
+  promptLoading.value = true;
+  try {
+    const response = await axios.get('http://localhost:3000/api/blog-ideas/prompts', {
+      params: {
+        user_profile_id: user.value.id
+      }
+    });
+    console.log('Prompt response:', response.data);
+    if (response.data && response.data.blog_prompt) {
+      userPrompt.value = response.data.blog_prompt;
+    } else {
+      userPrompt.value = '';
+    }
+  } catch (error) {
+    console.error('Error fetching user prompt:', error);
+    userPrompt.value = '';
+  } finally {
+    promptLoading.value = false;
+  }
+};
+
+// Function to update user prompt
+const updateUserPrompt = async () => {
+  if (!user.value) return;
+  
+  try {
+    await axios.put('http://localhost:3000/api/blog-ideas/prompts', {
+      blog_prompt: userPrompt.value,
+      user_profile_id: user.value.id
+    });
+    showPromptLightbox.value = false;
+  } catch (error) {
+    console.error('Error updating user prompt:', error);
+  }
+};
+
 onMounted(() => {
   if (user.value) {
     fetchResearch();
@@ -607,6 +676,15 @@ label {
   margin-bottom: 1rem;
 }
 
+.prompt-button {
+  padding: 0.5rem 1rem;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
 .generate-button {
   padding: 0.5rem 1rem;
   background-color: #4CAF50;
@@ -670,5 +748,22 @@ label {
   background-color: #f5f5f5;
   border-radius: 4px;
   white-space: pre-wrap;
+}
+
+.prompt-textarea {
+  width: 100%;
+  min-height: 200px;
+  padding: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+  resize: vertical;
+  margin-bottom: 1rem;
+  font-family: inherit;
+}
+
+.prompt-textarea:focus {
+  outline: none;
+  border-color: #4CAF50;
 }
 </style> 
