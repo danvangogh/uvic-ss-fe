@@ -9,6 +9,7 @@ const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const dotenv = require("dotenv");
 const { PDFDocument, rgb } = require("pdf-lib");
 const FormData = require("form-data");
+const sharp = require("sharp");
 
 dotenv.config();
 
@@ -73,18 +74,35 @@ app.post("/api/upload-image", upload.single("image"), async (req, res) => {
     if (!file) {
       return res.status(400).send("No file uploaded.");
     }
+
+    let imageBuffer = file.buffer;
+    let fileExtension = path.extname(file.originalname).toLowerCase();
+
+    // Convert WebP to PNG if the file is a WebP image
+    if (fileExtension === ".webp") {
+      console.log("Converting WebP image to PNG");
+      imageBuffer = await sharp(file.buffer).png().toBuffer();
+      fileExtension = ".png";
+    }
+
     // Replace spaces with underscores in the original name
     const sanitizedFileName = file.originalname.replace(/\s+/g, "_");
     const timestamp = Date.now();
+    const newFileName = `${timestamp}_${sanitizedFileName.replace(
+      /\.[^/.]+$/,
+      ""
+    )}${fileExtension}`;
+
     const params = {
       Bucket: process.env.DO_SPACES_BUCKET,
-      Key: `uploads/${timestamp}_${sanitizedFileName}`,
-      Body: file.buffer,
+      Key: `uploads/${newFileName}`,
+      Body: imageBuffer,
       ACL: "public-read",
     };
+
     const command = new PutObjectCommand(params);
     await s3Client.send(command);
-    const url = `https://${process.env.DO_SPACES_BUCKET}.tor1.digitaloceanspaces.com/uploads/${timestamp}_${sanitizedFileName}`;
+    const url = `https://${process.env.DO_SPACES_BUCKET}.tor1.digitaloceanspaces.com/uploads/${newFileName}`;
     res.json({ url });
   } catch (error) {
     console.error("Error uploading image:", error.message);

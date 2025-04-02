@@ -118,7 +118,7 @@ export default {
         },
         {
           name: "Generic Question Carousel",
-          recordId: "recAj9nl0R6Vk01zW",
+          recordId: "recUGFrBSkwq4QzY6",
           thumbnail: "/Generic_Question_Carousel.png",
         },
         {
