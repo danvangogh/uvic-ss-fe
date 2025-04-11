@@ -362,6 +362,7 @@ export default {
         },
         "Generic Question Carousel": {
           P1_A: true,
+          P1_B: true,
           P2_A: true,
           P3_A: true,
           P4_A: true,
@@ -369,6 +370,7 @@ export default {
         },
         "Question Carousel (no page count)": {
           P1_A: true,
+          P1_B: true,
           P2_A: true,
           P3_A: true,
           P4_A: true,
@@ -384,6 +386,7 @@ export default {
         },
         "Text-on-image": {
           P1_A: true,
+          P1_B: true,
         },
         "Quote over image (text left)": {
           P1_A: true,
@@ -406,6 +409,7 @@ export default {
         },
         "Image Feature": {
           P1_A: true,
+          P1_B: true,
           P2_A: true,
           P3_A: true,
           P4_A: true,
