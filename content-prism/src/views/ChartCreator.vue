@@ -108,8 +108,11 @@ const updateChart = () => {
         data: validData.map((item) => item.data),
         backgroundColor:
           chartType.value === "pie"
-            ? colors.map((color) => `${color}80`) // 50% opacity for pie charts
-            : colors.map((color) => `${color}40`), // 25% opacity for bar/line charts
+            ? validData.map((_, index) => {
+                const opacity = 0.3 + index * 0.2; // Creates opacity from 0.3 to 0.9
+                return `rgba(255, 255, 255, ${opacity})`;
+              })
+            : colors.map((color) => `${color}40`),
         borderColor: "#ffffff",
         borderWidth: 2,
         borderRadius: 6,
@@ -127,10 +130,37 @@ const updateChart = () => {
 
   const options = {
     responsive: true,
-    maintainAspectRatio: false,
+    maintainAspectRatio: true,
+    aspectRatio: 1,
     plugins: {
       legend: {
-        display: false,
+        display: chartType.value === "pie",
+        position: "right",
+        labels: {
+          color: "#ffffff",
+          font: {
+            family: "Montserrat",
+            weight: "700",
+            size: 14,
+          },
+          padding: 20,
+          usePointStyle: true,
+          pointStyle: "circle",
+          generateLabels: function (chart) {
+            return chart.data.labels.map((label, i) => {
+              const opacity = 0.3 + i * 0.2;
+              return {
+                text: label,
+                fillStyle: `rgba(255, 255, 255, ${opacity})`,
+                strokeStyle: "#ffffff",
+                lineWidth: 2,
+                hidden: false,
+                index: i,
+                fontColor: "#ffffff",
+              };
+            });
+          },
+        },
       },
       tooltip: {
         backgroundColor: "rgba(255, 255, 255, 0.9)",
@@ -327,6 +357,10 @@ input:focus {
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   min-height: 500px;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .chart-header {
@@ -395,6 +429,8 @@ input:focus {
 
 canvas {
   width: 100% !important;
-  height: 400px !important;
+  max-width: 600px;
+  height: auto !important;
+  aspect-ratio: 1;
 }
 </style>
