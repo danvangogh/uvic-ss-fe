@@ -9,6 +9,7 @@ dist/
 .env
 .env.local
 .env.*.local
+.cursor/
 
 # Log files
 npm-debug.log*
