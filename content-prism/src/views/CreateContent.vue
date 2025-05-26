@@ -175,7 +175,7 @@ const handleSubmit = async () => {
 
       // Call the scraping endpoint
       const response = await fetch(
-        `${process.env.VUE_APP_API_BASE_URL}/api/scrape-content`,
+        `${import.meta.env.VITE_API_BASE_URL}/api/scrape-content`,
         {
           method: "POST",
           headers: {

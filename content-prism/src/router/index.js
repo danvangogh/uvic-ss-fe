@@ -8,15 +8,10 @@ import Dashboard from "../views/Dashboard.vue";
 import RecordDetail from "../views/RecordDetail.vue";
 import Auth from "../views/Auth.vue";
 import Onboarding from "../views/Onboarding.vue";
-import ProperoDashboard from "../views/ProperoDashboard.vue";
-import ProperoRecordDetail from "../views/ProperoRecordDetail.vue";
-import ProperoContentRequest from "../views/ProperoContentRequest.vue";
-import ProperoReports from "../views/ProperoReports.vue";
 import CreateContent from "../views/CreateContent.vue";
 import ContentDetail from "../views/ContentDetail.vue";
 import BrandAssets from "../views/BrandAssets.vue";
 import ChartCreator from "../views/ChartCreator.vue";
-import Research from "../views/Research.vue";
 
 const routes = [
   {
@@ -67,30 +62,6 @@ const routes = [
     meta: { requiresAuth: true, requiresProfile: true },
   },
   {
-    path: "/propero/dashboard",
-    name: "properoDashboard",
-    component: ProperoDashboard,
-    meta: { requiresAuth: true, requiresProfile: true },
-  },
-  {
-    path: "/propero/record/:id",
-    name: "properoRecordDetail",
-    component: ProperoRecordDetail,
-    meta: { requiresAuth: true, requiresProfile: true },
-  },
-  {
-    path: "/propero/content-request",
-    name: "ProperoContentRequestView",
-    component: ProperoContentRequest,
-    meta: { requiresAuth: true, requiresProfile: true },
-  },
-  {
-    path: "/propero/reports",
-    name: "ProperoReports",
-    component: ProperoReports,
-    meta: { requiresAuth: true, requiresProfile: true },
-  },
-  {
     path: "/create-content",
     name: "createContent",
     component: CreateContent,
@@ -114,16 +85,10 @@ const routes = [
     component: ChartCreator,
     meta: { requiresAuth: true, requiresProfile: true },
   },
-  {
-    path: "/research",
-    name: "research",
-    component: Research,
-    meta: { requiresAuth: true, requiresProfile: true },
-  },
 ];
 
 const router = createRouter({
-  history: createWebHistory(process.env.BASE_URL),
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes,
 });
 

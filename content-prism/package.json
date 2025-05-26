@@ -3,12 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "serve": "vue-cli-service serve",
-    "build": "vue-cli-service build",
+    "dev": "vite",
+    "build": "vite build",
+    "serve": "vite preview",
     "lint": "vue-cli-service lint"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
+    "@vue/compiler-sfc": "^3.5.15",
     "autoprefixer": "^10",
     "axios": "^1.7.7",
     "chart.js": "^4.4.8",
@@ -21,19 +23,22 @@
     "jszip": "^3.10.1",
     "openai": "^4.87.3",
     "pdfjs-dist": "^4.7.76",
-    "vue": "^3.2.13",
+    "vue": "^3.5.15",
     "vue-router": "^4.0.3",
     "vuedraggable": "^4.1.0"
   },
   "devDependencies": {
     "@babel/core": "^7.12.16",
     "@babel/eslint-parser": "^7.12.16",
+    "@vitejs/plugin-vue": "^5.2.4",
+    "@vitejs/plugin-vue-jsx": "^4.2.0",
     "@vue/cli-plugin-babel": "~5.0.0",
     "@vue/cli-plugin-eslint": "~5.0.0",
     "@vue/cli-plugin-router": "~5.0.0",
     "@vue/cli-service": "~5.0.0",
     "eslint": "^7.32.0",
-    "eslint-plugin-vue": "^8.0.3"
+    "eslint-plugin-vue": "^8.0.3",
+    "vite": "^6.3.5"
   },
   "eslintConfig": {
     "root": true,

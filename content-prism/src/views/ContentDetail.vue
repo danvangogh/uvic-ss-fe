@@ -47,7 +47,7 @@
               </button>
             </div>
           </div>
-          <div class="progress-section">
+          <!-- <div class="progress-section">
             <div class="progress-bar">
               <div
                 v-for="(status, index) in statusFlags"
@@ -60,7 +60,7 @@
               </div>
               <div class="progress-line"></div>
             </div>
-          </div>
+          </div> -->
         </div>
       </header>
 

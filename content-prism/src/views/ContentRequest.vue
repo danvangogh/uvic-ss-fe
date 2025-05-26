@@ -98,7 +98,9 @@
 <script>
 import axios from "axios";
 import Cookies from "js-cookie";
-import * as pdfjsLib from "pdfjs-dist/webpack";
+import * as pdfjsLib from "pdfjs-dist/build/pdf";
+import pdfjsWorker from "pdfjs-dist/build/pdf.worker?url";
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 import { supabase } from "../supabase";
 
 export default {

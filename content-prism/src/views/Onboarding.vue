@@ -117,6 +117,7 @@ export default {
           .select("institution_name")
           .order("institution_name");
 
+        console.log('Fetched institutions:', data);
         if (fetchError) throw fetchError;
         institutions.value = data;
       } catch (err) {
