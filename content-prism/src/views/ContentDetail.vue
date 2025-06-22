@@ -82,19 +82,17 @@
             <div class="section-header">
               <h2>Source Text</h2>
               <button class="edit-button" @click="showEditModal = true">
-                Edit Text
+                Edit & Verify Text
               </button>
             </div>
+            <span style="font-weight: 300; font-size: 10px"
+              >Text length:
+              {{ getWordCount(content.source_content_main_text) }} words
+            </span>
             <div class="source-text-container">
               <div class="source-text-summary">
                 <p v-if="content.source_content_main_text">
-                  The source text for this begins with "{{
-                    getFirstNWords(content.source_content_main_text, 12)
-                  }}" and ends with "{{
-                    getLastNWords(content.source_content_main_text, 12)
-                  }}" and is
-                  {{ getWordCount(content.source_content_main_text) }} words
-                  long.
+                  {{ getFirstNWords(content.source_content_main_text, 30) }}...
                 </p>
                 <p v-else style="color: #dc3545">
                   I'm having trouble accessing the source content. Please click
@@ -179,7 +177,7 @@
               not, please paste it in here and click save.
             </p>
             <div class="modal-field">
-              <label for="title">Article Title</label>
+              <label for="title">Title</label>
               <input
                 id="title"
                 v-model="content.source_content_title"
@@ -189,7 +187,7 @@
               />
             </div>
             <div class="modal-field">
-              <label for="mainText">Article Text</label>
+              <label for="mainText">Text</label>
               <textarea
                 id="mainText"
                 v-model="content.source_content_main_text"
@@ -445,9 +443,9 @@ const fetchContent = async () => {
       .from("post_text")
       .select("*")
       .eq("source_content_id", route.params.id)
-      .single();
+      .maybeSingle(); // Use maybeSingle instead of single to avoid PGRST116 error
 
-    if (!postTextError) {
+    if (!postTextError && postTextData) {
       post_text.value = {
         p1a: "",
         p1b: "",
@@ -516,11 +514,13 @@ const fetchGeneratedImages = async () => {
       .from("created_content")
       .select("url_object")
       .eq("source_content_id", content.value.id)
-      .single();
+      .maybeSingle(); // Use maybeSingle instead of single to avoid PGRST116 error
 
     if (error) {
       console.error("Error fetching generated images:", error);
-      throw error;
+      // Don't throw error, just set empty array
+      generatedImages.value = [];
+      return;
     }
 
     console.log("Fetched created_content data:", data);
@@ -546,6 +546,8 @@ const fetchGeneratedImages = async () => {
     }
   } catch (err) {
     console.error("Error in fetchGeneratedImages:", err);
+    // Don't throw error, just set empty array
+    generatedImages.value = [];
   }
 };
 
@@ -712,12 +714,6 @@ const formatDate = (dateString) => {
 const getFirstNWords = (text, n) => {
   if (!text) return "";
   return text.split(/\s+/).slice(0, n).join(" ");
-};
-
-const getLastNWords = (text, n) => {
-  if (!text) return "";
-  const words = text.split(/\s+/);
-  return words.slice(Math.max(words.length - n, 0)).join(" ");
 };
 
 const getWordCount = (text) => {
