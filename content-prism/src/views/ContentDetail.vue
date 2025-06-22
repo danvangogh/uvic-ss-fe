@@ -995,8 +995,20 @@ const generateImagery = async () => {
     isGeneratingImagery.value = true;
     error.value = null;
 
-    // Make API call to backend to generate imagery
-    console.log("Calling generate-imagery API endpoint");
+    // Map the images to the format expected by Bannerbear for modifications
+    const mappedImages = images.value.map((image, index) => {
+      let name;
+      if (index === 0) {
+        name = "featured_img";
+      } else {
+        name = `image${index + 1}`;
+      }
+      return {
+        name,
+        image_url: image.image_url,
+      };
+    });
+
     const response = await fetch(
       `${process.env.VUE_APP_API_BASE_URL}/api/generate-imagery/generate`,
       {
@@ -1007,6 +1019,7 @@ const generateImagery = async () => {
         body: JSON.stringify({
           contentId: content.value.id,
           templateId: content.value.template_id,
+          images: mappedImages, // Send the mapped images
         }),
       }
     );

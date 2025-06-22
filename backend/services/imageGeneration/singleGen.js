@@ -1,7 +1,7 @@
 const axios = require("axios");
 
 class SingleImageGenerator {
-  async generate(content, generationUrl) {
+  async generate(content, images = []) {
     try {
       // Extract the necessary fields from content and post_text
       const {
@@ -31,6 +31,8 @@ class SingleImageGenerator {
             name: "source_text",
             text: source_content_main_text.substring(0, 500), // Limit text length if needed
           },
+          // Spread the images into the modifications array if they exist
+          ...(images && images.length > 0 ? images : []),
         ],
         metadata: source_content_title, // Store the content title as metadata
         webhook_url: process.env.BANNERBEAR_WEBHOOK_URL, // Optional: for async processing

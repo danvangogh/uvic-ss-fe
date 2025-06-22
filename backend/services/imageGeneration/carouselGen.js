@@ -200,7 +200,7 @@ class CarouselGenerator {
     }
   }
 
-  async generate(content) {
+  async generate(content, images = []) {
     try {
       console.log("Starting carousel generation process...");
       console.log("Received content:", JSON.stringify(content, null, 2));
@@ -266,7 +266,12 @@ class CarouselGenerator {
             name: "p6_b",
             text: post_text.p6b,
           },
+          // Spread the images into the modifications array if they exist
+          ...(images && images.length > 0 ? images : []),
         ],
+        metadata: {
+          sourceContentId: content.id,
+        },
       };
 
       console.log(

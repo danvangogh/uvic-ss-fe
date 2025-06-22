@@ -105,7 +105,7 @@ class ImageGenerationService {
     throw new Error("Polling timeout: Generation took too long");
   }
 
-  async generateImagery(contentId, templateId) {
+  async generateImagery(contentId, templateId, images = []) {
     try {
       // Set is_generating_imagery to true at the start
       await supabase
@@ -151,7 +151,7 @@ class ImageGenerationService {
       }
 
       // Generate the imagery using the appropriate generator
-      const initialResult = await generator.generate(content);
+      const initialResult = await generator.generate(content, images);
 
       // If the generation is async (status is 'processing'), start polling
       if (initialResult.status === "processing") {

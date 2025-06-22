@@ -5,7 +5,7 @@ const imageGenerationService = require("../services/imageGeneration");
 // Route to generate imagery
 router.post("/generate", async (req, res) => {
   try {
-    const { contentId, templateId } = req.body;
+    const { contentId, templateId, images } = req.body;
 
     if (!contentId || !templateId) {
       return res.status(400).json({
@@ -16,7 +16,8 @@ router.post("/generate", async (req, res) => {
 
     const result = await imageGenerationService.generateImagery(
       contentId,
-      templateId
+      templateId,
+      images
     );
 
     res.json({
