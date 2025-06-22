@@ -14,6 +14,7 @@
           <th>Title</th>
           <th>Content Type</th>
           <th>Created Date</th>
+          <th class="actions-header">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -32,6 +33,54 @@
             }}
           </td>
           <td>{{ formatDate(content.created_at) }}</td>
+          <td class="actions-cell">
+            <button
+              @click.stop="duplicateContent(content)"
+              class="icon-button"
+              title="Duplicate"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path
+                  d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                ></path>
+              </svg>
+            </button>
+            <button
+              @click.stop="deleteContent(content.id)"
+              class="icon-button trash-button"
+              title="Delete"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path
+                  d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                ></path>
+                <line x1="10" y1="11" x2="10" y2="17"></line>
+                <line x1="14" y1="11" x2="14" y2="17"></line>
+              </svg>
+            </button>
+          </td>
         </tr>
       </tbody>
     </table>
@@ -85,6 +134,67 @@ const fetchContent = async () => {
     error.value = "Failed to load content. Please try again later.";
   } finally {
     loading.value = false;
+  }
+};
+
+const duplicateContent = async (contentToDuplicate) => {
+  try {
+    /* eslint-disable no-unused-vars */
+    const {
+      id,
+      created_at,
+      updated_at,
+      template,
+      ...originalContent
+    } = contentToDuplicate;
+    /* eslint-enable no-unused-vars */
+
+    const newContent = {
+      ...originalContent,
+      source_content_title: `${originalContent.source_content_title} (Copy)`,
+    };
+
+    const { data, error: insertError } = await supabase
+      .from("source_content")
+      .insert(newContent)
+      .select(
+        `
+        *,
+        template:template_id (
+          template_name
+        )
+      `
+      )
+      .single();
+
+    if (insertError) throw insertError;
+
+    // Add the new content to the top of the list for immediate UI update
+    sourceContent.value.unshift(data);
+  } catch (err) {
+    console.error("Error duplicating content:", err);
+    error.value = "Failed to duplicate content.";
+  }
+};
+
+const deleteContent = async (contentId) => {
+  if (window.confirm("Are you sure you want to delete this content?")) {
+    try {
+      const { error: deleteError } = await supabase
+        .from("source_content")
+        .delete()
+        .eq("id", contentId);
+
+      if (deleteError) throw deleteError;
+
+      // Remove the content from the list for immediate UI update
+      sourceContent.value = sourceContent.value.filter(
+        (content) => content.id !== contentId
+      );
+    } catch (err) {
+      console.error("Error deleting content:", err);
+      error.value = "Failed to delete content.";
+    }
   }
 };
 
@@ -216,12 +326,41 @@ h1 {
   color: #495057;
 }
 
-.content-table tr:last-child td {
-  border-bottom: none;
+.actions-header {
+  text-align: center;
 }
 
-.content-table tr:hover {
-  background-color: #f0f0f0 !important;
+.actions-cell {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.icon-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+  color: #6c757d;
+}
+
+.icon-button:hover {
+  background-color: #e9ecef;
+}
+
+.trash-button:hover {
+  color: #dc3545;
+  background-color: #f8d7da;
+}
+
+.content-table tr:last-child td {
+  border-bottom: none;
 }
 
 .loading,

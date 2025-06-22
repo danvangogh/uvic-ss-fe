@@ -73,6 +73,9 @@ const router = createRouter({
 
 // Navigation guard to check auth and profile completion
 router.beforeEach(async (to) => {
+  // Set the document title on each navigation
+  document.title = "Prism of Content";
+
   const { user, loading } = useAuth();
 
   // Wait for auth to initialize
