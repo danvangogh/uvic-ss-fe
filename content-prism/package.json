@@ -21,7 +21,8 @@
     "openai": "^4.87.3",
     "pdfjs-dist": "^4.7.76",
     "vue": "^3.2.13",
-    "vue-router": "^4.0.3"
+    "vue-router": "^4.0.3",
+    "vuedraggable": "^4.1.0"
   },
   "devDependencies": {
     "@babel/core": "^7.12.16",

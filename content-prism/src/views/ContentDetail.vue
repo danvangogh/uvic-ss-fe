@@ -112,17 +112,28 @@
                   ref="imageInput"
                   @change="handleImageUpload"
                   accept="image/*"
+                  multiple
                   class="hidden"
                 />
-                <button class="upload-button" @click="triggerImageUpload">
-                  Upload New Image
+                <button 
+                  class="upload-button" 
+                  @click="triggerImageUpload"
+                  :disabled="isUploadingImage"
+                >
+                  <i v-if="isUploadingImage" class="fas fa-spinner fa-spin"></i>
+                  <i v-else class="fas fa-upload"></i>
+                  {{ isUploadingImage ? `Uploading ${uploadingCount} image${uploadingCount !== 1 ? 's' : ''}...` : "Upload Images" }}
                 </button>
                 <span v-if="uploadSuccess" class="upload-success">
-                  <i class="fas fa-check"></i> Image uploaded successfully
+                  <i class="fas fa-check"></i> Images uploaded successfully
                 </span>
               </div>
             </div>
             <div class="images-container">
+              <div v-if="isUploadingImage" class="uploading-indicator">
+                <div class="loading-spinner"></div>
+                <p>Uploading {{ uploadingCount }} image{{ uploadingCount !== 1 ? 's' : '' }}...</p>
+              </div>
               <div class="images-grid" v-if="images.length">
                 <draggable
                   v-model="images"
@@ -159,7 +170,7 @@
                   </template>
                 </draggable>
               </div>
-              <p v-else class="no-images">No images uploaded yet</p>
+              <p v-else-if="!isUploadingImage" class="no-images">No images uploaded yet</p>
             </div>
           </section>
         </div>
@@ -222,7 +233,7 @@
                 class="template-item"
                 :class="{
                   selected: content.template_id === template.id,
-                  disabled: template.requires_image && !images.length,
+                  disabled: !isTemplateEnabled(template),
                 }"
                 @click="handleTemplateClick(template)"
               >
@@ -234,6 +245,10 @@
                 />
                 <div class="template-info">
                   <h3>{{ template.template_name }}</h3>
+                </div>
+                <!-- Hover tooltip for disabled templates -->
+                <div v-if="!isTemplateEnabled(template)" class="template-tooltip">
+                  {{ getMinimumImages(template) }} image{{ getMinimumImages(template) !== 1 ? 's' : '' }} required
                 </div>
               </div>
             </div>
@@ -346,6 +361,9 @@ const lightboxImage = ref("");
 const currentImageIndex = ref(0);
 const channel = ref(null);
 const isDownloading = ref(false);
+const imageInput = ref(null);
+const isUploadingImage = ref(false);
+const uploadingCount = ref(0);
 
 // Add computed property for active template schema
 const activeTemplateSchema = computed(() => {
@@ -414,6 +432,17 @@ const hasPostText = computed(() => {
     )
   );
 });
+
+// Helper function to get minimum images for a template (defaults to 0 if not specified)
+const getMinimumImages = (template) => {
+  return template.minimum_images || 0;
+};
+
+// Helper function to check if a template is enabled based on image count
+const isTemplateEnabled = (template) => {
+  const minimumImages = getMinimumImages(template);
+  return images.value.length >= minimumImages;
+};
 
 const fetchContent = async () => {
   try {
@@ -577,53 +606,67 @@ const saveSourceText = async () => {
 };
 
 const triggerImageUpload = () => {
-  const imageInput = document.querySelector('input[type="file"]');
-  imageInput.click();
+  imageInput.value.click();
 };
 
 const handleImageUpload = async (event) => {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  const sanitizedFileName = sanitizeFileName(file);
+  const files = event.target.files;
+  if (!files || files.length === 0) return;
 
   try {
-    // Get the next sequence number
-    const nextSequence =
+    isUploadingImage.value = true;
+    uploadingCount.value = files.length;
+    error.value = null;
+
+    // Get the starting sequence number
+    const startSequence =
       images.value.length > 0
         ? Math.max(...images.value.map((img) => img.sequence)) + 1
         : 1;
 
-    // Create form data
-    const formData = new FormData();
-    formData.append("image", file);
+    // Upload files sequentially and display each one immediately
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      
+      // Create form data for single file
+      const formData = new FormData();
+      formData.append("image", file);
 
-    // Upload to DigitalOcean Spaces via our API
-    const response = await fetch(
-      `${process.env.VUE_APP_API_BASE_URL}/api/upload-image`,
-      {
-        method: "POST",
-        body: formData,
-      }
-    );
+      // Upload to DigitalOcean Spaces via our API
+      const response = await fetch(
+        `${process.env.VUE_APP_API_BASE_URL}/api/upload-image`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
 
-    if (!response.ok) throw new Error("Failed to upload image");
+      if (!response.ok) throw new Error("Failed to upload image");
 
-    const { url } = await response.json();
+      const { url } = await response.json();
 
-    // Save image record to Supabase
-    const { error: insertError } = await supabase.from("images").insert([
-      {
-        image_title: sanitizedFileName,
-        image_url: url,
-        source_content_id: content.value.id,
-        user_id: user.value.id,
-        institution_id: content.value.institution_id,
-        sequence: nextSequence,
-      },
-    ]);
+      // Save single image record to Supabase
+      const { data: newImage, error: insertError } = await supabase
+        .from("images")
+        .insert({
+          image_title: `Image ${startSequence + i}`,
+          image_url: url,
+          source_content_id: content.value.id,
+          user_id: user.value.id,
+          institution_id: content.value.institution_id,
+          sequence: startSequence + i,
+        })
+        .select()
+        .single();
 
-    if (insertError) throw insertError;
+      if (insertError) throw insertError;
+
+      // Add the new image to the local array immediately for instant UI update
+      images.value.push(newImage);
+
+      // Update the uploading count to show progress
+      uploadingCount.value = files.length - (i + 1);
+    }
 
     // Show success message
     uploadSuccess.value = true;
@@ -631,35 +674,15 @@ const handleImageUpload = async (event) => {
       uploadSuccess.value = false;
     }, 3000);
 
-    // Refresh content which includes images
-    await fetchContent();
+    // Clear the file input
+    event.target.value = '';
   } catch (err) {
-    console.error("Error uploading image:", err);
-    error.value = "Failed to upload image. Please try again.";
+    console.error("Error uploading images:", err);
+    error.value = "Failed to upload images. Please try again.";
+  } finally {
+    isUploadingImage.value = false;
+    uploadingCount.value = 0;
   }
-};
-
-// Function to sanitize file names
-const sanitizeFileName = (file) => {
-  if (!file || !file.name) return "";
-
-  // Get the file extension
-  const ext = file.name.split(".").pop();
-  // Get the name without extension
-  const name = file.name.slice(0, -(ext.length + 1));
-
-  // Remove special characters and spaces, convert to lowercase
-  const sanitized = name
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "-") // Replace special chars with hyphens
-    .replace(/-+/g, "-") // Replace multiple hyphens with single hyphen
-    .replace(/^-+|-+$/g, ""); // Remove leading/trailing hyphens
-
-  // Add timestamp to ensure uniqueness
-  const timestamp = new Date().getTime();
-
-  // Return sanitized name with timestamp and original extension
-  return `${sanitized}-${timestamp}.${ext}`;
 };
 
 const deleteImage = async (imageId) => {
@@ -670,7 +693,9 @@ const deleteImage = async (imageId) => {
       .eq("id", imageId);
 
     if (deleteError) throw deleteError;
-    await fetchContent();
+    
+    // Remove the image from the local array immediately for instant UI update
+    images.value = images.value.filter(img => img.id !== imageId);
   } catch (err) {
     console.error("Error deleting image:", err);
     error.value = "Failed to delete image. Please try again.";
@@ -728,8 +753,8 @@ const cancelEdit = () => {
 };
 
 const handleTemplateClick = (template) => {
-  if (template.requires_image && !images.value.length) {
-    return; // Do nothing if template requires images and no images are uploaded
+  if (!isTemplateEnabled(template)) {
+    return; // Do nothing if template doesn't meet minimum image requirements
   }
   selectTemplate(template.id);
 };
@@ -764,8 +789,7 @@ const updateSequences = async (reorderedImages) => {
       if (updateError) throw updateError;
     }
 
-    // Refresh content which includes images
-    await fetchContent();
+    // No need to refresh content since we've already updated local state
   } catch (err) {
     console.error("Error updating sequences:", err);
     error.value = "Failed to update image order. Please try again.";
@@ -1380,6 +1404,20 @@ h1 {
   border: none;
   border-radius: 4px;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.upload-button:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.upload-button:not(:disabled):hover {
+  background-color: #0056b3;
 }
 
 .images-grid {
@@ -1521,12 +1559,13 @@ h1 {
 .template-item {
   border: 1px solid #ddd;
   border-radius: 4px;
-  overflow: hidden;
+  overflow: visible;
   cursor: pointer;
   transition: all 0.2s ease;
   background: white;
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
 .template-item:hover {
@@ -1998,5 +2037,71 @@ h1 {
   margin: 0;
   font-size: 1.1rem;
   color: #333;
+}
+
+.uploading-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  text-align: center;
+  color: #666;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.uploading-indicator .loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #007bff;
+  border-radius: 50%;
+  margin-bottom: 1rem;
+  animation: spin 1s linear infinite;
+}
+
+.uploading-indicator p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+/* Added styles for template tooltip */
+.template-tooltip {
+  position: absolute;
+  bottom: -40px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  text-align: center;
+  z-index: 1002;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  pointer-events: none;
+}
+
+.template-tooltip::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-bottom: 4px solid rgba(0, 0, 0, 0.9);
+}
+
+.template-item.disabled:hover .template-tooltip {
+  opacity: 1;
+  visibility: visible;
 }
 </style>
