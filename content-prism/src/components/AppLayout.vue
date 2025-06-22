@@ -21,9 +21,9 @@
           </div>
           <div class="section-items" v-show="expandedSection === 'content'">
             <router-link
-              to="/create-content"
+              to="/content/create"
               class="nav-item"
-              :class="{ active: $route.name === 'createContent' }"
+              :class="{ active: $route.name === 'contentCreate' }"
             >
               Create
             </router-link>
@@ -83,7 +83,7 @@
         <div class="brand-actions">
           <button
             class="create-button"
-            @click="$router.push('/create-content')"
+            @click="$router.push('/content/create')"
           >
             Create
           </button>
@@ -132,7 +132,7 @@ const navigateToBrand = () => {
 
 // Combined function to navigate to content page and toggle the section
 const navigateToContent = () => {
-  router.push("/content"); // This will redirect to /create-content
+  router.push("/content"); // This will redirect to /content/create
   if (expandedSection.value !== "content") {
     expandedSection.value = "content";
   }

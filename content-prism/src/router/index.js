@@ -3,16 +3,10 @@ import HomeView from "../views/HomeView.vue";
 import { useAuth } from "../stores/authStore";
 import { supabase } from "../supabase";
 // Views
-import ContentRequest from "../views/ContentRequest.vue";
 import Dashboard from "../views/Dashboard.vue";
-import RecordDetail from "../views/RecordDetail.vue";
 import Auth from "../views/Auth.vue";
 import Onboarding from "../views/Onboarding.vue";
-import ProperoDashboard from "../views/ProperoDashboard.vue";
-import ProperoRecordDetail from "../views/ProperoRecordDetail.vue";
-import ProperoContentRequest from "../views/ProperoContentRequest.vue";
-import ProperoReports from "../views/ProperoReports.vue";
-import CreateContent from "../views/CreateContent.vue";
+import ContentCreate from "../views/ContentCreate.vue";
 import ContentDetail from "../views/ContentDetail.vue";
 import BrandAssets from "../views/BrandAssets.vue";
 
@@ -41,15 +35,9 @@ const routes = [
     meta: { requiresAuth: true, requiresProfile: true },
   },
   {
-    path: "/content-request",
-    name: "ContentRequestView",
-    component: ContentRequest,
-    meta: { requiresAuth: true, requiresProfile: true },
-  },
-  {
     path: "/content",
     name: "content",
-    redirect: "/create-content",
+    redirect: "/content/create",
     meta: { requiresAuth: true, requiresProfile: true },
   },
   {
@@ -59,39 +47,9 @@ const routes = [
     meta: { requiresAuth: true, requiresProfile: true },
   },
   {
-    path: "/record/:id",
-    name: "recordDetail",
-    component: RecordDetail,
-    meta: { requiresAuth: true, requiresProfile: true },
-  },
-  {
-    path: "/propero/dashboard",
-    name: "properoDashboard",
-    component: ProperoDashboard,
-    meta: { requiresAuth: true, requiresProfile: true },
-  },
-  {
-    path: "/propero/record/:id",
-    name: "properoRecordDetail",
-    component: ProperoRecordDetail,
-    meta: { requiresAuth: true, requiresProfile: true },
-  },
-  {
-    path: "/propero/content-request",
-    name: "ProperoContentRequestView",
-    component: ProperoContentRequest,
-    meta: { requiresAuth: true, requiresProfile: true },
-  },
-  {
-    path: "/propero/reports",
-    name: "ProperoReports",
-    component: ProperoReports,
-    meta: { requiresAuth: true, requiresProfile: true },
-  },
-  {
-    path: "/create-content",
-    name: "createContent",
-    component: CreateContent,
+    path: "/content/create",
+    name: "contentCreate",
+    component: ContentCreate,
     meta: { requiresAuth: true, requiresProfile: true },
   },
   {
