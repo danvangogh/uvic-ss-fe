@@ -39,6 +39,27 @@
             :disabled="loading"
           />
         </p>
+        <div v-if="pdfUploadSuccess" class="upload-success-message">
+          <svg
+            class="checkmark"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 52 52"
+          >
+            <circle
+              class="checkmark__circle"
+              cx="26"
+              cy="26"
+              r="25"
+              fill="none"
+            />
+            <path
+              class="checkmark__check"
+              fill="none"
+              d="M14.1 27.2l7.1 7.2 16.7-16.8"
+            />
+          </svg>
+          <span>PDF successfully processed.</span>
+        </div>
       </div>
 
       <div class="terms-container">
@@ -73,16 +94,22 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { supabase } from "../supabase";
 import { useAuth } from "../stores/authStore";
 import { useRouter } from "vue-router";
+import * as pdfjsLib from "pdfjs-dist/build/pdf";
+
+// Set the workerSrc for pdfjs-dist
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.mjs`;
 
 const router = useRouter();
 const { user } = useAuth();
 const articleUrl = ref("");
 const termsAccepted = ref(false);
 const fileInput = ref(null);
+const pdfText = ref(""); // To store extracted PDF text
+const pdfUploadSuccess = ref(false);
 const loading = ref(false);
 const error = ref(null);
 const showSuccess = ref(false);
@@ -92,19 +119,68 @@ const placeholder = ref(
 
 const canSubmit = computed(() => {
   return (
-    (articleUrl.value.trim() || fileInput.value?.files?.length) &&
+    (articleUrl.value.trim() || pdfText.value) &&
     termsAccepted.value
   );
+});
+
+watch(articleUrl, (newValue) => {
+  if (newValue.trim()) {
+    if (fileInput.value) {
+      fileInput.value.value = null;
+    }
+    pdfText.value = "";
+    pdfUploadSuccess.value = false;
+  }
 });
 
 const triggerFileUpload = () => {
   fileInput.value.click();
 };
 
-const handleFileUpload = (event) => {
+const handleFileUpload = async (event) => {
   const file = event.target.files[0];
-  if (file) {
-    articleUrl.value = ""; // Clear URL input if file is selected
+  if (!file) {
+    return;
+  }
+
+  // Clear URL and previous PDF text
+  articleUrl.value = "";
+  pdfText.value = "";
+  error.value = null;
+  loading.value = true;
+  pdfUploadSuccess.value = false;
+
+  try {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const typedarray = new Uint8Array(e.target.result);
+        const pdf = await pdfjsLib.getDocument(typedarray).promise;
+        let fullText = "";
+
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items.map((item) => item.str).join(" ");
+          fullText += pageText + "\\n\\n";
+        }
+
+        pdfText.value = fullText.trim();
+        pdfUploadSuccess.value = true;
+        console.log("PDF parsed successfully. Text length:", pdfText.value.length);
+      } catch (err) {
+        console.error("Error parsing PDF:", err);
+        error.value = "Failed to parse PDF. Please ensure it's a valid file.";
+      } finally {
+        loading.value = false;
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  } catch (err) {
+    console.error("Error reading file:", err);
+    error.value = "Failed to read the uploaded file.";
+    loading.value = false;
   }
 };
 
@@ -139,19 +215,62 @@ const createSourceContent = async (url, institutionId) => {
 };
 
 const handleSubmit = async () => {
-  if (!canSubmit.value) return;
+  console.log("handleSubmit triggered.");
+  if (!canSubmit.value) {
+    console.log("Submit cancelled: canSubmit is false.", {
+      pdfText: !!pdfText.value,
+      termsAccepted: termsAccepted.value,
+    });
+    return;
+  }
 
   loading.value = true;
   error.value = null;
   showSuccess.value = false;
 
   try {
-    if (fileInput.value?.files?.length) {
-      // Handle PDF upload - to be implemented
-      console.log("Uploading PDF:", fileInput.value.files[0]);
+    console.log("Fetching user profile...");
+    const profile = await getUserProfile();
+    console.log("User profile fetched successfully:", profile);
+
+    if (pdfText.value) {
+      console.log("Proceeding with PDF submission...");
+      // Handle PDF submission
+      const response = await fetch(
+        `${process.env.VUE_APP_API_BASE_URL}/api/content/create-from-text`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            text: pdfText.value,
+            fileName: fileInput.value.files[0].name,
+            userId: user.value.id,
+            institutionId: profile.institution_id,
+          }),
+        }
+      );
+
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Failed to create content from PDF");
+      }
+
+      // Show success message and redirect
+      showSuccess.value = true;
+      setTimeout(() => {
+        router.push(`/content/${result.data.id}`);
+      }, 2000);
+
+      // Clear form
+      pdfText.value = "";
+      if (fileInput.value) {
+        fileInput.value.value = null;
+      }
+      termsAccepted.value = false;
     } else {
       // Handle URL submission
-      const profile = await getUserProfile();
       const sourceContent = await createSourceContent(
         articleUrl.value.trim(),
         profile.institution_id
@@ -180,6 +299,8 @@ const handleSubmit = async () => {
           }),
         }
       );
+
+      console.log("Scraping response received.");
 
       if (!response.ok) {
         throw new Error("Failed to scrape content");
@@ -279,8 +400,8 @@ const handleInputBlur = () => {
 }
 
 .upload-option {
-  color: #4a4a4a;
   font-size: 14px;
+  color: #5f6368;
 }
 
 .upload-option a {
@@ -292,12 +413,79 @@ const handleInputBlur = () => {
   text-decoration: underline;
 }
 
+.upload-option a.disabled {
+  color: #9aa0a6;
+  pointer-events: none;
+}
+
+.upload-success-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 10px;
+  color: #1e8e3e;
+  font-size: 14px;
+}
+
+.checkmark {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: inline-block;
+  stroke-width: 3;
+  stroke: #1e8e3e;
+  stroke-miterlimit: 10;
+  margin-right: 8px;
+  box-shadow: inset 0px 0px 0px #1e8e3e;
+  animation: fill 0.4s ease-in-out 0.4s forwards,
+    scale 0.3s ease-in-out 0.9s both;
+}
+
+.checkmark__circle {
+  stroke-dasharray: 166;
+  stroke-dashoffset: 166;
+  stroke-width: 2;
+  stroke-miterlimit: 10;
+  stroke: #1e8e3e;
+  fill: none;
+  animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+}
+
+.checkmark__check {
+  transform-origin: 50% 50%;
+  stroke-dasharray: 48;
+  stroke-dashoffset: 48;
+  animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.8s forwards;
+}
+
+@keyframes stroke {
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes scale {
+  0%,
+  100% {
+    transform: none;
+  }
+  50% {
+    transform: scale3d(1.1, 1.1, 1);
+  }
+}
+
+@keyframes fill {
+  100% {
+    box-shadow: inset 0px 0px 0px 30px #fff;
+  }
+}
+
 .hidden {
   display: none;
 }
 
 .terms-container {
-  margin-bottom: 1.5rem;
+  margin-top: 2rem;
 }
 
 .terms-label {
@@ -373,12 +561,6 @@ const handleInputBlur = () => {
   font-size: 14px;
   margin-top: 1rem;
   text-align: center;
-}
-
-.upload-option a.disabled {
-  color: #999;
-  cursor: not-allowed;
-  pointer-events: none;
 }
 
 .terms-checkbox:disabled {

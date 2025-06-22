@@ -84,6 +84,7 @@ console.log("OpenAI client initialized");
 
 // Import routes after environment variables are loaded
 const imageGenerationRoutes = require("./routes/imageGeneration");
+const contentCreationRoutes = require("./routes/contentCreation");
 
 // Initialize Express app and configure middleware
 const app = express();
@@ -1075,6 +1076,7 @@ ${sourceData.source_content_main_text}`;
 
 // Use routes
 app.use("/api/generate-imagery", imageGenerationRoutes);
+app.use("/api/content", contentCreationRoutes);
 
 // Add get-signed-url endpoint
 app.post("/api/get-signed-url", async (req, res) => {
