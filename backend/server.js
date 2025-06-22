@@ -821,16 +821,11 @@ app.post("/api/scrape-content", async (req, res) => {
       source_content_title: title || "Untitled Article",
       source_content_main_text: mainText || null,
       updated_at: new Date().toISOString(),
-      is_source_text_captured: true, // Text has been captured
-      // Not changing is_new_submission - preserving its value
-      // Not changing is_capturing_source_text to false - once true, stays true
     };
     console.log("Preparing to update Supabase with data:", {
       title: updateData.source_content_title,
       textLength: updateData.source_content_main_text?.length || 0,
       id: sourceContentId,
-      status_update:
-        "Setting is_source_text_captured to true while preserving other statuses",
     });
 
     // First verify the row exists
