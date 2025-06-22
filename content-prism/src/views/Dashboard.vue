@@ -13,7 +13,6 @@
         <tr>
           <th>Title</th>
           <th>Content Type</th>
-          <th>Progress</th>
           <th>Created Date</th>
         </tr>
       </thead>
@@ -27,17 +26,6 @@
           <td>{{ content.source_content_title }}</td>
           <td>
             {{ content.template ? content.template.template_name : "Pending" }}
-          </td>
-          <td class="progress-cell">
-            <div class="progress-bar-container">
-              <div
-                class="progress-bar-fill"
-                :style="{
-                  width: `${calculateProgress(content)}%`,
-                }"
-                :title="`${calculateProgress(content)}% complete`"
-              ></div>
-            </div>
           </td>
           <td>{{ formatDate(content.created_at) }}</td>
         </tr>
@@ -60,37 +48,6 @@ const sourceContent = ref([]);
 const loading = ref(true);
 const error = ref(null);
 let subscription = null;
-
-const statusFlags = [
-  { flag: "is_new_submission", label: "New Submission", shortLabel: "N" },
-  {
-    flag: "is_capturing_source_text",
-    label: "Capturing Source Text",
-    shortLabel: "C",
-  },
-  {
-    flag: "is_source_text_captured",
-    label: "Source Text Captured",
-    shortLabel: "SC",
-  },
-  { flag: "is_template_selected", label: "Template Selected", shortLabel: "T" },
-  {
-    flag: "is_generating_post_text",
-    label: "Generating Post Text",
-    shortLabel: "GP",
-  },
-  {
-    flag: "is_post_text_generated",
-    label: "Post Text Generated",
-    shortLabel: "PG",
-  },
-  {
-    flag: "is_generating_imagery",
-    label: "Generating Imagery",
-    shortLabel: "GI",
-  },
-  { flag: "is_imagery_generated", label: "Imagery Generated", shortLabel: "I" },
-];
 
 const fetchContent = async () => {
   // Reset error state
@@ -224,14 +181,6 @@ const formatDate = (dateString) => {
   });
 };
 
-const calculateProgress = (content) => {
-  const totalSteps = statusFlags.length;
-  const completedSteps = statusFlags.filter(
-    (status) => content[status.flag]
-  ).length;
-  return Math.round((completedSteps / totalSteps) * 100);
-};
-
 // Watch for user changes and setup subscription when user becomes available
 watch(user, (newUser) => {
   if (newUser) {
@@ -296,7 +245,7 @@ h1 {
 }
 
 .content-table tr:hover {
-  background-color: #f8f9fa;
+  background-color: #f0f0f0 !important;
 }
 
 .loading,
@@ -318,27 +267,6 @@ h1 {
 
 .content-row:hover {
   background-color: #f0f0f0 !important;
-}
-
-.progress-cell {
-  width: 150px;
-  min-width: 150px;
-  padding: 8px 16px;
-}
-
-.progress-bar-container {
-  width: 100%;
-  height: 8px;
-  background-color: #e9ecef;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.progress-bar-fill {
-  height: 100%;
-  background-color: #28a745;
-  border-radius: 4px;
-  transition: width 0.3s ease;
 }
 
 @media (max-width: 768px) {

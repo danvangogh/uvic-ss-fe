@@ -47,20 +47,6 @@
               </button>
             </div>
           </div>
-          <div class="progress-section">
-            <div class="progress-bar">
-              <div
-                v-for="(status, index) in statusFlags"
-                :key="index"
-                class="progress-item"
-                :class="{ completed: content[status.flag] }"
-              >
-                <div class="progress-dot"></div>
-                <div class="progress-label">{{ status.label }}</div>
-              </div>
-              <div class="progress-line"></div>
-            </div>
-          </div>
         </div>
       </header>
 
@@ -322,7 +308,7 @@
           <p v-if="!content?.template_id" class="no-imagery">
             Please select a template first to generate imagery.
           </p>
-          <p v-else-if="!content?.is_post_text_generated" class="no-imagery">
+          <p v-else-if="!hasPostText" class="no-imagery">
             Please generate post text before generating imagery.
           </p>
         </section>
@@ -421,16 +407,15 @@ const canGenerateImagery = computed(() => {
   return hasText;
 });
 
-const statusFlags = [
-  { flag: "is_new_submission", label: "New Submission" },
-  { flag: "is_capturing_source_text", label: "Capturing Source Text" },
-  { flag: "is_source_text_captured", label: "Source Text Captured" },
-  { flag: "is_template_selected", label: "Template Selected" },
-  { flag: "is_generating_post_text", label: "Generating Post Text" },
-  { flag: "is_post_text_generated", label: "Post Text Generated" },
-  { flag: "is_generating_imagery", label: "Generating Imagery" },
-  { flag: "is_imagery_generated", label: "Imagery Generated" },
-];
+// Add computed property to check if post text exists
+const hasPostText = computed(() => {
+  return (
+    post_text.value &&
+    Object.values(post_text.value).some(
+      (text) => typeof text === "string" && text.trim().length > 0
+    )
+  );
+});
 
 const fetchContent = async () => {
   try {
@@ -696,7 +681,6 @@ const selectTemplate = async (templateId) => {
       .from("source_content")
       .update({
         template_id: templateId,
-        is_template_selected: true,
         updated_at: new Date().toISOString(),
       })
       .eq("id", content.value.id);
@@ -707,7 +691,6 @@ const selectTemplate = async (templateId) => {
     content.value = {
       ...content.value,
       template_id: templateId,
-      is_template_selected: true,
       updated_at: new Date().toISOString(),
     };
   } catch (err) {
@@ -824,18 +807,6 @@ const generatePostText = async () => {
     isGeneratingText.value = true;
     error.value = null; // Clear any previous errors
 
-    // Update status to generating
-    const { error: statusError } = await supabase
-      .from("source_content")
-      .update({
-        is_generating_post_text: true,
-        is_post_text_generated: false, // Reset this flag when starting generation
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", content.value.id);
-
-    if (statusError) throw statusError;
-
     // Call the backend endpoint
     const response = await fetch(
       `${process.env.VUE_APP_API_BASE_URL}/api/generate-text`,
@@ -948,52 +919,10 @@ const generatePostText = async () => {
       console.error("Error upserting post text:", upsertError);
       throw new Error("Failed to save generated text to database");
     }
-
-    // Update only is_post_text_generated to true, keep is_generating_post_text as true
-    const { error: finalStatusError } = await supabase
-      .from("source_content")
-      .update({
-        is_post_text_generated: true,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", content.value.id);
-
-    if (finalStatusError) throw finalStatusError;
-
-    // Update local state
-    content.value = {
-      ...content.value,
-      is_post_text_generated: true,
-    };
   } catch (err) {
     console.error("Error generating post text:", err);
     error.value =
       err.message || "Failed to generate post text. Please try again.";
-
-    // On error, reset both flags
-    try {
-      const { error: resetError } = await supabase
-        .from("source_content")
-        .update({
-          is_generating_post_text: false,
-          is_post_text_generated: false,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", content.value.id);
-
-      if (resetError) {
-        console.error("Error resetting status:", resetError);
-      }
-
-      // Update local state on error
-      content.value = {
-        ...content.value,
-        is_generating_post_text: false,
-        is_post_text_generated: false,
-      };
-    } catch (resetErr) {
-      console.error("Error during status reset:", resetErr);
-    }
   } finally {
     // Only update the local UI state for isGeneratingText
     isGeneratingText.value = false;
@@ -1005,7 +934,7 @@ const generateImagery = async () => {
   if (!canGenerateImagery.value) {
     console.log("Cannot generate imagery:", {
       hasTemplateId: !!content.value?.template_id,
-      isPostTextGenerated: content.value?.is_post_text_generated,
+      hasPostText: hasPostText.value,
       isGeneratingImagery: isGeneratingImagery.value,
     });
     return;
@@ -1015,18 +944,6 @@ const generateImagery = async () => {
     console.log("Starting imagery generation");
     isGeneratingImagery.value = true;
     error.value = null;
-
-    // Update status to generating imagery
-    const { error: statusError } = await supabase
-      .from("source_content")
-      .update({
-        is_generating_imagery: true,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", content.value.id);
-
-    if (statusError) throw statusError;
-    console.log("Updated is_generating_imagery status to true");
 
     // Make API call to backend to generate imagery
     console.log("Calling generate-imagery API endpoint");
@@ -1068,24 +985,6 @@ const generateImagery = async () => {
     console.error("Error in generateImagery:", err);
     error.value =
       err.message || "Failed to generate imagery. Please try again.";
-
-    // Reset the generating state on error
-    try {
-      console.log("Resetting is_generating_imagery status due to error");
-      const { error: resetError } = await supabase
-        .from("source_content")
-        .update({
-          is_generating_imagery: false,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", content.value.id);
-
-      if (resetError) {
-        console.error("Error resetting status:", resetError);
-      }
-    } catch (resetErr) {
-      console.error("Error during status reset:", resetErr);
-    }
   } finally {
     console.log("Imagery generation process completed");
     isGeneratingImagery.value = false;
@@ -1399,63 +1298,6 @@ h1 {
   font-size: 0.8rem;
   color: #666;
   display: block;
-}
-
-.progress-section {
-  background: #f8f9fa;
-  padding: 0.75rem;
-  border-radius: 8px;
-  width: 250px;
-  flex-shrink: 0;
-}
-
-.progress-bar {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.progress-line {
-  position: absolute;
-  top: 8px;
-  bottom: 8px;
-  left: 7px;
-  width: 2px;
-  background-color: #e9ecef;
-  z-index: 0;
-}
-
-.progress-item {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  z-index: 1;
-  font-size: 0.75rem;
-}
-
-.progress-dot {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background-color: #e9ecef;
-  border: 2px solid #fff;
-  box-shadow: 0 0 0 1px #e9ecef;
-  flex-shrink: 0;
-}
-
-.progress-label {
-  color: #666;
-}
-
-.progress-item.completed .progress-dot {
-  background-color: #28a745;
-  box-shadow: 0 0 0 1px #28a745;
-}
-
-.progress-item.completed .progress-label {
-  color: #28a745;
 }
 
 .content-body {
@@ -1875,10 +1717,6 @@ h1 {
   .header-content {
     flex-direction: column;
     gap: 1rem;
-  }
-
-  .progress-section {
-    width: 100%;
   }
 
   .title-section {

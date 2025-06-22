@@ -130,14 +130,6 @@ const createSourceContent = async (url, institutionId) => {
         institution_id: institutionId,
         source_content_title: "Pending...", // Will be updated by scraper
         source_content_main_text: null, // Will be updated by scraper
-        is_new_submission: true,
-        is_capturing_source_text: true, // Set to true as we're about to start scraping
-        is_source_text_captured: false,
-        is_template_selected: false,
-        is_generating_post_text: false,
-        is_post_text_generated: false,
-        is_generating_imagery: false,
-        is_imagery_generated: false,
       },
     ])
     .select();
