@@ -687,15 +687,45 @@ const handleImageUpload = async (event) => {
 
 const deleteImage = async (imageId) => {
   try {
+    // Find the image to get its URL for deletion from storage
+    const imageToDelete = images.value.find((img) => img.id === imageId);
+    if (!imageToDelete) {
+      throw new Error("Image not found in local state.");
+    }
+
+    // First, delete the file from DigitalOcean Spaces via the backend
+    const response = await fetch(
+      `${process.env.VUE_APP_API_BASE_URL}/api/delete-image`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ imageUrl: imageToDelete.image_url }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(
+        `Failed to delete image from storage: ${errorData.message}`
+      );
+    }
+
+    // If storage deletion is successful, then delete from Supabase
     const { error: deleteError } = await supabase
       .from("images")
       .delete()
       .eq("id", imageId);
 
-    if (deleteError) throw deleteError;
-    
+    if (deleteError) {
+      // Note: This could leave an orphaned DB record if the file was deleted but DB record was not.
+      // A more robust solution might involve a multi-step transaction or a cleanup job.
+      throw deleteError;
+    }
+
     // Remove the image from the local array immediately for instant UI update
-    images.value = images.value.filter(img => img.id !== imageId);
+    images.value = images.value.filter((img) => img.id !== imageId);
   } catch (err) {
     console.error("Error deleting image:", err);
     error.value = "Failed to delete image. Please try again.";

@@ -8,6 +8,7 @@ const {
   S3Client,
   PutObjectCommand,
   GetObjectCommand,
+  DeleteObjectCommand,
 } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const dotenv = require("dotenv");
@@ -147,6 +148,34 @@ app.post("/api/upload-image", upload.single("image"), async (req, res) => {
     res.json({ url });
   } catch (error) {
     console.error("Error uploading image:", error.message);
+    res.status(500).send(error.message);
+  }
+});
+
+// Handle image deletion
+app.post("/api/delete-image", async (req, res) => {
+  console.log("Received image delete request for URL:", req.body.imageUrl);
+  try {
+    const { imageUrl } = req.body;
+    if (!imageUrl) {
+      return res.status(400).send("No image URL provided.");
+    }
+
+    // Extract the key from the URL
+    const key = imageUrl.split(".com/")[1];
+
+    const params = {
+      Bucket: process.env.DO_SPACES_BUCKET,
+      Key: key,
+    };
+
+    const command = new DeleteObjectCommand(params);
+    await s3Client.send(command);
+
+    console.log(`Successfully deleted image from DigitalOcean: ${key}`);
+    res.json({ success: true, message: "Image deleted successfully." });
+  } catch (error) {
+    console.error("Error deleting image from DigitalOcean:", error.message);
     res.status(500).send(error.message);
   }
 });
