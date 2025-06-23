@@ -221,29 +221,30 @@
         <section class="content-section">
           <h2>Template Selection</h2>
           <div class="templates-container">
-            <div class="templates-grid" v-if="templates.length">
-              <div
-                v-for="template in templates"
-                :key="template.id"
-                class="template-item"
-                :class="{
-                  selected: content.template_id === template.id,
-                  disabled: !isTemplateEnabled(template),
-                }"
-                @click="handleTemplateClick(template)"
-              >
-                <img
-                  v-if="template.template_thumbnail_url"
-                  :src="template.template_thumbnail_url"
-                  :alt="template.template_name"
-                  class="template-thumbnail"
-                />
-                <div class="template-info">
-                  <h3>{{ template.template_name }}</h3>
+            <div v-if="templates.length">
+              <div class="template-select-wrapper">
+                <div class="custom-dropdown" @click="toggleDropdown" :class="{ open: dropdownOpen }">
+                  <div class="custom-dropdown-selected">
+                    <img v-if="selectedTemplate && selectedTemplate.template_thumbnail_url" :src="selectedTemplate.template_thumbnail_url" :alt="selectedTemplate.template_name" class="template-dropdown-thumb" />
+                    <span class="template-dropdown-name">{{ selectedTemplate ? selectedTemplate.template_name : 'Select a template' }}</span>
+                    <i class="fas fa-chevron-down dropdown-arrow"></i>
+                  </div>
+                  <div v-if="dropdownOpen" class="custom-dropdown-list">
+                    <div
+                      v-for="template in templates"
+                      :key="template.id"
+                      class="custom-dropdown-option"
+                      :class="{ disabled: !isTemplateEnabled(template), selected: selectedTemplateId === template.id }"
+                      @click.stop="selectDropdownTemplate(template)"
+                    >
+                      <img v-if="template.template_thumbnail_url" :src="template.template_thumbnail_url" :alt="template.template_name" class="template-dropdown-thumb" />
+                      <span class="template-dropdown-name">{{ template.template_name }}</span>
+                      <span v-if="!isTemplateEnabled(template)" class="template-dropdown-disabled-reason">({{ getMinimumImages(template) }} image{{ getMinimumImages(template) !== 1 ? 's' : '' }} required)</span>
+                    </div>
+                  </div>
                 </div>
-                <!-- Hover tooltip for disabled templates -->
-                <div v-if="!isTemplateEnabled(template)" class="template-tooltip">
-                  {{ getMinimumImages(template) }} image{{ getMinimumImages(template) !== 1 ? 's' : '' }} required
+                <div v-if="selectedTemplate && !isTemplateEnabled(selectedTemplate)" class="template-tooltip">
+                  {{ getMinimumImages(selectedTemplate) }} image{{ getMinimumImages(selectedTemplate) !== 1 ? 's' : '' }} required
                 </div>
               </div>
             </div>
@@ -359,8 +360,9 @@ const isDownloading = ref(false);
 const imageInput = ref(null);
 const isUploadingImage = ref(false);
 const uploadingCount = ref(0);
+const selectedTemplateId = ref(null);
+const dropdownOpen = ref(false);
 
-// Add computed property for active template schema
 const activeTemplateSchema = computed(() => {
   if (!content.value?.template_id || !templates.value?.length) return null;
   const template = templates.value.find(
@@ -389,7 +391,6 @@ const activeTemplateSchema = computed(() => {
   }
 });
 
-// Add computed property for visible post text fields
 const visiblePostTextFields = computed(() => {
   // Default fields if no schema is available
   const defaultFields = ["p1a", "p1b", "p2a", "p2b", "p3a", "p3b"];
@@ -401,7 +402,6 @@ const visiblePostTextFields = computed(() => {
   return schemaFields.length > 0 ? schemaFields : defaultFields;
 });
 
-// Add computed property to check if imagery can be generated
 const canGenerateImagery = computed(() => {
   // Check if we have a template and we're not currently generating
   if (!content.value?.template_id || isGeneratingImagery.value) {
@@ -418,7 +418,6 @@ const canGenerateImagery = computed(() => {
   return hasText;
 });
 
-// Add computed property to check if post text exists
 const hasPostText = computed(() => {
   return (
     post_text.value &&
@@ -428,12 +427,10 @@ const hasPostText = computed(() => {
   );
 });
 
-// Helper function to get minimum images for a template (defaults to 0 if not specified)
 const getMinimumImages = (template) => {
   return template.minimum_images || 0;
 };
 
-// Helper function to check if a template is enabled based on image count
 const isTemplateEnabled = (template) => {
   const minimumImages = getMinimumImages(template);
   return images.value.length >= minimumImages;
@@ -760,7 +757,6 @@ const formatDate = (dateString) => {
   });
 };
 
-// Add these new utility functions
 const getFirstNWords = (text, n) => {
   if (!text) return "";
   return text.split(/\s+/).slice(0, n).join(" ");
@@ -777,12 +773,43 @@ const cancelEdit = () => {
   showEditModal.value = false;
 };
 
-const handleTemplateClick = (template) => {
-  if (!isTemplateEnabled(template)) {
-    return; // Do nothing if template doesn't meet minimum image requirements
-  }
-  selectTemplate(template.id);
+const selectedTemplate = computed(() => {
+  return templates.value.find(t => t.id === selectedTemplateId.value) || null;
+});
+
+watch(
+  () => content.value?.template_id,
+  (newId) => {
+    if (newId) selectedTemplateId.value = newId;
+  },
+  { immediate: true }
+);
+
+const toggleDropdown = () => {
+  dropdownOpen.value = !dropdownOpen.value;
 };
+
+const selectDropdownTemplate = (template) => {
+  if (!isTemplateEnabled(template)) return;
+  selectedTemplateId.value = template.id;
+  selectTemplate(template.id);
+  dropdownOpen.value = false;
+};
+
+// Close dropdown on outside click
+const handleClickOutside = (event) => {
+  const dropdown = document.querySelector('.custom-dropdown');
+  if (dropdown && !dropdown.contains(event.target)) {
+    dropdownOpen.value = false;
+  }
+};
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside);
+});
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside);
+});
 
 const updateSequences = async (reorderedImages) => {
   try {
@@ -974,7 +1001,6 @@ const generatePostText = async () => {
   }
 };
 
-// Add generateImagery function
 const generateImagery = async () => {
   if (!canGenerateImagery.value) {
     console.log("Cannot generate imagery:", {
@@ -1049,7 +1075,6 @@ const generateImagery = async () => {
   }
 };
 
-// Add this new function
 const setupSubscriptions = () => {
   console.log("Setting up subscriptions for content ID:", route.params.id);
 
@@ -1083,7 +1108,6 @@ const setupSubscriptions = () => {
     });
 };
 
-// Modify onMounted to use the new function
 onMounted(() => {
   console.log("Component mounted, initializing...");
   fetchContent();
@@ -1097,7 +1121,6 @@ onMounted(() => {
   }
 });
 
-// Add a watcher for route changes to handle navigation
 watch(
   () => route.params.id,
   (newId) => {
@@ -1109,7 +1132,6 @@ watch(
   }
 );
 
-// Modify onUnmounted to clean up subscriptions
 onUnmounted(() => {
   if (channel.value) {
     channel.value.unsubscribe();
@@ -1165,7 +1187,6 @@ const navigateImage = (direction) => {
   lightboxImage.value = generatedImages.value[newIndex];
 };
 
-// Add download functionality
 const downloadAllContent = async () => {
   try {
     isDownloading.value = true;
@@ -1390,7 +1411,6 @@ h1 {
   font-size: 1.25rem;
 }
 
-/* Source Text Styles */
 .source-text-container {
   display: flex;
   flex-direction: column;
@@ -1420,7 +1440,6 @@ h1 {
   width: fit-content;
 }
 
-/* Images Styles */
 .images-container {
   display: flex;
   flex-direction: column;
@@ -1461,11 +1480,11 @@ h1 {
 .images-grid {
   display: flex;
   gap: 1rem;
-  min-height: 50px; /* Ensure grid is visible when empty */
+  min-height: 50px;
   overflow-x: auto;
   padding: 0.5rem;
   scroll-behavior: smooth;
-  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
   scrollbar-color: #007bff #f0f0f0;
 }
@@ -1580,75 +1599,96 @@ h1 {
   font-size: 1.1rem;
 }
 
-/* Template Styles */
 .templates-container {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-.templates-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-  gap: 0.5rem;
-}
-
-.template-item {
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  overflow: visible;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  background: white;
+.template-select-wrapper {
   display: flex;
   flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.custom-dropdown {
   position: relative;
+  min-width: 220px;
+  user-select: none;
+  cursor: pointer;
 }
-
-.template-item:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+.custom-dropdown-selected {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: #fff;
+  font-size: 1rem;
 }
-
-.template-item.selected {
-  border-color: #28a745;
-  box-shadow: 0 0 0 1px #28a745;
+.dropdown-arrow {
+  margin-left: auto;
+  color: #888;
 }
-
-.template-item.disabled {
-  opacity: 0.4;
+.custom-dropdown-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 0 0 4px 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  z-index: 10;
+  max-height: 300px;
+  overflow-y: auto;
+  margin-top: 2px;
+}
+.custom-dropdown-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background 0.15s;
+}
+.custom-dropdown-option.selected {
+  background: #e6f7ff;
+}
+.custom-dropdown-option.disabled {
+  color: #aaa;
   cursor: not-allowed;
   background: #f8f9fa;
 }
-
-.template-thumbnail {
-  width: 100%;
-  aspect-ratio: 1;
-  height: auto;
+.custom-dropdown-option:not(.disabled):hover {
+  background: #f0f8ff;
+}
+.template-dropdown-thumb {
+  width: 32px;
+  height: 32px;
   object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid #ddd;
 }
-
-.template-info {
-  padding: 0.5rem;
-  background: white;
-}
-
-.template-info h3 {
-  margin: 0;
-  font-size: 0.75rem;
+.template-dropdown-name {
+  font-size: 1rem;
   color: #333;
-  text-align: center;
-  line-height: 1.2;
+  font-weight: 500;
 }
-
-.no-images,
+.template-dropdown-disabled-reason {
+  font-size: 0.85rem;
+  color: #dc3545;
+  margin-left: 0.5rem;
+}
 .no-templates {
   text-align: center;
   color: #666;
   padding: 2rem;
 }
 
-/* Modal Styles */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -1756,10 +1796,6 @@ h1 {
   margin-bottom: 1rem;
 }
 
-.section-header h2 {
-  margin: 0;
-}
-
 .section-header .image-upload {
   margin: 0;
   display: flex;
@@ -1811,7 +1847,6 @@ h1 {
   line-height: 1.6;
 }
 
-/* Post Text Styles */
 .post-text-container {
   padding: 0.5rem;
 }
@@ -1923,14 +1958,12 @@ h1 {
   line-height: 1.4;
 }
 
-/* Add a wrapper for the first two sections */
 .top-sections-wrapper {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 2rem;
 }
 
-/* Adjust media query for mobile responsiveness */
 @media (max-width: 768px) {
   .top-sections-wrapper {
     grid-template-columns: 1fr;
@@ -1988,7 +2021,6 @@ h1 {
 
 .preview-thumbnail {
   width: 100px;
-  /* height: 80px; */
   object-fit: cover;
   border-radius: 4px;
   cursor: pointer;
@@ -2104,7 +2136,6 @@ h1 {
   font-size: 0.9rem;
 }
 
-/* Added styles for template tooltip */
 .template-tooltip {
   position: absolute;
   bottom: -40px;
