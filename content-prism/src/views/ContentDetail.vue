@@ -217,40 +217,84 @@
           </div>
         </div>
 
-        <!-- Template Selection Section -->
-        <section class="content-section">
-          <h2>Template Selection</h2>
-          <div class="templates-container">
-            <div v-if="templates.length">
-              <div class="template-select-wrapper">
-                <div class="custom-dropdown" @click="toggleDropdown" :class="{ open: dropdownOpen }">
-                  <div class="custom-dropdown-selected">
-                    <img v-if="selectedTemplate && selectedTemplate.template_thumbnail_url" :src="selectedTemplate.template_thumbnail_url" :alt="selectedTemplate.template_name" class="template-dropdown-thumb" />
-                    <span class="template-dropdown-name">{{ selectedTemplate ? selectedTemplate.template_name : 'Select a template' }}</span>
-                    <i class="fas fa-chevron-down dropdown-arrow"></i>
-                  </div>
-                  <div v-if="dropdownOpen" class="custom-dropdown-list">
-                    <div
-                      v-for="template in templates"
-                      :key="template.id"
-                      class="custom-dropdown-option"
-                      :class="{ disabled: !isTemplateEnabled(template), selected: selectedTemplateId === template.id }"
-                      @click.stop="selectDropdownTemplate(template)"
-                    >
-                      <img v-if="template.template_thumbnail_url" :src="template.template_thumbnail_url" :alt="template.template_name" class="template-dropdown-thumb" />
-                      <span class="template-dropdown-name">{{ template.template_name }}</span>
-                      <span v-if="!isTemplateEnabled(template)" class="template-dropdown-disabled-reason">({{ getMinimumImages(template) }} image{{ getMinimumImages(template) !== 1 ? 's' : '' }} required)</span>
+        <!-- Template Selection and Captions Side by Side -->
+        <div class="template-captions-wrapper">
+          <!-- Template Selection Section -->
+          <section class="content-section">
+            <h2>Template Selection</h2>
+            <div class="templates-container">
+              <div v-if="templates.length">
+                <div class="template-select-wrapper">
+                  <div class="custom-dropdown" @click="toggleDropdown" :class="{ open: dropdownOpen }">
+                    <div class="custom-dropdown-selected">
+                      <img v-if="selectedTemplate && selectedTemplate.template_thumbnail_url" :src="selectedTemplate.template_thumbnail_url" :alt="selectedTemplate.template_name" class="template-dropdown-thumb" />
+                      <span class="template-dropdown-name">{{ selectedTemplate ? selectedTemplate.template_name : 'Select a template' }}</span>
+                      <i class="fas fa-chevron-down dropdown-arrow"></i>
+                    </div>
+                    <div v-if="dropdownOpen" class="custom-dropdown-list">
+                      <div
+                        v-for="template in templates"
+                        :key="template.id"
+                        class="custom-dropdown-option"
+                        :class="{ disabled: !isTemplateEnabled(template), selected: selectedTemplateId === template.id }"
+                        @click.stop="selectDropdownTemplate(template)"
+                      >
+                        <img v-if="template.template_thumbnail_url" :src="template.template_thumbnail_url" :alt="template.template_name" class="template-dropdown-thumb" />
+                        <span class="template-dropdown-name">{{ template.template_name }}</span>
+                        <span v-if="!isTemplateEnabled(template)" class="template-dropdown-disabled-reason">({{ getMinimumImages(template) }} image{{ getMinimumImages(template) !== 1 ? 's' : '' }} required)</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div v-if="selectedTemplate && !isTemplateEnabled(selectedTemplate)" class="template-tooltip">
-                  {{ getMinimumImages(selectedTemplate) }} image{{ getMinimumImages(selectedTemplate) !== 1 ? 's' : '' }} required
+                  <div v-if="selectedTemplate && !isTemplateEnabled(selectedTemplate)" class="template-tooltip">
+                    {{ getMinimumImages(selectedTemplate) }} image{{ getMinimumImages(selectedTemplate) !== 1 ? 's' : '' }} required
+                  </div>
                 </div>
               </div>
+              <p v-else class="no-templates">No templates available</p>
             </div>
-            <p v-else class="no-templates">No templates available</p>
-          </div>
-        </section>
+          </section>
+          <!-- Captions Section -->
+          <section class="content-section captions-section">
+            <div class="section-header">
+              <h2>Captions</h2>
+              <button
+                class="generate-button"
+                @click="generateCaptions"
+                :disabled="isGeneratingCaptions"
+              >
+                <template v-if="isGeneratingCaptions">
+                  <i class="fas fa-spinner fa-spin"></i>
+                  Generating...
+                </template>
+                <template v-else> Generate Captions </template>
+              </button>
+            </div>
+            <div v-if="isGeneratingCaptions" class="generating-text">
+              <div class="loading-spinner"></div>
+              <p>Generating captions using AI...</p>
+            </div>
+            <div class="captions-controls" v-else>
+              <select v-model="selectedCaptionPlatform" class="captions-dropdown">
+                <option value="Bluesky">Bluesky</option>
+                <option value="LinkedIn">LinkedIn</option>
+                <option value="Facebook">Facebook</option>
+                <option value="Instagram">Instagram</option>
+              </select>
+              <div class="captions-textarea-wrapper">
+                <textarea
+                  v-model="captionText"
+                  class="captions-textarea"
+                  rows="4"
+                  readonly
+                ></textarea>
+                <button class="copy-caption-btn" @click="copyCaption" :title="copied ? 'Copied!' : 'Copy to clipboard'">
+                  <i :class="['fas', copied ? 'fa-check' : 'fa-copy']"></i>
+                </button>
+              </div>
+            </div>
+            <div v-if="copied" class="caption-copied-feedback">Copied!</div>
+          </section>
+        </div>
 
         <!-- Post Text Section -->
         <section class="content-section">
@@ -362,6 +406,65 @@ const isUploadingImage = ref(false);
 const uploadingCount = ref(0);
 const selectedTemplateId = ref(null);
 const dropdownOpen = ref(false);
+const selectedCaptionPlatform = ref('Bluesky');
+const copied = ref(false);
+const isGeneratingCaptions = ref(false);
+const captions = ref({
+  bluesky_caption: '',
+  linkedin_caption: '',
+  facebook_caption: '',
+  instagram_caption: ''
+});
+
+const fetchCaptions = async () => {
+  try {
+    const { data, error: fetchError } = await supabase
+      .from('social_captions')
+      .select('bluesky_caption, linkedin_caption, facebook_caption, instagram_caption')
+      .eq('id', content.value.id)
+      .single();
+    if (fetchError) throw fetchError;
+    captions.value = data || {
+      bluesky_caption: '',
+      linkedin_caption: '',
+      facebook_caption: '',
+      instagram_caption: ''
+    };
+  } catch (err) {
+    console.error('Error fetching captions:', err);
+    captions.value = {
+      bluesky_caption: '',
+      linkedin_caption: '',
+      facebook_caption: '',
+      instagram_caption: ''
+    };
+  }
+};
+
+const captionText = computed(() => {
+  switch (selectedCaptionPlatform.value) {
+    case 'Bluesky':
+      return captions.value.bluesky_caption || '';
+    case 'LinkedIn':
+      return captions.value.linkedin_caption || '';
+    case 'Facebook':
+      return captions.value.facebook_caption || '';
+    case 'Instagram':
+      return captions.value.instagram_caption || '';
+    default:
+      return '';
+  }
+});
+
+const copyCaption = async () => {
+  try {
+    await navigator.clipboard.writeText(captionText.value);
+    copied.value = true;
+    setTimeout(() => (copied.value = false), 1200);
+  } catch (e) {
+    copied.value = false;
+  }
+};
 
 const activeTemplateSchema = computed(() => {
   if (!content.value?.template_id || !templates.value?.length) return null;
@@ -1335,6 +1438,42 @@ const downloadAllContent = async () => {
     isDownloading.value = false;
   }
 };
+
+const generateCaptions = async () => {
+  try {
+    isGeneratingCaptions.value = true;
+    error.value = null;
+    const response = await fetch(`${process.env.VUE_APP_API_BASE_URL}/api/generate-captions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contentId: content.value.id,
+        institutionId: content.value.institution_id,
+        templateId: content.value.template_id
+      })
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || 'Failed to generate captions');
+    }
+    // Update local state with new captions
+    captions.value = result.captions;
+  } catch (err) {
+    console.error('Error generating captions:', err);
+    error.value = err.message || 'Failed to generate captions. Please try again.';
+  } finally {
+    isGeneratingCaptions.value = false;
+  }
+};
+
+// Fetch captions on content load
+watch(
+  () => content.value?.id,
+  (newId) => {
+    if (newId) fetchCaptions();
+  },
+  { immediate: true }
+);
 </script>
 
 <style scoped>
@@ -1665,6 +1804,10 @@ h1 {
 }
 .custom-dropdown-option:not(.disabled):hover {
   background: #f0f8ff;
+}
+.custom-dropdown-option .template-dropdown-name {
+  font-size: 12px;
+  font-weight: 400;
 }
 .template-dropdown-thumb {
   width: 32px;
@@ -2171,5 +2314,80 @@ h1 {
 .template-item.disabled:hover .template-tooltip {
   opacity: 1;
   visibility: visible;
+}
+
+.template-captions-wrapper {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+@media (max-width: 768px) {
+  .template-captions-wrapper {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
+.captions-section .captions-placeholder {
+  color: #666;
+  font-size: 0.95rem;
+  padding: 1rem 0;
+  font-style: italic;
+}
+.captions-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.captions-dropdown {
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  font-size: 1rem;
+  width: 200px;
+  background: #fff;
+}
+.captions-textarea-wrapper {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+}
+.captions-textarea {
+  width: 100%;
+  min-width: 220px;
+  max-width: 100%;
+  padding: 0.75rem 2.5rem 0.75rem 0.75rem;
+  font-size: 12px;
+  color: #333;
+  font-family: inherit;
+  font-weight: 400;
+  font-style: italic;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  resize: none;
+}
+.copy-caption-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+.copy-caption-btn:hover {
+  background: #e6f0ff;
+}
+.caption-copied-feedback {
+  color: #28a745;
+  font-size: 0.95rem;
+  margin-top: 0.5rem;
+  font-weight: 500;
 }
 </style>

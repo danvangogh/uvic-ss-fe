@@ -1144,3 +1144,94 @@ app.post("/api/download-file", async (req, res) => {
     res.status(500).json({ error: "Failed to download file" });
   }
 });
+
+// New POST endpoint /api/generate-captions
+app.post("/api/generate-captions", async (req, res) => {
+  const startTime = Date.now();
+  try {
+    const { contentId, institutionId, templateId } = req.body;
+    if (!contentId || !institutionId) {
+      return res.status(400).json({
+        success: false,
+        error: "Content ID and institution ID are required",
+      });
+    }
+
+    // Fetch source_content_main_text
+    const { data: sourceData, error: sourceError } = await supabase
+      .from("source_content")
+      .select("source_content_main_text")
+      .eq("id", contentId)
+      .single();
+    if (sourceError) throw sourceError;
+
+    // Fetch all post_text fields
+    const { data: postTextData, error: postTextError } = await supabase
+      .from("post_text")
+      .select("p1a, p1b, p2a, p2b, p3a, p3b, p4a, p4b, p5a, p5b, p6a, p6b")
+      .eq("source_content_id", contentId)
+      .maybeSingle();
+    if (postTextError) throw postTextError;
+
+    // Construct the OpenAI prompt
+    const systemPrompt = `You are an expert social media copywriter, and excel at writing engaging, curiosity-filled hooks and content. You will be writing captions for Bluesky, LinkedIn, Instagram, and Facebook. You will receive a social media post, and the original content on which it is based. Your job is to write an engaging caption to post along with the social media post. 
+You are writing on behalf of the Faculty of Social Sciences at the University of Victoria, in British Columbia Canada. Your audience is a mix of academics and general public. The language you use must be widely accessible and comprehensible, not designed for academics. You are more like a reporter, not a marketer.`;
+
+    const rulesSystemPrompt = `IMPORTANT RULES FOR ALL CAPTIONS:
+- For the Bluesky version, the length of each caption that you write must be under the 300 character limit. The length of the Bluesky post must be less than 300 characters.
+- Your goal is to get the reader to click on the original article, but you must not be click-baitey or spammy.
+- Do NOT include any emojis in any caption.
+- Do NOT include any call to action like "read more" or "Curious to learn more".
+- Avoid generic sayings like "Explore how..." and "Discover what...".
+- Don't just ask a question like "How effective was it?". Instead, phrase it like "This article answers the question, how effective was it?" or "Researchers Costa and Circo explore solutions to the crisis by...". In other words, you must frame the question properly, rather than just asking a question.`;
+
+    // Combine all text fields into a single JSON object
+    const userPromptObj = {
+      source_content_main_text: sourceData.source_content_main_text,
+      post_text: postTextData || {},
+    };
+    const userPrompt = `Here is the source content and post text fields as JSON:\n\n${JSON.stringify(userPromptObj, null, 2)}\n\nPlease return your response as a JSON object with the following keys: bluesky_caption, linkedin_caption, facebook_caption, instagram_caption. Each value should be the caption for that platform.`;
+
+    // Call OpenAI API
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4-turbo-preview",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "system", content: rulesSystemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.3,
+      response_format: { type: "json_object" },
+    });
+
+    const generatedText = completion.choices[0].message.content;
+    let captions;
+    try {
+      captions = JSON.parse(generatedText);
+    } catch (parseError) {
+      console.error("Error parsing OpenAI response as JSON:", parseError);
+      throw new Error("Generated captions are not valid JSON");
+    }
+
+    // Update the social_captions table
+    const { error: updateError } = await supabase
+      .from("social_captions")
+      .update({
+        bluesky_caption: captions.bluesky_caption,
+        linkedin_caption: captions.linkedin_caption,
+        facebook_caption: captions.facebook_caption,
+        instagram_caption: captions.instagram_caption,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", contentId);
+    if (updateError) throw updateError;
+
+    res.json({ success: true, captions });
+  } catch (error) {
+    console.error("Error in /api/generate-captions:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message || "Failed to generate captions.",
+    });
+  }
+});
