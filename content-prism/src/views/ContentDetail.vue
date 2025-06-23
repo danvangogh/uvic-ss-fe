@@ -23,9 +23,7 @@
 
             <!-- Add image previews -->
             <div v-if="generatedImages.length" class="image-previews-section">
-              <div class="image-previews-header">
-                <h3>Generated Images</h3>
-              </div>
+
               <div class="image-previews">
                 <img
                   v-for="(url, index) in generatedImages"
@@ -151,9 +149,6 @@
                       <img :src="image.image_url" :alt="image.image_title" />
                       <div class="image-info">
                         <div class="image-text">
-                          <span class="upload-status"
-                            >Image uploaded successfully</span
-                          >
                           <span class="image-title">{{
                             image.image_title
                           }}</span>
@@ -1490,7 +1485,7 @@ h1 {
 }
 
 .image-item {
-  flex: 0 0 160px;
+  flex: 0 0 120px;
   position: relative;
   border: 1px solid #ddd;
   border-radius: 4px;
@@ -1501,7 +1496,6 @@ h1 {
 
 .image-item img {
   width: 100%;
-  height: 120px;
   object-fit: cover;
 }
 
@@ -1595,7 +1589,7 @@ h1 {
 
 .templates-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
   gap: 0.5rem;
 }
 
@@ -1994,7 +1988,7 @@ h1 {
 
 .preview-thumbnail {
   width: 100px;
-  height: 100px;
+  /* height: 80px; */
   object-fit: cover;
   border-radius: 4px;
   cursor: pointer;
