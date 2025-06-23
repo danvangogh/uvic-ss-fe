@@ -282,10 +282,10 @@
               </select>
               <div class="captions-textarea-wrapper">
                 <textarea
-                  v-model="captionText"
                   class="captions-textarea"
-                  rows="4"
+                  :value="getCaptionWithUrl"
                   readonly
+                  rows="3"
                 ></textarea>
                 <button class="copy-caption-btn" @click="copyCaption" :title="copied ? 'Copied!' : 'Copy to clipboard'">
                   <i :class="['fas', copied ? 'fa-check' : 'fa-copy']"></i>
@@ -438,31 +438,6 @@ const fetchCaptions = async () => {
       facebook_caption: '',
       instagram_caption: ''
     };
-  }
-};
-
-const captionText = computed(() => {
-  switch (selectedCaptionPlatform.value) {
-    case 'Bluesky':
-      return captions.value.bluesky_caption || '';
-    case 'LinkedIn':
-      return captions.value.linkedin_caption || '';
-    case 'Facebook':
-      return captions.value.facebook_caption || '';
-    case 'Instagram':
-      return captions.value.instagram_caption || '';
-    default:
-      return '';
-  }
-});
-
-const copyCaption = async () => {
-  try {
-    await navigator.clipboard.writeText(captionText.value);
-    copied.value = true;
-    setTimeout(() => (copied.value = false), 1200);
-  } catch (e) {
-    copied.value = false;
   }
 };
 
@@ -1465,6 +1440,34 @@ watch(
   },
   { immediate: true }
 );
+
+const getCaptionWithUrl = computed(() => {
+  console.log('getCaptionWithUrl content.value:', content.value);
+  const platform = selectedCaptionPlatform.value;
+  const baseCaption = captions.value[platform.toLowerCase() + '_caption'] || '';
+  // Only append if content is an article (not a PDF)
+  if (content.value && content.value.source_content_type === 'article' && content.value.source_content_url) {
+    console.log('Caption URL for display:', content.value.source_content_url);
+    if (platform === 'Bluesky') {
+      return baseCaption ? `${baseCaption} ${content.value.source_content_url}` : '';
+    } else if (platform === 'LinkedIn' || platform === 'Facebook') {
+      return baseCaption ? `${baseCaption} Read more at ${content.value.source_content_url}` : '';
+    } else if (platform === 'Instagram') {
+      return baseCaption;
+    }
+  }
+  return baseCaption;
+});
+
+const copyCaption = async () => {
+  try {
+    await navigator.clipboard.writeText(getCaptionWithUrl.value);
+    copied.value = true;
+    setTimeout(() => (copied.value = false), 1200);
+  } catch (e) {
+    copied.value = false;
+  }
+};
 </script>
 
 <style scoped>
