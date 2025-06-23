@@ -1303,8 +1303,25 @@ const downloadAllContent = async () => {
 
     if (fetchError) throw fetchError;
 
-    console.log("Created content record:", createdContent);
-    console.log("URL object structure:", createdContent.url_object);
+    // Helper: format date as MM_DD
+    const formatDateForFilename = (dateString) => {
+      const date = new Date(dateString);
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      return `${mm}_${dd}`;
+    };
+    // Helper: get first three words of title, sanitized
+    const getFirstThreeWords = (title) => {
+      if (!title) return 'Untitled';
+      return title
+        .split(/\s+/)
+        .slice(0, 3)
+        .join('_')
+        .replace(/[^a-zA-Z0-9_]/g, '');
+    };
+    const datePart = formatDateForFilename(content.value.created_at);
+    const titlePart = getFirstThreeWords(content.value.source_content_title);
+    const baseName = `${datePart}_${titlePart}`;
 
     // Create a new zip file
     const zip = new JSZip();
@@ -1317,13 +1334,10 @@ const downloadAllContent = async () => {
           ([, url]) =>
             url && typeof url === "string" && url.toLowerCase().endsWith(".png")
         )
-        .map(([key, url]) => ({ key, url }));
+        .map(([key, url], idx) => ({ key, url, idx }));
 
-      console.log("Found PNG URLs:", pngUrls);
-
-      for (const { key, url } of pngUrls) {
+      for (const { key, url, idx } of pngUrls) {
         try {
-          console.log(`Downloading PNG from ${key}:`, url);
           // Download through our backend proxy
           const response = await fetch(
             `${process.env.VUE_APP_API_BASE_URL}/api/download-file`,
@@ -1337,19 +1351,14 @@ const downloadAllContent = async () => {
           );
 
           if (!response.ok) {
-            console.error(
-              `Failed to download PNG ${key}:`,
-              response.status,
-              response.statusText
-            );
-            throw new Error(
-              `Failed to download PNG ${key}: ${response.statusText}`
-            );
+            throw new Error(`Failed to download PNG ${key}: ${response.statusText}`);
           }
 
           const blob = await response.blob();
-          console.log(`Successfully downloaded PNG ${key}, size:`, blob.size);
-          zip.file(`${key}.png`, blob);
+          // Name: MM_DD_FirstThreeWordsofTitle_Slide#.png
+          const slideNum = idx + 1;
+          const filename = `${baseName}_Slide${slideNum}.png`;
+          zip.file(filename, blob);
         } catch (err) {
           console.error(`Error downloading PNG ${key}:`, err);
         }
@@ -1359,8 +1368,6 @@ const downloadAllContent = async () => {
     // Add PDF if available
     if (createdContent.pdf_url) {
       try {
-        console.log("Downloading PDF from:", createdContent.pdf_url);
-        // Download through our backend proxy
         const response = await fetch(
           `${process.env.VUE_APP_API_BASE_URL}/api/download-file`,
           {
@@ -1373,27 +1380,21 @@ const downloadAllContent = async () => {
         );
 
         if (!response.ok) {
-          console.error(
-            "Failed to download PDF:",
-            response.status,
-            response.statusText
-          );
           throw new Error(`Failed to download PDF: ${response.statusText}`);
         }
 
         const blob = await response.blob();
-        console.log("Successfully downloaded PDF, size:", blob.size);
-        zip.file("post.pdf", blob);
+        // Name: MM_DD_FirstThreeWordsofTitle.pdf
+        const filename = `${baseName}.pdf`;
+        zip.file(filename, blob);
       } catch (err) {
         console.error("Error downloading PDF:", err);
       }
     }
 
-    // Add video if available
+    // Add video if available (keep original name)
     if (createdContent.video_url) {
       try {
-        console.log("Downloading video from:", createdContent.video_url);
-        // Download through our backend proxy
         const response = await fetch(
           `${process.env.VUE_APP_API_BASE_URL}/api/download-file`,
           {
@@ -1406,31 +1407,21 @@ const downloadAllContent = async () => {
         );
 
         if (!response.ok) {
-          console.error(
-            "Failed to download video:",
-            response.status,
-            response.statusText
-          );
           throw new Error(`Failed to download video: ${response.statusText}`);
         }
 
         const blob = await response.blob();
-        console.log("Successfully downloaded video, size:", blob.size);
-        zip.file("post.mp4", blob);
+        zip.file(`${baseName}.mp4`, blob);
       } catch (err) {
         console.error("Error downloading video:", err);
       }
     }
 
     // Generate the zip file
-    console.log("Generating zip file...");
     const zipBlob = await zip.generateAsync({ type: "blob" });
-    console.log("Zip file generated, size:", zipBlob.size);
 
     // Download the zip file
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    saveAs(zipBlob, `post_content_${timestamp}.zip`);
-    console.log("Zip file download initiated");
+    saveAs(zipBlob, `${baseName}.zip`);
   } catch (err) {
     console.error("Error preparing download:", err);
     error.value = "Failed to prepare download. Please try again.";
