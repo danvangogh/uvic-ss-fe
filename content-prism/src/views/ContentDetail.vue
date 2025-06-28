@@ -16,7 +16,31 @@
       <header class="content-header">
         <div class="header-content">
           <div class="title-section">
-            <h1>{{ content.source_content_title }}</h1>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <template v-if="!editingTitle">
+                <h1 style="margin: 0;">{{ content.source_content_title }}</h1>
+                <button class="edit-title-btn" @click="editingTitle = true" title="Edit title">
+                  <i class="fas fa-pencil-alt"></i>
+                </button>
+              </template>
+              <template v-else>
+                <input
+                  v-model="editedTitle"
+                  class="edit-title-input"
+                  @keyup.enter="saveTitle"
+                  @keyup.esc="cancelTitleEdit"
+                  :disabled="savingTitle"
+                  :size="Math.max(editedTitle.length, 10)"
+                  autofocus
+                />
+                <button class="save-title-btn" @click="saveTitle" :disabled="savingTitle" title="Save title">
+                  <i class="fas fa-check"></i>
+                </button>
+                <button class="cancel-title-btn" @click="cancelTitleEdit" :disabled="savingTitle" title="Cancel">
+                  <i class="fas fa-times"></i>
+                </button>
+              </template>
+            </div>
             <span class="date"
               >Created {{ formatDate(content.created_at) }}</span
             >
@@ -415,6 +439,9 @@ const captions = ref({
   facebook_caption: '',
   instagram_caption: ''
 });
+const editingTitle = ref(false);
+const editedTitle = ref("");
+const savingTitle = ref(false);
 
 const fetchCaptions = async () => {
   try {
@@ -1468,6 +1495,43 @@ const copyCaption = async () => {
     copied.value = false;
   }
 };
+
+watch(
+  () => content.value?.source_content_title,
+  (newTitle) => {
+    if (!editingTitle.value) editedTitle.value = newTitle;
+  },
+  { immediate: true }
+);
+
+const saveTitle = async () => {
+  if (!editedTitle.value.trim() || editedTitle.value === content.value.source_content_title) {
+    editingTitle.value = false;
+    return;
+  }
+  try {
+    savingTitle.value = true;
+    const { error: updateError } = await supabase
+      .from("source_content")
+      .update({
+        source_content_title: editedTitle.value,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", content.value.id);
+    if (updateError) throw updateError;
+    content.value.source_content_title = editedTitle.value;
+    editingTitle.value = false;
+  } catch (err) {
+    error.value = "Failed to update title. Please try again.";
+  } finally {
+    savingTitle.value = false;
+  }
+};
+
+const cancelTitleEdit = () => {
+  editedTitle.value = content.value.source_content_title;
+  editingTitle.value = false;
+};
 </script>
 
 <style scoped>
@@ -2383,5 +2447,48 @@ h1 {
   font-size: 0.95rem;
   margin-top: 0.5rem;
   font-weight: 500;
+}
+.edit-title-btn {
+  background: none;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+.edit-title-btn:hover {
+  background: #e6f0ff;
+}
+.save-title-btn, .cancel-title-btn {
+  background: none;
+  border: none;
+  color: #28a745;
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+.save-title-btn:hover {
+  background: #e6ffe6;
+}
+.cancel-title-btn {
+  color: #dc3545;
+}
+.cancel-title-btn:hover {
+  background: #ffeaea;
+}
+.edit-title-input {
+  font-size: 1.5rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  min-width: 120px;
+  max-width: 100%;
+  width: fit-content;
+  margin-right: 0.5rem;
+  transition: width 0.2s;
 }
 </style>
