@@ -139,41 +139,23 @@ const fetchContent = async () => {
 
 const duplicateContent = async (contentToDuplicate) => {
   try {
-    /* eslint-disable no-unused-vars */
-    const {
-      id,
-      created_at,
-      updated_at,
-      template,
-      ...originalContent
-    } = contentToDuplicate;
-    /* eslint-enable no-unused-vars */
-
-    const newContent = {
-      ...originalContent,
-      source_content_title: `${originalContent.source_content_title} (Copy)`,
-    };
-
-    const { data, error: insertError } = await supabase
-      .from("source_content")
-      .insert(newContent)
-      .select(
-        `
-        *,
-        template:template_id (
-          template_name
-        )
-      `
-      )
-      .single();
-
-    if (insertError) throw insertError;
-
+    const response = await fetch(`${process.env.VUE_APP_API_BASE_URL || ''}/api/content/duplicate-content`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contentId: contentToDuplicate.id,
+        userId: user.value.id,
+      }),
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || 'Failed to duplicate content.');
+    }
     // Add the new content to the top of the list for immediate UI update
-    sourceContent.value.unshift(data);
+    sourceContent.value.unshift(result.data);
   } catch (err) {
-    console.error("Error duplicating content:", err);
-    error.value = "Failed to duplicate content.";
+    console.error('Error duplicating content:', err);
+    error.value = 'Failed to duplicate content.';
   }
 };
 
