@@ -40,6 +40,22 @@
                   <i class="fas fa-times"></i>
                 </button>
               </template>
+              <!-- Generate Imagery button in header -->
+              <button
+                class="generate-imagery-header-btn"
+                @click="generateImagery"
+                :disabled="!canGenerateImagery"
+                style="margin-left: 1rem;"
+              >
+                <template v-if="isGeneratingImagery">
+                  <i class="fas fa-spinner fa-spin"></i>
+                  Generating Imagery...
+                </template>
+                <template v-else>
+                  <i class="fas fa-image"></i>
+                  Generate Imagery
+                </template>
+              </button>
             </div>
             <span class="date"
               >Created {{ formatDate(content.created_at) }}</span
@@ -97,8 +113,20 @@
       </div>
 
       <div class="content-body">
-        <!-- Wrap the first two sections -->
-        <div class="top-sections-wrapper">
+        <!-- Tab Bar -->
+        <div class="tab-bar">
+          <button
+            v-for="tab in tabLabels"
+            :key="tab"
+            :class="['tab-btn', { active: selectedTab === tab }]"
+            @click="selectedTab = tab"
+          >
+            {{ tab }}
+          </button>
+        </div>
+
+        <!-- Tab Content -->
+        <div v-if="selectedTab === 'Source Text'">
           <!-- Source Text Section -->
           <section class="content-section">
             <div class="section-header">
@@ -123,7 +151,9 @@
               </div>
             </div>
           </section>
+        </div>
 
+        <div v-else-if="selectedTab === 'Images'">
           <!-- Images Section -->
           <section class="content-section">
             <div class="section-header">
@@ -194,55 +224,7 @@
           </section>
         </div>
 
-        <!-- Edit Text Modal -->
-        <div
-          v-if="showEditModal"
-          class="modal-overlay"
-          @click="showEditModal = false"
-        >
-          <div class="modal-content" @click.stop>
-            <h2>Edit Source Text</h2>
-            <p class="modal-instruction">
-              Please verify we have captured all the text of the article. If
-              not, please paste it in here and click save.
-            </p>
-            <div class="modal-field">
-              <label for="title">Title</label>
-              <input
-                id="title"
-                v-model="content.source_content_title"
-                class="modal-title-input"
-                placeholder="Enter the article title..."
-                @input="handleSourceTextChange"
-              />
-            </div>
-            <div class="modal-field">
-              <label for="mainText">Text</label>
-              <textarea
-                id="mainText"
-                v-model="content.source_content_main_text"
-                class="modal-text-editor"
-                placeholder="Enter or edit the source text here..."
-                @input="handleSourceTextChange"
-              ></textarea>
-            </div>
-            <div class="modal-actions">
-              <button class="cancel-button" @click="cancelEdit">Cancel</button>
-              <button
-                class="save-button"
-                @click="
-                  saveSourceText();
-                  showEditModal = false;
-                "
-              >
-                Save Changes
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Template Selection and Captions Side by Side -->
-        <div class="template-captions-wrapper">
+        <div v-else-if="selectedTab === 'Template Selection'">
           <!-- Template Selection Section -->
           <section class="content-section">
             <h2>Template Selection</h2>
@@ -277,6 +259,53 @@
               <p v-else class="no-templates">No templates available</p>
             </div>
           </section>
+        </div>
+
+        <div v-else-if="selectedTab === 'Template Text'">
+          <!-- Template Text Section -->
+          <section class="content-section">
+            <div class="section-header">
+              <h2>Template Text</h2>
+              <button
+                class="generate-button"
+                @click="generatePostText"
+                :disabled="isGeneratingText || !content?.template_id"
+              >
+                <template v-if="isGeneratingText">
+                  <i class="fas fa-spinner fa-spin"></i>
+                  Generating template text using AI...
+                </template>
+                <template v-else> Generate Template Text </template>
+              </button>
+            </div>
+            <div v-if="isGeneratingText" class="generating-text">
+              <div class="loading-spinner"></div>
+              <p>Generating template text using AI...</p>
+            </div>
+            <div class="post-text-container" v-else>
+              <div class="post-text-grid">
+                <div
+                  v-for="field in visiblePostTextFields"
+                  :key="field"
+                  class="post-text-item"
+                >
+                  <textarea
+                    :id="field"
+                    v-model="post_text[field]"
+                    class="text-preview"
+                    :placeholder="'Enter text for ' + field"
+                    @input="savePostText"
+                  ></textarea>
+                </div>
+              </div>
+            </div>
+            <p v-if="!content?.template_id" class="no-post-text">
+              Please select a template first to generate template text.
+            </p>
+          </section>
+        </div>
+
+        <div v-else-if="selectedTab === 'Captions'">
           <!-- Captions Section -->
           <section class="content-section captions-section">
             <div class="section-header">
@@ -319,76 +348,53 @@
             <div v-if="copied" class="caption-copied-feedback">Copied!</div>
           </section>
         </div>
+      </div>
 
-        <!-- Template Text Section -->
-        <section class="content-section">
-          <div class="section-header">
-            <h2>Template Text</h2>
+      <!-- Edit Text Modal -->
+      <div
+        v-if="showEditModal"
+        class="modal-overlay"
+        @click="showEditModal = false"
+      >
+        <div class="modal-content" @click.stop>
+          <h2>Edit Source Text</h2>
+          <p class="modal-instruction">
+            Please verify we have captured all the text of the article. If
+            not, please paste it in here and click save.
+          </p>
+          <div class="modal-field">
+            <label for="title">Title</label>
+            <input
+              id="title"
+              v-model="content.source_content_title"
+              class="modal-title-input"
+              placeholder="Enter the article title..."
+              @input="handleSourceTextChange"
+            />
+          </div>
+          <div class="modal-field">
+            <label for="mainText">Text</label>
+            <textarea
+              id="mainText"
+              v-model="content.source_content_main_text"
+              class="modal-text-editor"
+              placeholder="Enter or edit the source text here..."
+              @input="handleSourceTextChange"
+            ></textarea>
+          </div>
+          <div class="modal-actions">
+            <button class="cancel-button" @click="cancelEdit">Cancel</button>
             <button
-              class="generate-button"
-              @click="generatePostText"
-              :disabled="isGeneratingText || !content?.template_id"
+              class="save-button"
+              @click="
+                saveSourceText();
+                showEditModal = false;
+              "
             >
-              <template v-if="isGeneratingText">
-                <i class="fas fa-spinner fa-spin"></i>
-                Generating...
-              </template>
-              <template v-else> Generate Text </template>
+              Save Changes
             </button>
           </div>
-          <div v-if="isGeneratingText" class="generating-text">
-            <div class="loading-spinner"></div>
-            <p>Generating template text using AI...</p>
-          </div>
-          <div class="post-text-container" v-else>
-            <div class="post-text-grid">
-              <div
-                v-for="field in visiblePostTextFields"
-                :key="field"
-                class="post-text-item"
-              >
-                <textarea
-                  :id="field"
-                  v-model="post_text[field]"
-                  class="text-preview"
-                  :placeholder="'Enter text for ' + field"
-                  @input="savePostText"
-                ></textarea>
-              </div>
-            </div>
-          </div>
-          <p v-if="!content?.template_id" class="no-post-text">
-            Please select a template first to generate template text.
-          </p>
-        </section>
-
-        <!-- Image Generation Section -->
-        <section class="content-section">
-          <div class="section-header">
-            <h2>Image Generation</h2>
-            <button
-              class="generate-button"
-              @click="generateImagery"
-              :disabled="!canGenerateImagery"
-            >
-              <template v-if="isGeneratingImagery">
-                <i class="fas fa-spinner fa-spin"></i>
-                Generating...
-              </template>
-              <template v-else> Generate Imagery </template>
-            </button>
-          </div>
-          <div v-if="isGeneratingImagery" class="generating-text">
-            <div class="loading-spinner"></div>
-            <p>Generating imagery (this could take a minute...)</p>
-          </div>
-          <p v-if="!content?.template_id" class="no-imagery">
-            Please select a template first to generate imagery.
-          </p>
-          <p v-else-if="!hasPostText" class="no-imagery">
-            Please generate template text before generating imagery.
-          </p>
-        </section>
+        </div>
       </div>
     </div>
 
@@ -442,6 +448,15 @@ const captions = ref({
 const editingTitle = ref(false);
 const editedTitle = ref("");
 const savingTitle = ref(false);
+
+const tabLabels = [
+  'Source Text',
+  'Images',
+  'Template Selection',
+  'Template Text',
+  'Captions',
+];
+const selectedTab = ref(tabLabels[0]);
 
 const fetchCaptions = async () => {
   try {
@@ -2490,5 +2505,49 @@ h1 {
   width: fit-content;
   margin-right: 0.5rem;
   transition: width 0.2s;
+}
+
+.tab-bar {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  border-bottom: 1px solid #eee;
+}
+.tab-btn {
+  background: none;
+  border: none;
+  font-size: 1rem;
+  padding: 0.75rem 1.5rem 0.5rem 1.5rem;
+  cursor: pointer;
+  color: #888;
+  border-bottom: 2px solid transparent;
+  transition: color 0.2s, border-bottom 0.2s;
+}
+.tab-btn.active {
+  color: #007bff;
+  border-bottom: 2px solid #007bff;
+  font-weight: 600;
+}
+.generate-imagery-header-btn {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  padding: 0.5rem 1rem;
+  margin-left: 1rem;
+  transition: all 0.2s ease;
+}
+.generate-imagery-header-btn:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+.generate-imagery-header-btn:not(:disabled):hover {
+  background-color: #218838;
 }
 </style>
