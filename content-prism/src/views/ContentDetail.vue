@@ -118,8 +118,9 @@
           <button
             v-for="tab in tabLabels"
             :key="tab"
-            :class="['tab-btn', { active: selectedTab === tab }]"
-            @click="selectedTab = tab"
+            :class="['tab-btn', { active: selectedTab === tab, disabled: isTabDisabled(tab) }]"
+            @click="handleTabClick(tab)"
+            :disabled="isTabDisabled(tab)"
           >
             {{ tab }}
           </button>
@@ -458,6 +459,33 @@ const tabLabels = [
 ];
 const selectedTab = ref(tabLabels[0]);
 
+// Helper: is a template selected?
+const isTemplateSelected = computed(() => !!content.value?.template_id);
+// Helper: is there any template text generated?
+const hasTemplateText = computed(() => {
+  if (!post_text.value) return false;
+  return Object.values(post_text.value).some(
+    (text) => typeof text === 'string' && text.trim().length > 0
+  );
+});
+
+// Generate Imagery button should only be enabled if both are true
+const canGenerateImagery = computed(() => isTemplateSelected.value && hasTemplateText.value && !isGeneratingImagery.value);
+
+// Helper: is a tab disabled?
+const isTabDisabled = (tab) => {
+  if (tab === 'Template Text') return !isTemplateSelected.value;
+  if (tab === 'Captions') return !hasTemplateText.value;
+  return false;
+};
+
+// Custom tab click handler to prevent switching to disabled tabs
+const handleTabClick = (tab) => {
+  if (!isTabDisabled(tab)) {
+    selectedTab.value = tab;
+  }
+};
+
 const fetchCaptions = async () => {
   try {
     const { data, error: fetchError } = await supabase
@@ -521,40 +549,6 @@ const visiblePostTextFields = computed(() => {
   const schemaFields = Object.keys(activeTemplateSchema.value);
   return schemaFields.length > 0 ? schemaFields : defaultFields;
 });
-
-const canGenerateImagery = computed(() => {
-  // Check if we have a template and we're not currently generating
-  if (!content.value?.template_id || isGeneratingImagery.value) {
-    return false;
-  }
-
-  // Check if there's any text content in the post_text fields
-  const hasText =
-    post_text.value &&
-    Object.values(post_text.value).some(
-      (text) => typeof text === "string" && text.trim().length > 0
-    );
-
-  return hasText;
-});
-
-const hasPostText = computed(() => {
-  return (
-    post_text.value &&
-    Object.values(post_text.value).some(
-      (text) => typeof text === "string" && text.trim().length > 0
-    )
-  );
-});
-
-const getMinimumImages = (template) => {
-  return template.minimum_images || 0;
-};
-
-const isTemplateEnabled = (template) => {
-  const minimumImages = getMinimumImages(template);
-  return images.value.length >= minimumImages;
-};
 
 const fetchContent = async () => {
   try {
@@ -1547,6 +1541,25 @@ const cancelTitleEdit = () => {
   editedTitle.value = content.value.source_content_title;
   editingTitle.value = false;
 };
+
+// Restore helpers used elsewhere
+const getMinimumImages = (template) => {
+  return template.minimum_images || 0;
+};
+
+const isTemplateEnabled = (template) => {
+  const minimumImages = getMinimumImages(template);
+  return images.value.length >= minimumImages;
+};
+
+const hasPostText = computed(() => {
+  return (
+    post_text.value &&
+    Object.values(post_text.value).some(
+      (text) => typeof text === "string" && text.trim().length > 0
+    )
+  );
+});
 </script>
 
 <style scoped>
@@ -2554,5 +2567,13 @@ h1 {
 /* Add extra margin below the template selection section for dropdown space */
 .template-selection-section {
   margin-bottom: 250px;
+}
+
+.tab-btn.disabled {
+  color: #ccc;
+  cursor: not-allowed;
+  border-bottom: 2px solid transparent;
+  font-weight: 400;
+  pointer-events: none;
 }
 </style>
