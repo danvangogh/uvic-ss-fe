@@ -226,7 +226,7 @@
 
         <div v-else-if="selectedTab === 'Template Selection'">
           <!-- Template Selection Section -->
-          <section class="content-section">
+          <section class="content-section template-selection-section">
             <h2>Template Selection</h2>
             <div class="templates-container">
               <div v-if="templates.length">
@@ -1853,7 +1853,7 @@ h1 {
   border: 1px solid #ddd;
   border-radius: 0 0 4px 4px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-  z-index: 10;
+  z-index: 1002;
   max-height: 300px;
   overflow-y: auto;
   margin-top: 2px;
@@ -2549,5 +2549,10 @@ h1 {
 }
 .generate-imagery-header-btn:not(:disabled):hover {
   background-color: #218838;
+}
+
+/* Add extra margin below the template selection section for dropdown space */
+.template-selection-section {
+  margin-bottom: 250px;
 }
 </style>
