@@ -320,10 +320,10 @@
           </section>
         </div>
 
-        <!-- Post Text Section -->
+        <!-- Template Text Section -->
         <section class="content-section">
           <div class="section-header">
-            <h2>Post Text</h2>
+            <h2>Template Text</h2>
             <button
               class="generate-button"
               @click="generatePostText"
@@ -338,7 +338,7 @@
           </div>
           <div v-if="isGeneratingText" class="generating-text">
             <div class="loading-spinner"></div>
-            <p>Generating post text using AI...</p>
+            <p>Generating template text using AI...</p>
           </div>
           <div class="post-text-container" v-else>
             <div class="post-text-grid">
@@ -358,7 +358,7 @@
             </div>
           </div>
           <p v-if="!content?.template_id" class="no-post-text">
-            Please select a template first to generate post text.
+            Please select a template first to generate template text.
           </p>
         </section>
 
@@ -386,7 +386,7 @@
             Please select a template first to generate imagery.
           </p>
           <p v-else-if="!hasPostText" class="no-imagery">
-            Please generate post text before generating imagery.
+            Please generate template text before generating imagery.
           </p>
         </section>
       </div>
@@ -969,8 +969,8 @@ const savePostText = async () => {
 
     if (upsertError) throw upsertError;
   } catch (err) {
-    console.error("Error saving post text:", err);
-    error.value = "Failed to save post text. Please try again.";
+    console.error("Error saving template text:", err);
+    error.value = "Failed to save template text. Please try again.";
   }
 };
 
@@ -1093,13 +1093,13 @@ const generatePostText = async () => {
       });
 
     if (upsertError) {
-      console.error("Error upserting post text:", upsertError);
+      console.error("Error upserting template text:", upsertError);
       throw new Error("Failed to save generated text to database");
     }
   } catch (err) {
-    console.error("Error generating post text:", err);
+    console.error("Error generating template text:", err);
     error.value =
-      err.message || "Failed to generate post text. Please try again.";
+      err.message || "Failed to generate template text. Please try again.";
   } finally {
     // Only update the local UI state for isGeneratingText
     isGeneratingText.value = false;
