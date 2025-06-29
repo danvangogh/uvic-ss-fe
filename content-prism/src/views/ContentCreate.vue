@@ -94,7 +94,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
 import { supabase } from "../supabase";
 import { useAuth } from "../stores/authStore";
 import { useRouter } from "vue-router";
@@ -334,6 +334,12 @@ const handleInputBlur = () => {
       "Enter a research/news article you'd like to turn into content";
   }
 };
+
+onMounted(() => {
+  if (!user.value) {
+    router.push("/auth");
+  }
+});
 </script>
 
 <style scoped>

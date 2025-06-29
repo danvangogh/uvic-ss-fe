@@ -69,6 +69,11 @@
               :class="{ expanded: expandedSection === 'account' }"
             ></i>
           </div>
+          <div class="section-items" v-show="expandedSection === 'account'">
+            <button class="nav-item logout-btn" @click="showLogoutModal = true">
+              Logout
+            </button>
+          </div>
         </div>
       </div>
     </nav>
@@ -94,6 +99,18 @@
       <main class="page-content">
         <slot></slot>
       </main>
+    </div>
+
+    <!-- Logout Modal -->
+    <div v-if="showLogoutModal" class="modal-overlay" @click.self="showLogoutModal = false">
+      <div class="modal-content" @click.stop>
+        <h2>Log out</h2>
+        <p>Are you sure you want to log out?</p>
+        <div class="modal-actions">
+          <button class="cancel-button" @click="showLogoutModal = false">Cancel</button>
+          <button class="logout-button" @click="logout">Log out</button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -179,6 +196,18 @@ watch(user, (newUser) => {
     brandLogo.value = null;
   }
 });
+
+const showLogoutModal = ref(false);
+
+const logout = async () => {
+  try {
+    await supabase.auth.signOut();
+    showLogoutModal.value = false;
+    router.push('/auth');
+  } catch (error) {
+    console.error('Error logging out:', error);
+  }
+};
 </script>
 
 <style scoped>
@@ -308,5 +337,73 @@ watch(user, (newUser) => {
 .page-content {
   flex: 1;
   padding: 2rem;
+}
+
+.logout-btn {
+  color: #dc3545;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font-size: 1rem;
+  padding: 0.5rem 2rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.logout-btn:hover {
+  background: rgba(220, 53, 69, 0.1);
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+
+.modal-content {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  text-align: center;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.cancel-button {
+  padding: 0.5rem 1rem;
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.logout-button {
+  padding: 0.5rem 1rem;
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.logout-button:hover {
+  background-color: #b52a37;
 }
 </style>

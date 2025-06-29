@@ -1,18 +1,23 @@
 <template>
-  <AppLayout v-if="!isAuthRoute">
+  <!-- Only show AppLayout if user is logged in and not on auth page -->
+  <AppLayout v-if="user && !isAuthRoute">
     <router-view></router-view>
   </AppLayout>
+  <!-- Show Auth page without layout if on /auth or not logged in -->
   <router-view v-else></router-view>
 </template>
 
 <script setup>
 import { computed } from "vue";
 import { useRoute } from "vue-router";
+import { useAuth } from "./stores/authStore";
 import AppLayout from "./components/AppLayout.vue";
 
 const route = useRoute();
+const { user } = useAuth();
 const isAuthRoute = computed(() => {
-  return ["/auth", "/login", "/signup"].includes(route.path);
+  // Use route name for robustness
+  return ["auth", "login", "signup"].includes(route.name);
 });
 </script>
 

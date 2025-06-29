@@ -1,7 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import HomeView from "../views/HomeView.vue";
 import { useAuth } from "../stores/authStore";
-import { supabase } from "../supabase";
 // Views
 import Dashboard from "../views/Dashboard.vue";
 import Auth from "../views/Auth.vue";
@@ -80,67 +79,27 @@ router.beforeEach(async (to) => {
 
   // Wait for auth to initialize
   if (loading.value) {
-    return;
-  }
-
-  const requiresAuth = to.matched.some((record) => record.meta.requiresAuth);
-  const requiresProfile = to.matched.some(
-    (record) => record.meta.requiresProfile
-  );
-
-  // Always allow access to auth page if not logged in
-  if (to.path === "/auth" && !user.value) {
-    return true;
-  }
-
-  // Require auth for protected routes
-  if (requiresAuth && !user.value) {
-    return "/auth";
-  }
-
-  try {
-    // For authenticated users, check their profile status
-    if (user.value) {
-      const { data: profile, error } = await supabase
-        .from("user_profiles")
-        .select("institution_id, role_id")
-        .eq("id", user.value.id)
-        .single();
-
-      if (error) {
-        console.error("Supabase error checking profile:", error);
-        // If there's an error checking the profile, allow access to onboarding
-        if (to.path === "/onboarding") {
-          return true;
+    await new Promise((resolve) => {
+      const check = setInterval(() => {
+        if (!loading.value) {
+          clearInterval(check);
+          resolve();
         }
-        return "/auth";
-      }
+      }, 10);
+    });
+  }
 
-      // Handle navigation based on profile completion
-      const isProfileComplete = profile?.institution_id && profile?.role_id;
-
-      // Redirect from auth page if already logged in
-      if (to.path === "/auth") {
-        return isProfileComplete ? "/create-content" : "/onboarding";
-      }
-
-      // Prevent access to onboarding if profile is complete
-      if (to.path === "/onboarding" && isProfileComplete) {
-        return "/dashboard";
-      }
-
-      // Redirect to onboarding if profile is incomplete and route requires profile
-      if (requiresProfile && !isProfileComplete) {
-        return "/onboarding";
-      }
-    }
-
-    return true;
-  } catch (error) {
-    console.error("Unexpected error in router guard:", error);
-    // For unexpected errors, redirect to auth
+  // If not logged in, only allow /auth
+  if (!user.value && to.path !== "/auth") {
     return "/auth";
   }
+
+  // If logged in and on /auth, redirect to dashboard
+  if (user.value && to.path === "/auth") {
+    return "/dashboard";
+  }
+
+  return true;
 });
 
 export default router;
