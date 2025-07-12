@@ -14,20 +14,9 @@ const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const dotenv = require("dotenv");
 const { PDFDocument, rgb } = require("pdf-lib");
 const FormData = require("form-data");
-<<<<<<< HEAD
-const sharp = require("sharp");
-
-dotenv.config();
-
-const app = express();
-const PORT = process.env.PORT || 3000;
-const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
-const BASE_SERVER_URL = process.env.BASE_SERVER_URL;
-=======
 const cheerio = require("cheerio");
 const { createClient } = require("@supabase/supabase-js");
 const OpenAI = require("openai");
->>>>>>> supabase_integration
 const history = require("connect-history-api-fallback");
 
 // Load environment variables from the backend .env file
@@ -146,32 +135,17 @@ app.post("/api/upload-image", upload.single("image"), async (req, res) => {
     if (!file) {
       return res.status(400).send("No file uploaded.");
     }
-<<<<<<< HEAD
-
-    let imageBuffer = file.buffer;
-    let fileExtension = path.extname(file.originalname).toLowerCase();
-
-    // Convert WebP to PNG if the file is a WebP image
-    if (fileExtension === ".webp") {
-      console.log("Converting WebP image to PNG");
-      imageBuffer = await sharp(file.buffer).png().toBuffer();
-      fileExtension = ".png";
-    }
-
-    // Replace spaces with underscores in the original name
-=======
->>>>>>> supabase_integration
     const sanitizedFileName = file.originalname.replace(/\s+/g, "_");
     const timestamp = Date.now();
     const newFileName = `${timestamp}_${sanitizedFileName.replace(
       /\.[^/.]+$/,
       ""
-    )}${fileExtension}`;
+    )}${path.extname(file.originalname).toLowerCase()}`;
 
     const params = {
       Bucket: process.env.DO_SPACES_BUCKET,
       Key: `uploads/${newFileName}`,
-      Body: imageBuffer,
+      Body: file.buffer,
       ACL: "public-read",
     };
 
