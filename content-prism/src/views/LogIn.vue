@@ -3,53 +3,63 @@
     <h2>Login</h2>
     <form @submit.prevent="login">
       <div>
-        <label for="username">Username:</label>
-        <input type="text" v-model="loginData.username" required />
+        <label for="email">Email:</label>
+        <input type="email" v-model="loginData.email" required />
       </div>
       <div>
         <label for="password">Password:</label>
         <input type="password" v-model="loginData.password" required />
       </div>
-      <button type="submit">Login</button>
+      <p v-if="error" class="error">{{ error }}</p>
+      <button type="submit" :disabled="loading">
+        {{ loading ? "Logging in..." : "Login" }}
+      </button>
     </form>
   </div>
 </template>
 
 <script>
-import axios from "axios";
-import Cookies from "js-cookie";
+import { useAuth } from "../stores/authStore";
+import { useRouter } from "vue-router";
 
 export default {
   data() {
     return {
       loginData: {
-        username: "",
+        email: "",
         password: "",
       },
+      error: null,
+      loading: false,
     };
   },
   methods: {
     async login() {
+      this.loading = true;
+      this.error = null;
+
+      const { signIn } = useAuth();
+      const router = useRouter();
+
       try {
-        const baseURL =
-          process.env.VUE_APP_API_BASE_URL || "http://localhost:3000";
-        const response = await axios.post(
-          `${baseURL}/api/login`,
-          this.loginData
+        const { data, error } = await signIn(
+          this.loginData.email,
+          this.loginData.password
         );
-        if (response.data.success) {
-          Cookies.set("username", response.data.username, { expires: 30 });
-          Cookies.set("role", response.data.role, { expires: 30 }); // Store role in a cookie
-          this.$root.username = response.data.username; // Update the username in App.vue
-          this.$root.role = response.data.role; // Update the role in App.vue
-          console.log("Logged in as:", response.data.username); // Log to verify username
-          this.$router.push("/"); // Redirect to the home page or dashboard after login
+
+        if (error) throw error;
+
+        // Redirect based on user role
+        const role = data.session.user.user_metadata.role || "uvicSS";
+        if (role === "propero") {
+          router.push("/propero/dashboard");
         } else {
-          alert("Invalid username or password");
+          router.push("/dashboard");
         }
       } catch (error) {
-        console.error("Error logging in:", error);
-        alert("An error occurred during login. Please try again.");
+        this.error = error.message || "An error occurred during login";
+      } finally {
+        this.loading = false;
       }
     },
   },
@@ -84,5 +94,10 @@ export default {
   padding: 8px;
   border: 1px solid #ccc;
   border-radius: 5px;
+}
+
+.error {
+  color: red;
+  margin-bottom: 10px;
 }
 </style>
