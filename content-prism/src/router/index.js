@@ -8,6 +8,7 @@ import Onboarding from "../views/Onboarding.vue";
 import ContentCreate from "../views/ContentCreate.vue";
 import ContentDetail from "../views/ContentDetail.vue";
 import BrandAssets from "../views/BrandAssets.vue";
+import CheckEmail from "../views/CheckEmail.vue";
 
 const routes = [
   {
@@ -63,6 +64,11 @@ const routes = [
     component: BrandAssets,
     meta: { requiresAuth: true, requiresProfile: true },
   },
+  {
+    path: "/check-email",
+    name: "checkEmail",
+    component: CheckEmail,
+  },
 ];
 
 const router = createRouter({
@@ -89,8 +95,8 @@ router.beforeEach(async (to) => {
     });
   }
 
-  // If not logged in, only allow /auth
-  if (!user.value && to.path !== "/auth") {
+  // If not logged in, only allow /auth and /check-email
+  if (!user.value && !["auth", "checkEmail"].includes(to.name)) {
     return "/auth";
   }
 

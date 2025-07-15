@@ -216,16 +216,14 @@ export default {
 
         if (!existingProfile) {
           // Create the profile if it doesn't exist
-          const { error: insertError } = await supabase
-            .from("user_profiles")
-            .insert({
-              id: user.id,
-              institution_id: institutionId,
-              role_id: roleData.id,
-              pricing_tier_id: tierData.id,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            });
+          const { error: insertError } = await supabase.from("user_profiles").insert([{
+            id: user.id,
+            institution_id: institutionId,
+            role_id: roleData.id,
+            pricing_tier_id: tierData.id,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }]);
 
           if (insertError) throw insertError;
         } else {

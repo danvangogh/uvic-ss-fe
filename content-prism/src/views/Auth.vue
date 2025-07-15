@@ -26,6 +26,9 @@
           />
         </div>
 
+        <div v-if="message" class="info-message">
+          {{ message }}
+        </div>
         <div v-if="error" class="error-message">
           {{ error }}
         </div>
@@ -63,6 +66,7 @@ export default {
     const isLogin = ref(true);
     const loading = ref(false);
     const error = ref(null);
+    const message = ref(null);
     const formData = ref({
       email: "",
       password: "",
@@ -71,11 +75,13 @@ export default {
     const toggleAuth = () => {
       isLogin.value = !isLogin.value;
       error.value = null;
+      message.value = null;
     };
 
     const handleSubmit = async () => {
       loading.value = true;
       error.value = null;
+      message.value = null;
 
       const { email, password } = formData.value;
 
@@ -86,13 +92,16 @@ export default {
           if (authError) throw authError;
 
           // Check if profile is complete before redirecting
-          const { data: profile } = await supabase
+          const { data: profile, error: profileError } = await supabase
             .from("user_profiles")
             .select("institution_id, role_id")
             .eq("id", data.user.id)
             .single();
 
-          if (!profile?.institution_id || !profile?.role_id) {
+          if (profileError && profileError.code === "PGRST116") {
+            // No profile row exists, redirect to onboarding
+            router.push("/onboarding");
+          } else if (!profile?.institution_id || !profile?.role_id) {
             router.push("/onboarding");
           } else {
             router.push("/dashboard");
@@ -102,10 +111,12 @@ export default {
           const { data, error: authError } = await signUp(email, password);
           if (authError) throw authError;
 
-          if (data.user?.identities?.length === 0) {
-            error.value =
-              "Registration successful! Please check your email to confirm your account.";
+          if (data.user) {
+            console.log('Redirecting to /check-email after successful sign up');
+            router.push('/check-email');
+            // Do NOT create user_profiles row here!
           } else {
+            // This branch should not be hit unless email confirmation is off
             router.push("/onboarding");
           }
         }
@@ -120,6 +131,7 @@ export default {
       isLogin,
       loading,
       error,
+      message,
       formData,
       toggleAuth,
       handleSubmit,
@@ -200,6 +212,13 @@ label {
 
 .error-message {
   color: #dc3545;
+  margin-bottom: 20px;
+  text-align: center;
+  font-size: 14px;
+}
+
+.info-message {
+  color: #007bff; /* A different color for info messages */
   margin-bottom: 20px;
   text-align: center;
   font-size: 14px;
