@@ -69,7 +69,10 @@ class ImageGenerationService {
         if (!content) throw new Error("Content not found");
 
         const status = await generator.checkStatus(uid, content);
-        console.log(`Polling attempt ${attempt + 1}, status:`, status);
+        console.log(
+          `IMAGERY: Polling attempt ${attempt + 1}, status:`,
+          status.status
+        );
 
         if (status.status === "completed") {
           // Only update is_imagery_generated to true, keep is_generating_imagery true
@@ -152,14 +155,16 @@ class ImageGenerationService {
 
       // Generate the imagery using the appropriate generator
       const initialResult = await generator.generate(content, images);
+      console.log("IMAGERY: Initial result status:", initialResult.status);
 
-      // If the generation is async (status is 'processing'), start polling
-      if (initialResult.status === "processing") {
-        console.log("Generation is async, starting polling...");
+      // If the generation is async (status is not 'completed'), start polling
+      if (initialResult.status !== "completed") {
+        console.log("IMAGERY: Starting polling for async generation...");
         const uid =
           initialResult.collectionUid ||
           initialResult.imageUid ||
           initialResult.renderId;
+        console.log("IMAGERY: Using UID for polling:", uid);
         return await this.pollForCompletion(generator, uid, contentId);
       }
 

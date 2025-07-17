@@ -16,10 +16,14 @@
       <header class="content-header">
         <div class="header-content">
           <div class="title-section">
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem">
               <template v-if="!editingTitle">
-                <h1 style="margin: 0;">{{ content.source_content_title }}</h1>
-                <button class="edit-title-btn" @click="editingTitle = true" title="Edit title">
+                <h1 style="margin: 0">{{ content.source_content_title }}</h1>
+                <button
+                  class="edit-title-btn"
+                  @click="editingTitle = true"
+                  title="Edit title"
+                >
                   <i class="fas fa-pencil-alt"></i>
                 </button>
               </template>
@@ -33,10 +37,20 @@
                   :size="Math.max(editedTitle.length, 10)"
                   autofocus
                 />
-                <button class="save-title-btn" @click="saveTitle" :disabled="savingTitle" title="Save title">
+                <button
+                  class="save-title-btn"
+                  @click="saveTitle"
+                  :disabled="savingTitle"
+                  title="Save title"
+                >
                   <i class="fas fa-check"></i>
                 </button>
-                <button class="cancel-title-btn" @click="cancelTitleEdit" :disabled="savingTitle" title="Cancel">
+                <button
+                  class="cancel-title-btn"
+                  @click="cancelTitleEdit"
+                  :disabled="savingTitle"
+                  title="Cancel"
+                >
                   <i class="fas fa-times"></i>
                 </button>
               </template>
@@ -45,7 +59,7 @@
                 class="generate-imagery-header-btn"
                 @click="generateImagery"
                 :disabled="!canGenerateImagery"
-                style="margin-left: 1rem;"
+                style="margin-left: 1rem"
               >
                 <template v-if="isGeneratingImagery">
                   <i class="fas fa-spinner fa-spin"></i>
@@ -63,7 +77,6 @@
 
             <!-- Add image previews -->
             <div v-if="generatedImages.length" class="image-previews-section">
-
               <div class="image-previews">
                 <img
                   v-for="(url, index) in generatedImages"
@@ -74,6 +87,34 @@
                   @click="openLightbox(url)"
                 />
               </div>
+            </div>
+
+            <!-- Add video previews -->
+            <div v-if="generatedVideos.length" class="video-previews-section">
+              <div class="video-previews">
+                <div
+                  v-for="(url, index) in generatedVideos"
+                  :key="index"
+                  class="video-thumbnail-container"
+                  @click="openVideoLightbox(url)"
+                >
+                  <video
+                    :src="url"
+                    class="video-thumbnail"
+                    preload="metadata"
+                  />
+                  <div class="video-play-overlay">
+                    <i class="fas fa-play"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Download button for all content -->
+            <div
+              v-if="generatedImages.length || generatedVideos.length"
+              class="download-section"
+            >
               <button
                 class="download-post-button"
                 @click="downloadAllContent"
@@ -91,20 +132,33 @@
       <!-- Add lightbox -->
       <div v-if="lightboxOpen" class="lightbox" @click="closeLightbox">
         <button
-          v-if="generatedImages.length > 1"
+          v-if="!isVideoLightbox && generatedImages.length > 1"
           class="lightbox-nav prev"
           @click.stop="navigateImage('prev')"
         >
           <i class="fas fa-chevron-left"></i>
         </button>
+
+        <!-- Video lightbox -->
+        <video
+          v-if="isVideoLightbox"
+          :src="lightboxVideo"
+          controls
+          class="lightbox-video"
+          @click.stop
+        />
+
+        <!-- Image lightbox -->
         <img
+          v-else
           :src="lightboxImage"
           alt="Full size preview"
           class="lightbox-image"
           @click.stop
         />
+
         <button
-          v-if="generatedImages.length > 1"
+          v-if="!isVideoLightbox && generatedImages.length > 1"
           class="lightbox-nav next"
           @click.stop="navigateImage('next')"
         >
@@ -118,7 +172,10 @@
           <button
             v-for="tab in tabLabels"
             :key="tab"
-            :class="['tab-btn', { active: selectedTab === tab, disabled: isTabDisabled(tab) }]"
+            :class="[
+              'tab-btn',
+              { active: selectedTab === tab, disabled: isTabDisabled(tab) },
+            ]"
             @click="handleTabClick(tab)"
             :disabled="isTabDisabled(tab)"
           >
@@ -168,14 +225,20 @@
                   multiple
                   class="hidden"
                 />
-                <button 
-                  class="upload-button" 
+                <button
+                  class="upload-button"
                   @click="triggerImageUpload"
                   :disabled="isUploadingImage"
                 >
                   <i v-if="isUploadingImage" class="fas fa-spinner fa-spin"></i>
                   <i v-else class="fas fa-upload"></i>
-                  {{ isUploadingImage ? `Uploading ${uploadingCount} image${uploadingCount !== 1 ? 's' : ''}...` : "Upload Images" }}
+                  {{
+                    isUploadingImage
+                      ? `Uploading ${uploadingCount} image${
+                          uploadingCount !== 1 ? "s" : ""
+                        }...`
+                      : "Upload Images"
+                  }}
                 </button>
                 <span v-if="uploadSuccess" class="upload-success">
                   <i class="fas fa-check"></i> Images uploaded successfully
@@ -185,7 +248,11 @@
             <div class="images-container">
               <div v-if="isUploadingImage" class="uploading-indicator">
                 <div class="loading-spinner"></div>
-                <p>Uploading {{ uploadingCount }} image{{ uploadingCount !== 1 ? 's' : '' }}...</p>
+                <p>
+                  Uploading {{ uploadingCount }} image{{
+                    uploadingCount !== 1 ? "s" : ""
+                  }}...
+                </p>
               </div>
               <div class="images-grid" v-if="images.length">
                 <draggable
@@ -220,7 +287,9 @@
                   </template>
                 </draggable>
               </div>
-              <p v-else-if="!isUploadingImage" class="no-images">No images uploaded yet</p>
+              <p v-else-if="!isUploadingImage" class="no-images">
+                No images uploaded yet
+              </p>
             </div>
           </section>
         </div>
@@ -232,10 +301,26 @@
             <div class="templates-container">
               <div v-if="templates.length">
                 <div class="template-select-wrapper">
-                  <div class="custom-dropdown" @click="toggleDropdown" :class="{ open: dropdownOpen }">
+                  <div
+                    class="custom-dropdown"
+                    @click="toggleDropdown"
+                    :class="{ open: dropdownOpen }"
+                  >
                     <div class="custom-dropdown-selected">
-                      <img v-if="selectedTemplate && selectedTemplate.template_thumbnail_url" :src="selectedTemplate.template_thumbnail_url" :alt="selectedTemplate.template_name" class="template-dropdown-thumb" />
-                      <span class="template-dropdown-name">{{ selectedTemplate ? selectedTemplate.template_name : 'Select a template' }}</span>
+                      <img
+                        v-if="
+                          selectedTemplate &&
+                          selectedTemplate.template_thumbnail_url
+                        "
+                        :src="selectedTemplate.template_thumbnail_url"
+                        :alt="selectedTemplate.template_name"
+                        class="template-dropdown-thumb"
+                      />
+                      <span class="template-dropdown-name">{{
+                        selectedTemplate
+                          ? selectedTemplate.template_name
+                          : "Select a template"
+                      }}</span>
                       <i class="fas fa-chevron-down dropdown-arrow"></i>
                     </div>
                     <div v-if="dropdownOpen" class="custom-dropdown-list">
@@ -243,17 +328,42 @@
                         v-for="template in templates"
                         :key="template.id"
                         class="custom-dropdown-option"
-                        :class="{ disabled: !isTemplateEnabled(template), selected: selectedTemplateId === template.id }"
+                        :class="{
+                          disabled: !isTemplateEnabled(template),
+                          selected: selectedTemplateId === template.id,
+                        }"
                         @click.stop="selectDropdownTemplate(template)"
                       >
-                        <img v-if="template.template_thumbnail_url" :src="template.template_thumbnail_url" :alt="template.template_name" class="template-dropdown-thumb" />
-                        <span class="template-dropdown-name">{{ template.template_name }}</span>
-                        <span v-if="!isTemplateEnabled(template)" class="template-dropdown-disabled-reason">({{ getMinimumImages(template) }} image{{ getMinimumImages(template) !== 1 ? 's' : '' }} required)</span>
+                        <img
+                          v-if="template.template_thumbnail_url"
+                          :src="template.template_thumbnail_url"
+                          :alt="template.template_name"
+                          class="template-dropdown-thumb"
+                        />
+                        <span class="template-dropdown-name">{{
+                          template.template_name
+                        }}</span>
+                        <span
+                          v-if="!isTemplateEnabled(template)"
+                          class="template-dropdown-disabled-reason"
+                          >({{ getMinimumImages(template) }} image{{
+                            getMinimumImages(template) !== 1 ? "s" : ""
+                          }}
+                          required)</span
+                        >
                       </div>
                     </div>
                   </div>
-                  <div v-if="selectedTemplate && !isTemplateEnabled(selectedTemplate)" class="template-tooltip">
-                    {{ getMinimumImages(selectedTemplate) }} image{{ getMinimumImages(selectedTemplate) !== 1 ? 's' : '' }} required
+                  <div
+                    v-if="
+                      selectedTemplate && !isTemplateEnabled(selectedTemplate)
+                    "
+                    class="template-tooltip"
+                  >
+                    {{ getMinimumImages(selectedTemplate) }} image{{
+                      getMinimumImages(selectedTemplate) !== 1 ? "s" : ""
+                    }}
+                    required
                   </div>
                 </div>
               </div>
@@ -328,7 +438,10 @@
               <p>Generating captions using AI...</p>
             </div>
             <div class="captions-controls" v-else>
-              <select v-model="selectedCaptionPlatform" class="captions-dropdown">
+              <select
+                v-model="selectedCaptionPlatform"
+                class="captions-dropdown"
+              >
                 <option value="Bluesky">Bluesky</option>
                 <option value="LinkedIn">LinkedIn</option>
                 <option value="Facebook">Facebook</option>
@@ -341,7 +454,11 @@
                   readonly
                   rows="3"
                 ></textarea>
-                <button class="copy-caption-btn" @click="copyCaption" :title="copied ? 'Copied!' : 'Copy to clipboard'">
+                <button
+                  class="copy-caption-btn"
+                  @click="copyCaption"
+                  :title="copied ? 'Copied!' : 'Copy to clipboard'"
+                >
                   <i :class="['fas', copied ? 'fa-check' : 'fa-copy']"></i>
                 </button>
               </div>
@@ -360,8 +477,8 @@
         <div class="modal-content" @click.stop>
           <h2>Edit Source Text</h2>
           <p class="modal-instruction">
-            Please verify we have captured all the text of the article. If
-            not, please paste it in here and click save.
+            Please verify we have captured all the text of the article. If not,
+            please paste it in here and click save.
           </p>
           <div class="modal-field">
             <label for="title">Title</label>
@@ -427,9 +544,12 @@ const post_text = ref(null);
 const isGeneratingText = ref(false);
 const isGeneratingImagery = ref(false);
 const generatedImages = ref([]);
+const generatedVideos = ref([]);
 const lightboxOpen = ref(false);
 const lightboxImage = ref("");
+const lightboxVideo = ref("");
 const currentImageIndex = ref(0);
+const isVideoLightbox = ref(false);
 const channel = ref(null);
 const isDownloading = ref(false);
 const imageInput = ref(null);
@@ -437,25 +557,25 @@ const isUploadingImage = ref(false);
 const uploadingCount = ref(0);
 const selectedTemplateId = ref(null);
 const dropdownOpen = ref(false);
-const selectedCaptionPlatform = ref('Bluesky');
+const selectedCaptionPlatform = ref("Bluesky");
 const copied = ref(false);
 const isGeneratingCaptions = ref(false);
 const captions = ref({
-  bluesky_caption: '',
-  linkedin_caption: '',
-  facebook_caption: '',
-  instagram_caption: ''
+  bluesky_caption: "",
+  linkedin_caption: "",
+  facebook_caption: "",
+  instagram_caption: "",
 });
 const editingTitle = ref(false);
 const editedTitle = ref("");
 const savingTitle = ref(false);
 
 const tabLabels = [
-  'Source Text',
-  'Images',
-  'Template Selection',
-  'Template Text',
-  'Captions',
+  "Source Text",
+  "Images",
+  "Template Selection",
+  "Template Text",
+  "Captions",
 ];
 const selectedTab = ref(tabLabels[0]);
 
@@ -465,17 +585,22 @@ const isTemplateSelected = computed(() => !!content.value?.template_id);
 const hasTemplateText = computed(() => {
   if (!post_text.value) return false;
   return Object.values(post_text.value).some(
-    (text) => typeof text === 'string' && text.trim().length > 0
+    (text) => typeof text === "string" && text.trim().length > 0
   );
 });
 
 // Generate Imagery button should only be enabled if both are true
-const canGenerateImagery = computed(() => isTemplateSelected.value && hasTemplateText.value && !isGeneratingImagery.value);
+const canGenerateImagery = computed(
+  () =>
+    isTemplateSelected.value &&
+    hasTemplateText.value &&
+    !isGeneratingImagery.value
+);
 
 // Helper: is a tab disabled?
 const isTabDisabled = (tab) => {
-  if (tab === 'Template Text') return !isTemplateSelected.value;
-  if (tab === 'Captions') return !hasTemplateText.value;
+  if (tab === "Template Text") return !isTemplateSelected.value;
+  if (tab === "Captions") return !hasTemplateText.value;
   return false;
 };
 
@@ -489,24 +614,26 @@ const handleTabClick = (tab) => {
 const fetchCaptions = async () => {
   try {
     const { data, error: fetchError } = await supabase
-      .from('social_captions')
-      .select('bluesky_caption, linkedin_caption, facebook_caption, instagram_caption')
-      .eq('id', content.value.id)
+      .from("social_captions")
+      .select(
+        "bluesky_caption, linkedin_caption, facebook_caption, instagram_caption"
+      )
+      .eq("id", content.value.id)
       .single();
     if (fetchError) throw fetchError;
     captions.value = data || {
-      bluesky_caption: '',
-      linkedin_caption: '',
-      facebook_caption: '',
-      instagram_caption: ''
+      bluesky_caption: "",
+      linkedin_caption: "",
+      facebook_caption: "",
+      instagram_caption: "",
     };
   } catch (err) {
-    console.error('Error fetching captions:', err);
+    console.error("Error fetching captions:", err);
     captions.value = {
-      bluesky_caption: '',
-      linkedin_caption: '',
-      facebook_caption: '',
-      instagram_caption: ''
+      bluesky_caption: "",
+      linkedin_caption: "",
+      facebook_caption: "",
+      instagram_caption: "",
     };
   }
 };
@@ -614,8 +741,8 @@ const fetchContent = async () => {
       };
     }
 
-    // Fetch generated images after content is loaded
-    await fetchGeneratedImages();
+    // Fetch generated content after content is loaded
+    await fetchGeneratedContent();
 
     // Fetch templates
     const { data: templatesData, error: templatesError } = await supabase
@@ -642,26 +769,27 @@ const fetchContent = async () => {
   }
 };
 
-const fetchGeneratedImages = async () => {
-  console.log("Starting fetchGeneratedImages");
+const fetchGeneratedContent = async () => {
+  console.log("Starting fetchGeneratedContent");
   try {
     const { data, error } = await supabase
       .from("created_content")
-      .select("url_object")
+      .select("url_object, video_url")
       .eq("source_content_id", content.value.id)
       .maybeSingle(); // Use maybeSingle instead of single to avoid PGRST116 error
 
     if (error) {
-      console.error("Error fetching generated images:", error);
-      // Don't throw error, just set empty array
+      console.error("Error fetching generated content:", error);
+      // Don't throw error, just set empty arrays
       generatedImages.value = [];
+      generatedVideos.value = [];
       return;
     }
 
     console.log("Fetched created_content data:", data);
 
     if (data?.url_object) {
-      // Extract PNG URLs and update the state
+      // Extract PNG URLs for images
       const pngUrls = Object.entries(data.url_object)
         .filter(
           ([, url]) =>
@@ -675,14 +803,32 @@ const fetchGeneratedImages = async () => {
       // Always update the images to ensure we have the latest
       generatedImages.value = pngUrls;
       console.log("Updated generatedImages:", generatedImages.value);
+
+      // Extract video URLs
+      const videoUrls = Object.entries(data.url_object)
+        .filter(
+          ([, url]) =>
+            url && typeof url === "string" && url.toLowerCase().endsWith(".mp4")
+        )
+        .map(([, url]) => url);
+
+      console.log("New video URLs:", videoUrls);
+      generatedVideos.value = videoUrls;
     } else {
       console.log("No url_object found in data");
       generatedImages.value = [];
+      generatedVideos.value = [];
+    }
+
+    // Also check for video_url field (legacy support)
+    if (data?.video_url && !generatedVideos.value.includes(data.video_url)) {
+      generatedVideos.value.push(data.video_url);
     }
   } catch (err) {
-    console.error("Error in fetchGeneratedImages:", err);
-    // Don't throw error, just set empty array
+    console.error("Error in fetchGeneratedContent:", err);
+    // Don't throw error, just set empty arrays
     generatedImages.value = [];
+    generatedVideos.value = [];
   }
 };
 
@@ -733,7 +879,7 @@ const handleImageUpload = async (event) => {
     // Upload files sequentially and display each one immediately
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      
+
       // Create form data for single file
       const formData = new FormData();
       formData.append("image", file);
@@ -781,7 +927,7 @@ const handleImageUpload = async (event) => {
     }, 3000);
 
     // Clear the file input
-    event.target.value = '';
+    event.target.value = "";
   } catch (err) {
     console.error("Error uploading images:", err);
     error.value = "Failed to upload images. Please try again.";
@@ -888,7 +1034,7 @@ const cancelEdit = () => {
 };
 
 const selectedTemplate = computed(() => {
-  return templates.value.find(t => t.id === selectedTemplateId.value) || null;
+  return templates.value.find((t) => t.id === selectedTemplateId.value) || null;
 });
 
 watch(
@@ -912,17 +1058,17 @@ const selectDropdownTemplate = (template) => {
 
 // Close dropdown on outside click
 const handleClickOutside = (event) => {
-  const dropdown = document.querySelector('.custom-dropdown');
+  const dropdown = document.querySelector(".custom-dropdown");
   if (dropdown && !dropdown.contains(event.target)) {
     dropdownOpen.value = false;
   }
 };
 
 onMounted(() => {
-  document.addEventListener('click', handleClickOutside);
+  document.addEventListener("click", handleClickOutside);
 });
 onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside);
+  document.removeEventListener("click", handleClickOutside);
 });
 
 const updateSequences = async (reorderedImages) => {
@@ -1266,6 +1412,8 @@ const openLightbox = (url) => {
 
 const closeLightbox = () => {
   lightboxOpen.value = false;
+  isVideoLightbox.value = false;
+  lightboxVideo.value = "";
   // Remove event listener when lightbox closes
   window.removeEventListener("keydown", handleKeyPress);
 };
@@ -1301,6 +1449,14 @@ const navigateImage = (direction) => {
   lightboxImage.value = generatedImages.value[newIndex];
 };
 
+const openVideoLightbox = (url) => {
+  lightboxVideo.value = url;
+  isVideoLightbox.value = true;
+  lightboxOpen.value = true;
+  // Add event listener when lightbox opens
+  window.addEventListener("keydown", handleKeyPress);
+};
+
 const downloadAllContent = async () => {
   try {
     isDownloading.value = true;
@@ -1317,18 +1473,18 @@ const downloadAllContent = async () => {
     // Helper: format date as MM_DD
     const formatDateForFilename = (dateString) => {
       const date = new Date(dateString);
-      const mm = String(date.getMonth() + 1).padStart(2, '0');
-      const dd = String(date.getDate()).padStart(2, '0');
+      const mm = String(date.getMonth() + 1).padStart(2, "0");
+      const dd = String(date.getDate()).padStart(2, "0");
       return `${mm}_${dd}`;
     };
     // Helper: get first three words of title, sanitized
     const getFirstThreeWords = (title) => {
-      if (!title) return 'Untitled';
+      if (!title) return "Untitled";
       return title
         .split(/\s+/)
         .slice(0, 3)
-        .join('_')
-        .replace(/[^a-zA-Z0-9_]/g, '');
+        .join("_")
+        .replace(/[^a-zA-Z0-9_]/g, "");
     };
     const datePart = formatDateForFilename(content.value.created_at);
     const titlePart = getFirstThreeWords(content.value.source_content_title);
@@ -1362,7 +1518,9 @@ const downloadAllContent = async () => {
           );
 
           if (!response.ok) {
-            throw new Error(`Failed to download PNG ${key}: ${response.statusText}`);
+            throw new Error(
+              `Failed to download PNG ${key}: ${response.statusText}`
+            );
           }
 
           const blob = await response.blob();
@@ -1445,24 +1603,28 @@ const generateCaptions = async () => {
   try {
     isGeneratingCaptions.value = true;
     error.value = null;
-    const response = await fetch(`${process.env.VUE_APP_API_BASE_URL}/api/generate-captions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contentId: content.value.id,
-        institutionId: content.value.institution_id,
-        templateId: content.value.template_id
-      })
-    });
+    const response = await fetch(
+      `${process.env.VUE_APP_API_BASE_URL}/api/generate-captions`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contentId: content.value.id,
+          institutionId: content.value.institution_id,
+          templateId: content.value.template_id,
+        }),
+      }
+    );
     const result = await response.json();
     if (!response.ok || !result.success) {
-      throw new Error(result.error || 'Failed to generate captions');
+      throw new Error(result.error || "Failed to generate captions");
     }
     // Update local state with new captions
     captions.value = result.captions;
   } catch (err) {
-    console.error('Error generating captions:', err);
-    error.value = err.message || 'Failed to generate captions. Please try again.';
+    console.error("Error generating captions:", err);
+    error.value =
+      err.message || "Failed to generate captions. Please try again.";
   } finally {
     isGeneratingCaptions.value = false;
   }
@@ -1478,17 +1640,25 @@ watch(
 );
 
 const getCaptionWithUrl = computed(() => {
-  console.log('getCaptionWithUrl content.value:', content.value);
+  console.log("getCaptionWithUrl content.value:", content.value);
   const platform = selectedCaptionPlatform.value;
-  const baseCaption = captions.value[platform.toLowerCase() + '_caption'] || '';
+  const baseCaption = captions.value[platform.toLowerCase() + "_caption"] || "";
   // Only append if content is an article (not a PDF)
-  if (content.value && content.value.source_content_type === 'article' && content.value.source_content_url) {
-    console.log('Caption URL for display:', content.value.source_content_url);
-    if (platform === 'Bluesky') {
-      return baseCaption ? `${baseCaption} ${content.value.source_content_url}` : '';
-    } else if (platform === 'LinkedIn' || platform === 'Facebook') {
-      return baseCaption ? `${baseCaption} Read more at ${content.value.source_content_url}` : '';
-    } else if (platform === 'Instagram') {
+  if (
+    content.value &&
+    content.value.source_content_type === "article" &&
+    content.value.source_content_url
+  ) {
+    console.log("Caption URL for display:", content.value.source_content_url);
+    if (platform === "Bluesky") {
+      return baseCaption
+        ? `${baseCaption} ${content.value.source_content_url}`
+        : "";
+    } else if (platform === "LinkedIn" || platform === "Facebook") {
+      return baseCaption
+        ? `${baseCaption} Read more at ${content.value.source_content_url}`
+        : "";
+    } else if (platform === "Instagram") {
       return baseCaption;
     }
   }
@@ -1514,7 +1684,10 @@ watch(
 );
 
 const saveTitle = async () => {
-  if (!editedTitle.value.trim() || editedTitle.value === content.value.source_content_title) {
+  if (
+    !editedTitle.value.trim() ||
+    editedTitle.value === content.value.source_content_title
+  ) {
     editingTitle.value = false;
     return;
   }
@@ -1865,7 +2038,7 @@ h1 {
   background: #fff;
   border: 1px solid #ddd;
   border-radius: 0 0 4px 4px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   z-index: 1002;
   max-height: 300px;
   overflow-y: auto;
@@ -2385,7 +2558,7 @@ h1 {
 }
 
 .template-tooltip::before {
-  content: '';
+  content: "";
   position: absolute;
   top: -4px;
   left: 50%;
@@ -2489,7 +2662,8 @@ h1 {
 .edit-title-btn:hover {
   background: #e6f0ff;
 }
-.save-title-btn, .cancel-title-btn {
+.save-title-btn,
+.cancel-title-btn {
   background: none;
   border: none;
   color: #28a745;
@@ -2575,5 +2749,84 @@ h1 {
   border-bottom: 2px solid transparent;
   font-weight: 400;
   pointer-events: none;
+}
+
+/* Video preview styles */
+.video-previews-section {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-top: 15px;
+}
+
+.video-previews {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+  flex-wrap: wrap;
+}
+
+.video-thumbnail-container {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  cursor: pointer;
+  border-radius: 4px;
+  overflow: hidden;
+  transition: transform 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.video-thumbnail-container:hover {
+  transform: scale(1.05);
+}
+
+.video-thumbnail {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #000;
+}
+
+.video-play-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  transition: background 0.2s ease;
+}
+
+.video-thumbnail-container:hover .video-play-overlay {
+  background: rgba(0, 0, 0, 0.8);
+}
+
+.lightbox-video {
+  max-width: 90%;
+  max-height: 90vh;
+  object-fit: contain;
+}
+
+.download-section {
+  margin-top: 15px;
+}
+
+@media (max-width: 768px) {
+  .video-previews {
+    justify-content: center;
+  }
+
+  .video-thumbnail-container {
+    width: 80px;
+    height: 80px;
+  }
 }
 </style>
