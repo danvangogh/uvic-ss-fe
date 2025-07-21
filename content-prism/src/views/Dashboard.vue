@@ -34,7 +34,7 @@
           </td>
           <td>{{ formatDate(content.created_at) }}</td>
           <td class="actions-cell">
-            <button
+            <!-- <button
               @click.stop="duplicateContent(content)"
               class="icon-button"
               title="Duplicate"
@@ -55,7 +55,7 @@
                   d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
                 ></path>
               </svg>
-            </button>
+            </button> -->
             <button
               @click.stop="deleteContent(content.id)"
               class="icon-button trash-button"
@@ -137,27 +137,27 @@ const fetchContent = async () => {
   }
 };
 
-const duplicateContent = async (contentToDuplicate) => {
-  try {
-    const response = await fetch(`${process.env.VUE_APP_API_BASE_URL || ''}/api/content/duplicate-content`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contentId: contentToDuplicate.id,
-        userId: user.value.id,
-      }),
-    });
-    const result = await response.json();
-    if (!response.ok || !result.success) {
-      throw new Error(result.error || 'Failed to duplicate content.');
-    }
-    // Add the new content to the top of the list for immediate UI update
-    sourceContent.value.unshift(result.data);
-  } catch (err) {
-    console.error('Error duplicating content:', err);
-    error.value = 'Failed to duplicate content.';
-  }
-};
+// const duplicateContent = async (contentToDuplicate) => {
+//   try {
+//     const response = await fetch(`${process.env.VUE_APP_API_BASE_URL || ''}/api/content/duplicate-content`, {
+//       method: 'POST',
+//       headers: { 'Content-Type': 'application/json' },
+//       body: JSON.stringify({
+//         contentId: contentToDuplicate.id,
+//         userId: user.value.id,
+//       }),
+//     });
+//     const result = await response.json();
+//     if (!response.ok || !result.success) {
+//       throw new Error(result.error || 'Failed to duplicate content.');
+//     }
+//     // Add the new content to the top of the list for immediate UI update
+//     sourceContent.value.unshift(result.data);
+//   } catch (err) {
+//     console.error('Error duplicating content:', err);
+//     error.value = 'Failed to duplicate content.';
+//   }
+// };
 
 const deleteContent = async (contentId) => {
   if (window.confirm("Are you sure you want to delete this content?")) {

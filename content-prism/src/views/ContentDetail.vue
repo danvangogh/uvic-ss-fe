@@ -450,8 +450,7 @@
               <div class="captions-textarea-wrapper">
                 <textarea
                   class="captions-textarea"
-                  :value="getCaptionWithUrl"
-                  readonly
+                  v-model="editableCaption"
                   rows="3"
                 ></textarea>
                 <button
@@ -1732,6 +1731,34 @@ const hasPostText = computed(() => {
       (text) => typeof text === "string" && text.trim().length > 0
     )
   );
+});
+
+const saveCaption = async (platform, value) => {
+  try {
+    // Update local state immediately
+    captions.value[platform.toLowerCase() + "_caption"] = value;
+    const updateData = { id: content.value.id };
+    updateData[platform.toLowerCase() + "_caption"] = value;
+    const { error: upsertError } = await supabase
+      .from("social_captions")
+      .upsert(updateData, { onConflict: "id", ignoreDuplicates: false });
+    if (upsertError) throw upsertError;
+  } catch (err) {
+    console.error("Error saving caption:", err);
+    error.value = "Failed to save caption. Please try again.";
+  }
+};
+
+const editableCaption = computed({
+  get() {
+    const platform = selectedCaptionPlatform.value;
+    return captions.value[platform.toLowerCase() + "_caption"] || "";
+  },
+  set(val) {
+    const platform = selectedCaptionPlatform.value;
+    captions.value[platform.toLowerCase() + "_caption"] = val;
+    saveCaption(platform, val);
+  },
 });
 </script>
 
