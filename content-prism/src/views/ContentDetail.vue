@@ -75,6 +75,19 @@
               >Created {{ formatDate(content.created_at) }}</span
             >
 
+            <!-- Source URL link -->
+            <div v-if="content.source_content_url" class="source-url-section">
+              <a
+                :href="content.source_content_url"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="source-url-link"
+                :title="content.source_content_url"
+              >
+                {{ truncateUrl(content.source_content_url) }}
+              </a>
+            </div>
+
             <!-- Add image previews -->
             <div v-if="generatedImages.length" class="image-previews-section">
               <div class="image-previews">
@@ -1026,6 +1039,11 @@ const getWordCount = (text) => {
   return text.trim().split(/\s+/).length;
 };
 
+const truncateUrl = (url) => {
+  if (!url) return "";
+  return url.length > 50 ? url.substring(0, 50) + "..." : url;
+};
+
 const cancelEdit = () => {
   content.value.source_content_main_text = originalSourceText.value;
   isSourceTextChanged.value = false;
@@ -1802,6 +1820,23 @@ h1 {
   font-size: 0.8rem;
   color: #666;
   display: block;
+}
+
+.source-url-section {
+  margin-top: 0.5rem;
+}
+
+.source-url-link {
+  font-size: 0.8rem;
+  color: #007bff;
+  text-decoration: none;
+  word-break: break-all;
+  transition: color 0.2s ease;
+}
+
+.source-url-link:hover {
+  color: #0056b3;
+  text-decoration: underline;
 }
 
 .content-body {
