@@ -1769,13 +1769,25 @@ const saveCaption = async (platform, value) => {
 
 const editableCaption = computed({
   get() {
-    const platform = selectedCaptionPlatform.value;
-    return captions.value[platform.toLowerCase() + "_caption"] || "";
+    // Use getCaptionWithUrl to include the appended URL
+    return getCaptionWithUrl.value;
   },
   set(val) {
     const platform = selectedCaptionPlatform.value;
-    captions.value[platform.toLowerCase() + "_caption"] = val;
-    saveCaption(platform, val);
+    // Extract the base caption by removing the URL if it exists
+    let baseCaption = val;
+    
+    if (content.value?.source_content_url) {
+      const url = content.value.source_content_url;
+      if (platform === "Bluesky" && val.endsWith(url)) {
+        baseCaption = val.substring(0, val.length - url.length).trim();
+      } else if ((platform === "LinkedIn" || platform === "Facebook") && val.includes(`Read more at ${url}`)) {
+        baseCaption = val.replace(`Read more at ${url}`, '').trim();
+      }
+    }
+    
+    captions.value[platform.toLowerCase() + "_caption"] = baseCaption;
+    saveCaption(platform, baseCaption);
   },
 });
 </script>
