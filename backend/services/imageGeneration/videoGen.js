@@ -146,7 +146,7 @@ class VideoGenerator {
     }
   }
 
-  async generate(content, generationUrl) {
+  async generate(content, images = []) {
     try {
       console.log("VIDEO: Starting generation for content", content.id);
 
@@ -164,18 +164,19 @@ class VideoGenerator {
         throw new Error("Video template ID not found in content template");
       }
 
+      // Check if we have images to use
+      if (!images || images.length === 0) {
+        throw new Error("No images provided for video generation");
+      }
+
       // Structure the payload according to Creatomate's REST API requirements
       const payload = {
         template_id: template.video_template_id,
         modifications: {
-          // Text modifications for each scene
-          scene1_text: post_text.p1a,
-          scene1_caption: post_text.p1b,
-          scene2_text: post_text.p2a,
-          scene2_caption: post_text.p2b,
-          scene3_text: post_text.p3a,
-          scene3_caption: post_text.p3b,
-          source_text: source_content_main_text.substring(0, 500), // Limit text length if needed
+          p1_a: post_text.p1a,
+          p2_a: post_text.p2a,
+          p3_a: post_text.p3a,
+          bg_img: images[0].image_url, // Use image_url instead of url
         },
       };
 

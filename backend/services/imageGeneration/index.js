@@ -177,6 +177,13 @@ class ImageGenerationService {
         })
         .eq("id", contentId);
 
+      // For single images, also save to database if we have an image URL
+      if (postType === "single_image" && initialResult.image) {
+        console.log("SINGLE IMAGE: Synchronous generation completed, saving to database...");
+        await generator.saveToDatabase(contentId, initialResult.image, content);
+        console.log("SINGLE IMAGE: Synchronous save complete");
+      }
+
       return initialResult;
     } catch (error) {
       console.error("Error in generateImagery:", error);

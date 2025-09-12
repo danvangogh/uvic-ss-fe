@@ -1136,8 +1136,10 @@ const savePostText = async () => {
 
     const { error: upsertError } = await supabase
       .from("post_text")
-      .upsert(postTextData)
-      .eq("source_content_id", route.params.id);
+      .upsert(postTextData, {
+        onConflict: "source_content_id",
+        ignoreDuplicates: false,
+      });
 
     if (upsertError) throw upsertError;
   } catch (err) {

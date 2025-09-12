@@ -1,4 +1,11 @@
 const axios = require("axios");
+const { createClient } = require("@supabase/supabase-js");
+
+// Initialize Supabase client
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
 class SingleImageGenerator {
   async generate(content, images = []) {
@@ -20,16 +27,12 @@ class SingleImageGenerator {
         template: template.template_id_p1, // Get template ID from the template
         modifications: [
           {
-            name: "title",
+            name: "p1_a",
             text: post_text.p1a,
           },
           {
-            name: "subtitle",
+            name: "p1_b",
             text: post_text.p1b,
-          },
-          {
-            name: "source_text",
-            text: source_content_main_text.substring(0, 500), // Limit text length if needed
           },
           // Spread the images into the modifications array if they exist
           ...(images && images.length > 0 ? images : []),
@@ -100,8 +103,64 @@ class SingleImageGenerator {
     }
   }
 
+  // Helper method to save single image to database
+  async saveToDatabase(sourceContentId, imageUrl, content) {
+    try {
+      console.log("SINGLE IMAGE: Saving to database for content", sourceContentId);
+
+      // Create url_object for single image (similar to how carousel handles images)
+      const urlObject = {
+        png1: imageUrl, // Use png1 key to match carousel format
+      };
+
+      // Check if record exists
+      const { data: existingRecord, error: checkError } = await supabase
+        .from("created_content")
+        .select("id")
+        .eq("source_content_id", sourceContentId)
+        .single();
+
+      if (checkError && checkError.code !== "PGRST116") {
+        throw checkError;
+      }
+
+      if (existingRecord) {
+        console.log("SINGLE IMAGE: Updating existing record");
+        const { error: updateError } = await supabase
+          .from("created_content")
+          .update({
+            url_object: urlObject,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("source_content_id", sourceContentId);
+
+        if (updateError) throw updateError;
+      } else {
+        console.log("SINGLE IMAGE: Creating new record");
+        const { error: insertError } = await supabase
+          .from("created_content")
+          .insert([
+            {
+              source_content_id: sourceContentId,
+              url_object: urlObject,
+              user_id: content.user_id,
+              institution_id: content.institution_id,
+            },
+          ]);
+
+        if (insertError) throw insertError;
+      }
+
+      console.log("SINGLE IMAGE: Database save complete");
+      return { success: true };
+    } catch (error) {
+      console.error("SINGLE IMAGE: Database error:", error.message);
+      throw error;
+    }
+  }
+
   // Helper method to check image status
-  async checkStatus(imageUid) {
+  async checkStatus(imageUid, content) {
     try {
       const response = await axios.get(
         `https://api.bannerbear.com/v2/images/${imageUid}`,
@@ -112,9 +171,36 @@ class SingleImageGenerator {
         }
       );
 
+      const status = response.data.status;
+      const imageUrl = response.data.image_url;
+
+      console.log(
+        `SINGLE IMAGE: Status check - status: ${status}, has URL: ${!!imageUrl}`
+      );
+
+      // If image is completed and we have a URL, save to database
+      if (status === "completed" && imageUrl) {
+        console.log("SINGLE IMAGE: Generation completed, saving to database...");
+
+        // Save image URL to database
+        await this.saveToDatabase(content.id, imageUrl, content);
+        console.log("SINGLE IMAGE: Saved to database");
+
+        return {
+          status: "completed",
+          image: imageUrl,
+          metadata: {
+            created_at: response.data.created_at,
+            width: response.data.width,
+            height: response.data.height,
+            ...response.data.metadata,
+          },
+        };
+      }
+
       return {
-        status: response.data.status,
-        image: response.data.image_url,
+        status: status,
+        image: imageUrl,
         metadata: {
           created_at: response.data.created_at,
           width: response.data.width,
