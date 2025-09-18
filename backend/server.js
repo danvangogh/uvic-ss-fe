@@ -135,12 +135,28 @@ app.post("/api/upload-image", upload.single("image"), async (req, res) => {
     if (!file) {
       return res.status(400).send("No file uploaded.");
     }
-    const sanitizedFileName = file.originalname.replace(/\s+/g, "_");
+    
+    // Enhanced filename sanitization and truncation
+    const sanitizedFileName = file.originalname
+      .replace(/\s+/g, "_")  // Replace spaces with underscores
+      .replace(/[^a-zA-Z0-9._-]/g, "")  // Remove special characters except dots, underscores, and hyphens
+      .replace(/_{2,}/g, "_")  // Replace multiple underscores with single underscore
+      .replace(/^_+|_+$/g, "");  // Remove leading/trailing underscores
+    
+    // Truncate filename to reasonable length (keep extension)
+    const maxLength = 50; // Much shorter limit for better API compatibility
+    const extension = path.extname(sanitizedFileName).toLowerCase();
+    const nameWithoutExt = sanitizedFileName.replace(/\.[^/.]+$/, "");
+    const truncatedName = nameWithoutExt.length > maxLength 
+      ? nameWithoutExt.substring(0, maxLength) 
+      : nameWithoutExt;
+    
     const timestamp = Date.now();
-    const newFileName = `${timestamp}_${sanitizedFileName.replace(
-      /\.[^/.]+$/,
-      ""
-    )}${path.extname(file.originalname).toLowerCase()}`;
+    const newFileName = `${timestamp}_${truncatedName}${extension}`;
+
+    console.log(`Original filename: ${file.originalname}`);
+    console.log(`Sanitized filename: ${sanitizedFileName}`);
+    console.log(`Final filename: ${newFileName}`);
 
     const params = {
       Bucket: process.env.DO_SPACES_BUCKET,
