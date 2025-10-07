@@ -34,7 +34,6 @@
                   @keyup.enter="saveTitle"
                   @keyup.esc="cancelTitleEdit"
                   :disabled="savingTitle"
-                  :size="Math.max(editedTitle.length, 10)"
                   autofocus
                 />
                 <button
@@ -2764,10 +2763,10 @@ h1 {
   border-radius: 4px;
   border: 1px solid #ccc;
   min-width: 120px;
-  max-width: 100%;
-  width: fit-content;
+  max-width: 600px;
+  width: 100%;
   margin-right: 0.5rem;
-  transition: width 0.2s;
+  box-sizing: border-box;
 }
 
 .tab-bar {
