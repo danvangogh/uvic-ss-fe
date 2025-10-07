@@ -355,6 +355,11 @@
                         <span class="template-dropdown-name">{{
                           template.template_name
                         }}</span>
+                        <i 
+                          v-if="hasTextForTemplate(template.id)" 
+                          class="fas fa-check-circle template-has-text-indicator"
+                          title="Text generated for this template"
+                        ></i>
                         <span
                           v-if="!isTemplateEnabled(template)"
                           class="template-dropdown-disabled-reason"
@@ -600,6 +605,9 @@ const hasTemplateText = computed(() => {
   );
 });
 
+// Computed property to get templates with text from JSON
+const templatesWithText = ref(new Set());
+
 // Generate Imagery button should only be enabled if both are true
 const canGenerateImagery = computed(
   () =>
@@ -607,6 +615,11 @@ const canGenerateImagery = computed(
     hasTemplateText.value &&
     !isGeneratingImagery.value
 );
+
+// Helper function to check if a specific template has text
+const hasTextForTemplate = (templateId) => {
+  return templatesWithText.value.has(templateId);
+};
 
 // Helper: is a tab disabled?
 const isTabDisabled = (tab) => {
@@ -719,6 +732,28 @@ const fetchContent = async () => {
       .maybeSingle(); // Use maybeSingle instead of single to avoid PGRST116 error
 
     if (!postTextError && postTextData) {
+      // Update templatesWithText set based on post_text_json
+      if (postTextData.post_text_json) {
+        templatesWithText.value = new Set(Object.keys(postTextData.post_text_json));
+        console.log("Templates with text:", Array.from(templatesWithText.value));
+      }
+
+      // Try to get text from JSON first (if template_id exists)
+      let textForCurrentTemplate = {};
+      
+      if (data.template_id && postTextData.post_text_json && 
+          postTextData.post_text_json[data.template_id]) {
+        // Use JSON data for current template
+        textForCurrentTemplate = postTextData.post_text_json[data.template_id];
+        console.log("Loaded text from post_text_json for template:", data.template_id);
+      } else {
+        // Fall back to old column structure for backward compatibility
+        // eslint-disable-next-line no-unused-vars
+        const { post_text_json, id, source_content_id, user_id, institution_id, created_at, updated_at, ...oldColumns } = postTextData;
+        textForCurrentTemplate = oldColumns;
+        console.log("Loaded text from old columns (backward compatibility)");
+      }
+
       post_text.value = {
         p1a: "",
         p1b: "",
@@ -732,7 +767,7 @@ const fetchContent = async () => {
         p5b: "",
         p6a: "",
         p6b: "",
-        ...postTextData,
+        ...textForCurrentTemplate,
       };
     } else {
       // Initialize with empty values if no post text exists
@@ -1013,6 +1048,69 @@ const selectTemplate = async (templateId) => {
       template_id: templateId,
       updated_at: new Date().toISOString(),
     };
+
+    // Load text for the newly selected template from post_text_json
+    const { data: postTextData, error: postTextError } = await supabase
+      .from("post_text")
+      .select("post_text_json")
+      .eq("source_content_id", content.value.id)
+      .maybeSingle();
+
+    if (!postTextError && postTextData?.post_text_json) {
+      // Check if we have text for this template in the JSON
+      if (postTextData.post_text_json[templateId]) {
+        // Load text for the new template
+        post_text.value = {
+          p1a: "",
+          p1b: "",
+          p2a: "",
+          p2b: "",
+          p3a: "",
+          p3b: "",
+          p4a: "",
+          p4b: "",
+          p5a: "",
+          p5b: "",
+          p6a: "",
+          p6b: "",
+          ...postTextData.post_text_json[templateId]
+        };
+        console.log("Loaded text for template:", templateId);
+      } else {
+        // Clear text fields - no text for this template yet
+        post_text.value = {
+          p1a: "",
+          p1b: "",
+          p2a: "",
+          p2b: "",
+          p3a: "",
+          p3b: "",
+          p4a: "",
+          p4b: "",
+          p5a: "",
+          p5b: "",
+          p6a: "",
+          p6b: "",
+        };
+        console.log("No text found for template:", templateId);
+      }
+    } else {
+      // Clear text fields if no post_text record exists
+      post_text.value = {
+        p1a: "",
+        p1b: "",
+        p2a: "",
+        p2b: "",
+        p3a: "",
+        p3b: "",
+        p4a: "",
+        p4b: "",
+        p5a: "",
+        p5b: "",
+        p6a: "",
+        p6b: "",
+      };
+    }
   } catch (err) {
     console.error("Error selecting template:", err);
     error.value = "Failed to select template. Please try again.";
@@ -1126,11 +1224,37 @@ const updateSequences = async (reorderedImages) => {
 
 const savePostText = async () => {
   try {
+    if (!content.value?.template_id) {
+      console.warn("No template_id available, skipping JSON update");
+      return;
+    }
+
+    // Fetch existing post_text_json to preserve other templates' text
+    const { data: existingPostText, error: fetchError } = await supabase
+      .from("post_text")
+      .select("post_text_json")
+      .eq("source_content_id", route.params.id)
+      .maybeSingle();
+
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      console.error("Error fetching existing post_text:", fetchError);
+    }
+
+    // Get existing JSON or initialize empty object
+    const existingJson = existingPostText?.post_text_json || {};
+    
+    // Add/update text for current template
+    const updatedJson = {
+      ...existingJson,
+      [content.value.template_id]: post_text.value
+    };
+
     const postTextData = {
       source_content_id: route.params.id,
       user_id: user.value.id,
       institution_id: content.value.institution_id,
       ...post_text.value,
+      post_text_json: updatedJson, // Add the JSON structure
     };
 
     const { error: upsertError } = await supabase
@@ -1233,7 +1357,28 @@ const generatePostText = async () => {
       }
     }
 
-    // Initialize with empty strings and merge with generated content
+    // Fetch existing post_text_json to preserve other templates' text
+    const { data: existingPostText, error: fetchError } = await supabase
+      .from("post_text")
+      .select("post_text_json")
+      .eq("source_content_id", content.value.id)
+      .maybeSingle();
+
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      console.error("Error fetching existing post_text:", fetchError);
+      throw new Error("Failed to fetch existing text data");
+    }
+
+    // Get existing JSON or initialize empty object
+    const existingJson = existingPostText?.post_text_json || {};
+    
+    // Add/update text for current template
+    const updatedJson = {
+      ...existingJson,
+      [content.value.template_id]: generatedContent
+    };
+
+    // Initialize with empty strings and merge with generated content (for backward compatibility)
     const postTextData = {
       source_content_id: content.value.id,
       user_id: user.value.id,
@@ -1251,11 +1396,13 @@ const generatePostText = async () => {
       p6a: "",
       p6b: "",
       ...generatedContent,
+      post_text_json: updatedJson, // Add the JSON structure
     };
 
     // Update local state immediately for better UX
-    post_text.value = { ...postTextData };
+    post_text.value = { ...generatedContent };
     console.log("Updated post_text.value:", post_text.value);
+    console.log("Saving to post_text_json:", updatedJson);
 
     // Use upsert to update existing row or create new one if it doesn't exist
     const { error: upsertError } = await supabase
@@ -1269,6 +1416,10 @@ const generatePostText = async () => {
       console.error("Error upserting template text:", upsertError);
       throw new Error("Failed to save generated text to database");
     }
+
+    // Update templatesWithText to reflect the newly generated text
+    templatesWithText.value.add(content.value.template_id);
+    console.log("Updated templates with text:", Array.from(templatesWithText.value));
   } catch (err) {
     console.error("Error generating template text:", err);
     error.value =
@@ -2903,5 +3054,13 @@ h1 {
     width: 80px;
     height: 80px;
   }
+}
+
+/* Template text indicator styles */
+.template-has-text-indicator {
+  color: #28a745;
+  font-size: 0.9rem;
+  margin-left: auto;
+  padding-left: 0.5rem;
 }
 </style>

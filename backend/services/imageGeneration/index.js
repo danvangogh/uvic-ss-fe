@@ -147,6 +147,29 @@ class ImageGenerationService {
         throw new Error("Template post type not found");
       }
 
+      // Extract text for the current template from post_text_json
+      // Falls back to old column structure for backward compatibility
+      if (content.post_text && content.template_id) {
+        const postTextJson = content.post_text.post_text_json;
+        
+        if (postTextJson && postTextJson[content.template_id]) {
+          // Use JSON data for current template
+          console.log("Using text from post_text_json for template:", content.template_id);
+          content.post_text = {
+            ...content.post_text,
+            ...postTextJson[content.template_id]
+          };
+        } else {
+          // Fall back to old column structure
+          console.log("Using text from old columns (backward compatibility)");
+        }
+      }
+
+      // Validate that we have post text
+      if (!content.post_text || Object.keys(content.post_text).length === 0) {
+        throw new Error("No post text found. Please generate template text first.");
+      }
+
       // Get the appropriate generator
       const generator = this.generators[postType];
       if (!generator) {
