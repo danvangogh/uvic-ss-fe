@@ -447,7 +447,13 @@ const handleFileUpload = async (event) => {
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
           const textContent = await page.getTextContent();
-          const pageText = textContent.items.map((item) => item.str).join(" ");
+          // Sanitize the text to prevent JSON serialization issues
+          const pageText = textContent.items
+            .map((item) => item.str)
+            .join(" ")
+            .replace(/\\/g, "\\\\") // Escape backslashes
+            // eslint-disable-next-line no-control-regex
+            .replace(/[\x00-\x1F\x7F-\x9F]/g, ""); // Remove control characters
           fullText += pageText + "\\n\\n";
         }
 
