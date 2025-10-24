@@ -977,12 +977,12 @@ ${sourceData.source_content_main_text}`;
     // Call OpenAI API
     console.log("\nCalling OpenAI API...");
     const completion = await openai.chat.completions.create({
-      model: "gpt-4-turbo-preview",
+      model: "gpt-4.1-mini",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      temperature: 0.3,
+      // temperature: 0.3,
       response_format: { type: "json_object" }, // Force JSON response
     });
 
@@ -1148,13 +1148,13 @@ You are writing on behalf of the Faculty of Social Sciences at the University of
 
     // Call OpenAI API
     const completion = await openai.chat.completions.create({
-      model: "gpt-4-turbo-preview",
+      model: "gpt-4.1-mini",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "system", content: rulesSystemPrompt },
         { role: "user", content: userPrompt },
       ],
-      temperature: 0.3,
+      // temperature: 0.3,
       response_format: { type: "json_object" },
     });
 
