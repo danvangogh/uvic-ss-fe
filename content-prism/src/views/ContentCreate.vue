@@ -447,22 +447,41 @@ const handleFileUpload = async (event) => {
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
           const textContent = await page.getTextContent();
-          // Sanitize the text to prevent JSON serialization issues
+          // Extract text and clean it properly
           const pageText = textContent.items
             .map((item) => item.str)
             .join(" ")
-            .replace(/\\/g, "\\\\") // Escape backslashes
+            // Remove control characters but preserve spaces and newlines
             // eslint-disable-next-line no-control-regex
-            .replace(/[\x00-\x1F\x7F-\x9F]/g, ""); // Remove control characters
-          fullText += pageText + "\\n\\n";
+            .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, "")
+            // Normalize whitespace - replace multiple spaces with single space
+            .replace(/\s+/g, " ")
+            .trim();
+          
+          if (pageText) {
+            fullText += pageText + "\n\n";
+          }
         }
 
-        pdfText.value = fullText.trim();
+        // Additional text cleaning to handle excessive newlines and duplicates
+        let cleanedText = fullText
+          .trim()
+          // Replace multiple consecutive newlines with double newlines
+          .replace(/\n{3,}/g, "\n\n")
+          // Remove duplicate sentences/phrases (common in PDFs with headers/footers)
+          .replace(/(.{50,}?)\1+/g, "$1")
+          // Clean up any remaining excessive whitespace
+          .replace(/\s{3,}/g, " ")
+          // Final trim
+          .trim();
+
+        pdfText.value = cleanedText;
         pdfUploadSuccess.value = true;
         console.log(
           "PDF parsed successfully. Text length:",
           pdfText.value.length
         );
+        console.log("First 200 characters:", pdfText.value.substring(0, 200));
       } catch (err) {
         console.error("Error parsing PDF:", err);
         error.value = "Failed to parse PDF. Please ensure it's a valid file.";
