@@ -396,6 +396,7 @@ const articleUrl = ref("");
 const termsAccepted = ref(false);
 const fileInput = ref(null);
 const pdfText = ref(""); // To store extracted PDF text
+const pdfTitle = ref(""); // To store extracted PDF title
 const pdfUploadSuccess = ref(false);
 const loading = ref(false);
 const error = ref(null);
@@ -415,6 +416,7 @@ watch(articleUrl, (newValue) => {
       fileInput.value.value = null;
     }
     pdfText.value = "";
+    pdfTitle.value = "";
     pdfUploadSuccess.value = false;
   }
 });
@@ -432,6 +434,7 @@ const handleFileUpload = async (event) => {
   // Clear URL and previous PDF text
   articleUrl.value = "";
   pdfText.value = "";
+  pdfTitle.value = "";
   error.value = null;
   loading.value = true;
   pdfUploadSuccess.value = false;
@@ -476,11 +479,16 @@ const handleFileUpload = async (event) => {
           .trim();
 
         pdfText.value = cleanedText;
+        
+        // Extract title from the cleaned text
+        pdfTitle.value = extractTitleFromText(cleanedText);
+        
         pdfUploadSuccess.value = true;
         console.log(
           "PDF parsed successfully. Text length:",
           pdfText.value.length
         );
+        console.log("Extracted title:", pdfTitle.value);
         console.log("First 200 characters:", pdfText.value.substring(0, 200));
       } catch (err) {
         console.error("Error parsing PDF:", err);
@@ -506,6 +514,48 @@ const getUserProfile = async () => {
 
   if (error) throw error;
   return profile;
+};
+
+const extractTitleFromText = (text) => {
+  if (!text) return "";
+  
+  // Split text into lines and clean them
+  const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+  
+  // Look for common title patterns
+  // 1. First substantial line (longer than 10 characters, not all caps)
+  for (let i = 0; i < Math.min(5, lines.length); i++) {
+    const line = lines[i];
+    if (line.length > 10 && line.length < 200 && !line.match(/^[A-Z\s\d\-.,:;]+$/)) {
+      // Check if it looks like a title (not a page number, date, or common header)
+      if (!line.match(/^(page|p\.|date|copyright|©|\d{4}|\d{1,2}\/\d{1,2}\/\d{4})/i)) {
+        return line;
+      }
+    }
+  }
+  
+  // 2. Look for lines that contain common title keywords
+  const titleKeywords = ['study', 'report', 'analysis', 'research', 'findings', 'results', 'summary'];
+  for (let i = 0; i < Math.min(10, lines.length); i++) {
+    const line = lines[i];
+    if (line.length > 15 && line.length < 200) {
+      const lowerLine = line.toLowerCase();
+      if (titleKeywords.some(keyword => lowerLine.includes(keyword))) {
+        return line;
+      }
+    }
+  }
+  
+  // 3. Fallback: return the first substantial line
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.length > 15 && line.length < 200) {
+      return line;
+    }
+  }
+  
+  // 4. Last resort: return first 100 characters
+  return text.substring(0, 100).trim();
 };
 
 const createSourceContent = async (url, institutionId) => {
@@ -558,6 +608,7 @@ const handleSubmit = async () => {
           },
           body: JSON.stringify({
             text: pdfText.value,
+            title: pdfTitle.value || fileInput.value.files[0].name, // Use extracted title or fallback to filename
             fileName: fileInput.value.files[0].name,
             userId: user.value.id,
             institutionId: profile.institution_id,
@@ -578,6 +629,7 @@ const handleSubmit = async () => {
 
       // Clear form
       pdfText.value = "";
+      pdfTitle.value = "";
       if (fileInput.value) {
         fileInput.value.value = null;
       }

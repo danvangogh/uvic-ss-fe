@@ -10,12 +10,12 @@ const supabase = createClient(
 
 router.post("/create-from-text", async (req, res) => {
   try {
-    const { text, fileName, userId, institutionId } = req.body;
+    const { text, title, fileName, userId, institutionId } = req.body;
 
-    if (!text || !fileName || !userId || !institutionId) {
+    if (!text || !userId || !institutionId) {
       return res.status(400).json({
         success: false,
-        error: "Missing required fields: text, fileName, userId, institutionId are required.",
+        error: "Missing required fields: text, userId, institutionId are required.",
       });
     }
 
@@ -24,7 +24,7 @@ router.post("/create-from-text", async (req, res) => {
       .insert([
         {
           source_content_type: "pdf",
-          source_content_title: fileName,
+          source_content_title: title || fileName || "Untitled PDF",
           source_content_main_text: text,
           user_id: userId,
           institution_id: institutionId,
