@@ -29,6 +29,72 @@ const videoGen = require("./videoGen");
 // Helper function to delay execution
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const normalizeResearcherInfo = (value) => {
+  if (!value) return "";
+  if (typeof value === "string") {
+    return value.trim();
+  }
+  if (typeof value === "object") {
+    if (value === null) return "";
+    if (typeof value.text === "string") {
+      return value.text.trim();
+    }
+  }
+  return "";
+};
+
+const parsePostTextJson = (value) => {
+  if (!value) return null;
+  if (typeof value === "object") return value;
+  try {
+    return JSON.parse(value);
+  } catch (error) {
+    console.warn(
+      "ImageGenerationService: Unable to parse post_text_json value",
+      error
+    );
+    return null;
+  }
+};
+
+const hydratePostTextForTemplate = (content) => {
+  if (!content?.post_text) {
+    content.researcher_info = "";
+    return;
+  }
+
+  const templateId = content.template_id;
+  const postTextRecord = content.post_text;
+  const postTextJson = parsePostTextJson(postTextRecord.post_text_json);
+
+  let mergedPostText = { ...postTextRecord };
+  let researcherInfo = normalizeResearcherInfo(postTextRecord.researcher_info);
+
+  if (postTextJson) {
+    if (templateId && postTextJson[templateId]) {
+      mergedPostText = {
+        ...mergedPostText,
+        ...postTextJson[templateId],
+      };
+    }
+
+    mergedPostText.post_text_json = postTextJson;
+
+    if (!researcherInfo) {
+      researcherInfo = normalizeResearcherInfo(postTextJson.researcher_info);
+    }
+  }
+
+  if (researcherInfo) {
+    mergedPostText.researcher_info = researcherInfo;
+  } else {
+    delete mergedPostText.researcher_info;
+  }
+
+  content.post_text = mergedPostText;
+  content.researcher_info = researcherInfo;
+};
+
 class ImageGenerationService {
   constructor() {
     this.generators = {
@@ -67,6 +133,8 @@ class ImageGenerationService {
 
         if (contentError) throw contentError;
         if (!content) throw new Error("Content not found");
+
+        hydratePostTextForTemplate(content);
 
         const status = await generator.checkStatus(uid, content);
         console.log(
@@ -140,29 +208,13 @@ class ImageGenerationService {
       if (contentError) throw contentError;
       if (!content) throw new Error("Content not found");
 
+      hydratePostTextForTemplate(content);
+
       const postType =
         content.template?.post_type?.content_template_post_type_name;
 
       if (!postType) {
         throw new Error("Template post type not found");
-      }
-
-      // Extract text for the current template from post_text_json
-      // Falls back to old column structure for backward compatibility
-      if (content.post_text && content.template_id) {
-        const postTextJson = content.post_text.post_text_json;
-        
-        if (postTextJson && postTextJson[content.template_id]) {
-          // Use JSON data for current template
-          console.log("Using text from post_text_json for template:", content.template_id);
-          content.post_text = {
-            ...content.post_text,
-            ...postTextJson[content.template_id]
-          };
-        } else {
-          // Fall back to old column structure
-          console.log("Using text from old columns (backward compatibility)");
-        }
       }
 
       // Validate that we have post text

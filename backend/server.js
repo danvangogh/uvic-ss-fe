@@ -18,6 +18,7 @@ const cheerio = require("cheerio");
 const { createClient } = require("@supabase/supabase-js");
 const OpenAI = require("openai");
 const history = require("connect-history-api-fallback");
+const { randomUUID } = require("crypto");
 
 // Load environment variables from the backend .env file
 dotenv.config({ path: path.resolve(__dirname, ".env") });
@@ -81,6 +82,75 @@ const openai = new OpenAI({
 console.log("Supabase client initialized with URL:", process.env.SUPABASE_URL);
 console.log("S3 client initialized for DigitalOcean Spaces");
 console.log("OpenAI client initialized");
+
+const generateVoiceId = () =>
+  typeof randomUUID === "function"
+    ? randomUUID()
+    : `voice_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+
+const parseBrandVoiceEntries = (rawValue) => {
+  if (!rawValue) return [];
+
+  if (Array.isArray(rawValue)) {
+    return rawValue;
+  }
+
+  if (typeof rawValue === "object") {
+    return Array.isArray(rawValue.entries) ? rawValue.entries : [];
+  }
+
+  if (typeof rawValue === "string") {
+    try {
+      const parsed = JSON.parse(rawValue);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+      if (parsed && Array.isArray(parsed.entries)) {
+        return parsed.entries;
+      }
+    } catch (error) {
+      return [
+        {
+          id: generateVoiceId(),
+          name: "Primary Brand Voice",
+          description: rawValue,
+        },
+      ];
+    }
+
+    // Fallback to treating the string as a single description
+    return [
+      {
+        id: generateVoiceId(),
+        name: "Primary Brand Voice",
+        description: rawValue,
+      },
+    ];
+  }
+
+  return [];
+};
+
+const normalizeBrandVoiceEntries = (entries) =>
+  entries
+    .filter((entry) => entry && (entry.name || entry.description))
+    .map((entry, index) => ({
+      id: entry.id || generateVoiceId(),
+      name:
+        typeof entry.name === "string" && entry.name.trim()
+          ? entry.name.trim()
+          : `Brand Voice ${index + 1}`,
+      description:
+        typeof entry.description === "string"
+          ? entry.description.trim()
+          : "",
+    }))
+    .filter((entry) => entry.description);
+
+const getBrandVoiceById = (entries, voiceId) => {
+  if (!voiceId) return null;
+  return entries.find((entry) => entry.id === voiceId) || null;
+};
 
 // Import routes after environment variables are loaded
 const imageGenerationRoutes = require("./routes/imageGeneration");
@@ -893,10 +963,11 @@ app.post("/api/generate-text", async (req, res) => {
     contentId: req.body.contentId,
     templateId: req.body.templateId,
     institutionId: req.body.institutionId,
+    brandVoiceId: req.body.brandVoiceId,
   });
 
   try {
-    const { contentId, templateId, institutionId } = req.body;
+    const { contentId, templateId, institutionId, brandVoiceId } = req.body;
 
     // Fetch brand voice description
     console.log("\n[1/3] Fetching brand voice description...");
@@ -911,6 +982,11 @@ app.post("/api/generate-text", async (req, res) => {
       throw brandError;
     }
     console.log("✓ Brand voice fetched successfully");
+
+    const rawBrandVoices = brandData?.brand_voice_description;
+    const brandVoiceEntries = normalizeBrandVoiceEntries(
+      parseBrandVoiceEntries(rawBrandVoices)
+    );
 
     // Fetch template details
     console.log("\n[2/3] Fetching template details...");
@@ -931,7 +1007,7 @@ app.post("/api/generate-text", async (req, res) => {
     console.log("\n[3/3] Fetching source content...");
     const { data: sourceData, error: sourceError } = await supabase
       .from("source_content")
-      .select("source_content_main_text")
+      .select("source_content_main_text, selected_brand_voice_id")
       .eq("id", contentId)
       .single();
 
@@ -946,12 +1022,35 @@ app.post("/api/generate-text", async (req, res) => {
       "characters"
     );
 
+    const effectiveBrandVoiceId =
+      brandVoiceId || sourceData.selected_brand_voice_id || null;
+
+    let selectedBrandVoice = null;
+
+    if (brandVoiceEntries.length > 0) {
+      selectedBrandVoice =
+        getBrandVoiceById(brandVoiceEntries, effectiveBrandVoiceId) ||
+        brandVoiceEntries[0];
+
+      if (!selectedBrandVoice) {
+        console.warn(
+          "No matching brand voice found; defaulting to first entry."
+        );
+      }
+    }
+
+    const brandVoiceDescription = selectedBrandVoice
+      ? `${selectedBrandVoice.name}\n${selectedBrandVoice.description}`
+      : typeof rawBrandVoices === "string"
+      ? rawBrandVoices
+      : "";
+
     // Construct the prompt
     console.log("\nConstructing OpenAI prompt...");
     const systemPrompt = `You are a professional social media content writer. Your task is to generate engaging social media post text based on the provided source content, template requirements, and brand voice.
 
 Brand Voice Description:
-${brandData.brand_voice_description}
+${brandVoiceDescription}
 
 Template Description:
 ${templateData.template_content_description}

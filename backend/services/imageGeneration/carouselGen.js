@@ -214,61 +214,77 @@ class CarouselGenerator {
       }
       console.log("Using template set ID:", template.template_set_id);
 
+      const baseModifications = [
+        {
+          name: "p1_a",
+          text: post_text.p1a,
+        },
+        {
+          name: "p1_b",
+          text: post_text.p1b,
+        },
+        {
+          name: "p2_a",
+          text: post_text.p2a,
+        },
+        {
+          name: "p2_b",
+          text: post_text.p2b,
+        },
+        {
+          name: "p3_a",
+          text: post_text.p3a,
+        },
+        {
+          name: "p3_b",
+          text: post_text.p3b,
+        },
+        {
+          name: "p4_a",
+          text: post_text.p4a,
+        },
+        {
+          name: "p4_b",
+          text: post_text.p4b,
+        },
+        {
+          name: "p5_a",
+          text: post_text.p5a,
+        },
+        {
+          name: "p5_b",
+          text: post_text.p5b,
+        },
+        {
+          name: "p6_a",
+          text: post_text.p6a,
+        },
+        {
+          name: "p6_b",
+          text: post_text.p6b,
+        },
+      ];
+
+      const researcherInfo =
+        typeof content.researcher_info === "string"
+          ? content.researcher_info.trim()
+          : "";
+
+      if (researcherInfo) {
+        baseModifications.push({
+          name: "researcher_info",
+          text: researcherInfo,
+        });
+      }
+
+      if (images && images.length > 0) {
+        baseModifications.push(...images);
+      }
+
       // Structure the payload according to Bannerbear collection requirements
       const payload = {
         template_set: template.template_set_id,
-        modifications: [
-          {
-            name: "p1_a",
-            text: post_text.p1a,
-          },
-          {
-            name: "p1_b",
-            text: post_text.p1b,
-          },
-          {
-            name: "p2_a",
-            text: post_text.p2a,
-          },
-          {
-            name: "p2_b",
-            text: post_text.p2b,
-          },
-          {
-            name: "p3_a",
-            text: post_text.p3a,
-          },
-          {
-            name: "p3_b",
-            text: post_text.p3b,
-          },
-          {
-            name: "p4_a",
-            text: post_text.p4a,
-          },
-          {
-            name: "p4_b",
-            text: post_text.p4b,
-          },
-          {
-            name: "p5_a",
-            text: post_text.p5a,
-          },
-          {
-            name: "p5_b",
-            text: post_text.p5b,
-          },
-          {
-            name: "p6_a",
-            text: post_text.p6a,
-          },
-          {
-            name: "p6_b",
-            text: post_text.p6b,
-          },
-          // Spread the images into the modifications array if they exist
-          ...(images && images.length > 0 ? images : []),
-        ],
+        modifications: baseModifications,
         metadata: {
           sourceContentId: content.id,
         },

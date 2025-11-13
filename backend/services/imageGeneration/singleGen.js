@@ -22,21 +22,37 @@ class SingleImageGenerator {
         throw new Error("Template ID (P1) not found in content template");
       }
 
+      const modifications = [
+        {
+          name: "p1_a",
+          text: post_text.p1a,
+        },
+        {
+          name: "p1_b",
+          text: post_text.p1b,
+        },
+      ];
+
+      const researcherInfo =
+        typeof content.researcher_info === "string"
+          ? content.researcher_info.trim()
+          : "";
+
+      if (researcherInfo) {
+        modifications.push({
+          name: "researcher_info",
+          text: researcherInfo,
+        });
+      }
+
+      if (images && images.length > 0) {
+        modifications.push(...images);
+      }
+
       // Structure the payload according to Bannerbear image requirements
       const payload = {
         template: template.template_id_p1, // Get template ID from the template
-        modifications: [
-          {
-            name: "p1_a",
-            text: post_text.p1a,
-          },
-          {
-            name: "p1_b",
-            text: post_text.p1b,
-          },
-          // Spread the images into the modifications array if they exist
-          ...(images && images.length > 0 ? images : []),
-        ],
+        modifications,
         metadata: source_content_title, // Store the content title as metadata
         webhook_url: process.env.BANNERBEAR_WEBHOOK_URL, // Optional: for async processing
       };

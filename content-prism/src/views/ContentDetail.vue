@@ -406,6 +406,35 @@
                 <template v-else> Generate Template Text </template>
               </button>
             </div>
+            <div class="brand-voice-selector">
+              <label for="brandVoiceSelect">Brand Voice</label>
+              <div
+                v-if="brandVoices.length && !isLoadingBrandVoices"
+                class="brand-voice-select-wrapper"
+              >
+                <select
+                  id="brandVoiceSelect"
+                  v-model="selectedBrandVoiceId"
+                  class="brand-voice-select"
+                  :disabled="isGeneratingText"
+                >
+                  <option
+                    v-for="voice in brandVoices"
+                    :key="voice.id"
+                    :value="voice.id"
+                  >
+                    {{ voice.name }}
+                  </option>
+                </select>
+              </div>
+              <div v-else-if="isLoadingBrandVoices" class="brand-voice-loading">
+                <i class="fas fa-spinner fa-spin"></i>
+                Loading brand voices...
+              </div>
+              <div v-else class="brand-voice-empty">
+                No brand voices configured yet. Add them in Brand Assets.
+              </div>
+            </div>
             <div v-if="isGeneratingText" class="generating-text">
               <div class="loading-spinner"></div>
               <p>Generating template text using AI...</p>
@@ -422,6 +451,15 @@
                     v-model="post_text[field]"
                     class="text-preview"
                     :placeholder="'Enter text for ' + field"
+                    @input="savePostText"
+                  ></textarea>
+                </div>
+                <div class="post-text-item">
+                  <textarea
+                    id="researcherInfo"
+                    v-model="researcherInfo"
+                    class="text-preview"
+                    placeholder="Research by..."
                     @input="savePostText"
                   ></textarea>
                 </div>
@@ -557,6 +595,11 @@ const originalSourceText = ref("");
 const showEditModal = ref(false);
 const uploadSuccess = ref(false);
 const post_text = ref(null);
+const researcherInfo = ref("");
+const brandVoices = ref([]);
+const selectedBrandVoiceId = ref(null);
+const isLoadingBrandVoices = ref(false);
+const isInitializingBrandVoiceSelection = ref(true);
 const isGeneratingText = ref(false);
 const isGeneratingImagery = ref(false);
 const generatedImages = ref([]);
@@ -585,6 +628,84 @@ const captions = ref({
 const editingTitle = ref(false);
 const editedTitle = ref("");
 const savingTitle = ref(false);
+
+const getResearcherInfoValue = (json) => {
+  if (!json || typeof json !== "object") return "";
+  const info = json.researcher_info;
+  if (typeof info === "string") return info;
+  if (info && typeof info.text === "string") return info.text;
+  return "";
+};
+
+const applyResearcherInfoEntry = (json) => {
+  const normalizedInfo = (researcherInfo.value || "").trim();
+  if (normalizedInfo) {
+    json.researcher_info = normalizedInfo;
+  } else {
+    delete json.researcher_info;
+  }
+};
+
+const generateBrandVoiceId = () =>
+  typeof crypto !== "undefined" && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `voice_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+
+const parseBrandVoiceEntries = (rawValue) => {
+  if (!rawValue) return [];
+
+  if (Array.isArray(rawValue)) {
+    return rawValue;
+  }
+
+  if (typeof rawValue === "object" && rawValue !== null) {
+    if (Array.isArray(rawValue.entries)) {
+      return rawValue.entries;
+    }
+    return [];
+  }
+
+  if (typeof rawValue === "string") {
+    try {
+      const parsed = JSON.parse(rawValue);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+      if (parsed && Array.isArray(parsed.entries)) {
+        return parsed.entries;
+      }
+    } catch (error) {
+      return [
+        {
+          id: generateBrandVoiceId(),
+          name: "Primary Brand Voice",
+          description: rawValue,
+        },
+      ];
+    }
+
+    return [
+      {
+        id: generateBrandVoiceId(),
+        name: "Primary Brand Voice",
+        description: rawValue,
+      },
+    ];
+  }
+
+  return [];
+};
+
+const normalizeBrandVoiceEntries = (entries = []) =>
+  entries.map((entry, index) => ({
+    id: entry.id || generateBrandVoiceId(),
+    name:
+      typeof entry.name === "string" && entry.name.trim()
+        ? entry.name.trim()
+        : `Brand Voice ${index + 1}`,
+    description:
+      typeof entry.description === "string" ? entry.description.trim() : "",
+  }));
 
 const tabLabels = [
   "Source Text",
@@ -632,6 +753,55 @@ const isTabDisabled = (tab) => {
 const handleTabClick = (tab) => {
   if (!isTabDisabled(tab)) {
     selectedTab.value = tab;
+  }
+};
+
+const fetchBrandVoices = async (institutionId) => {
+  if (!institutionId) {
+    brandVoices.value = [];
+    selectedBrandVoiceId.value = null;
+    isInitializingBrandVoiceSelection.value = false;
+    return;
+  }
+
+  try {
+    isLoadingBrandVoices.value = true;
+    const { data, error } = await supabase
+      .from("brand_assets")
+      .select("brand_voice_description")
+      .eq("institution_id", institutionId)
+      .maybeSingle();
+
+    if (error && error.code !== "PGRST116") {
+      throw error;
+    }
+
+    const entries = normalizeBrandVoiceEntries(
+      parseBrandVoiceEntries(data?.brand_voice_description)
+    );
+
+    brandVoices.value = entries;
+
+    const existingSelection =
+      content.value?.selected_brand_voice_id || selectedBrandVoiceId.value;
+
+    if (
+      existingSelection &&
+      entries.some((voice) => voice.id === existingSelection)
+    ) {
+      selectedBrandVoiceId.value = existingSelection;
+    } else if (entries.length) {
+      selectedBrandVoiceId.value = entries[0].id;
+    } else {
+      selectedBrandVoiceId.value = null;
+    }
+  } catch (err) {
+    console.error("Error fetching brand voices:", err);
+    brandVoices.value = [];
+    selectedBrandVoiceId.value = null;
+  } finally {
+    isLoadingBrandVoices.value = false;
+    isInitializingBrandVoiceSelection.value = false;
   }
 };
 
@@ -723,6 +893,9 @@ const fetchContent = async () => {
     if (contentError) throw contentError;
     content.value = data;
     originalSourceText.value = data.source_content_main_text;
+    selectedBrandVoiceId.value = data.selected_brand_voice_id || null;
+    isInitializingBrandVoiceSelection.value = true;
+    await fetchBrandVoices(data.institution_id);
 
     // Fetch post text data
     const { data: postTextData, error: postTextError } = await supabase
@@ -734,8 +907,14 @@ const fetchContent = async () => {
     if (!postTextError && postTextData) {
       // Update templatesWithText set based on post_text_json
       if (postTextData.post_text_json) {
-        templatesWithText.value = new Set(Object.keys(postTextData.post_text_json));
+        const templateIds = Object.keys(postTextData.post_text_json).filter(
+          (key) => key !== "researcher_info"
+        );
+        templatesWithText.value = new Set(templateIds);
+        researcherInfo.value = getResearcherInfoValue(postTextData.post_text_json);
         console.log("Templates with text:", Array.from(templatesWithText.value));
+      } else {
+        researcherInfo.value = "";
       }
 
       // Try to get text from JSON first (if template_id exists)
@@ -785,6 +964,7 @@ const fetchContent = async () => {
         p6a: "",
         p6b: "",
       };
+      researcherInfo.value = "";
     }
 
     // Fetch generated content after content is loaded
@@ -1057,6 +1237,7 @@ const selectTemplate = async (templateId) => {
       .maybeSingle();
 
     if (!postTextError && postTextData?.post_text_json) {
+      researcherInfo.value = getResearcherInfoValue(postTextData.post_text_json);
       // Check if we have text for this template in the JSON
       if (postTextData.post_text_json[templateId]) {
         // Load text for the new template
@@ -1095,6 +1276,7 @@ const selectTemplate = async (templateId) => {
         console.log("No text found for template:", templateId);
       }
     } else {
+      researcherInfo.value = "";
       // Clear text fields if no post_text record exists
       post_text.value = {
         p1a: "",
@@ -1158,6 +1340,28 @@ watch(
   },
   { immediate: true }
 );
+
+watch(selectedBrandVoiceId, async (newId, oldId) => {
+  if (!content.value?.id) return;
+  if (isInitializingBrandVoiceSelection.value) return;
+  if (newId === oldId) return;
+
+  try {
+    await supabase
+      .from("source_content")
+      .update({
+        selected_brand_voice_id: newId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", content.value.id);
+
+    content.value.selected_brand_voice_id = newId;
+  } catch (err) {
+    console.error("Error saving brand voice selection:", err);
+    error.value =
+      err.message || "Failed to save brand voice selection. Please try again.";
+  }
+});
 
 const toggleDropdown = () => {
   dropdownOpen.value = !dropdownOpen.value;
@@ -1248,6 +1452,8 @@ const savePostText = async () => {
       ...existingJson,
       [content.value.template_id]: post_text.value
     };
+    applyResearcherInfoEntry(updatedJson);
+    templatesWithText.value.add(content.value.template_id);
 
     const postTextData = {
       source_content_id: route.params.id,
@@ -1293,6 +1499,7 @@ const generatePostText = async () => {
           contentId: content.value.id,
           templateId: content.value.template_id,
           institutionId: content.value.institution_id,
+          brandVoiceId: selectedBrandVoiceId.value || null,
         }),
       }
     );
@@ -1377,6 +1584,7 @@ const generatePostText = async () => {
       ...existingJson,
       [content.value.template_id]: generatedContent
     };
+    applyResearcherInfoEntry(updatedJson);
 
     // Initialize with empty strings and merge with generated content (for backward compatibility)
     const postTextData = {
@@ -2483,6 +2691,56 @@ h1 {
   display: grid;
   grid-template-columns: 1fr;
   gap: 0.75rem;
+}
+
+.brand-voice-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.brand-voice-selector label {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #374151;
+}
+
+.brand-voice-select-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.brand-voice-select {
+  width: 100%;
+  max-width: 320px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-family: inherit;
+  background: #fff;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.brand-voice-select:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.brand-voice-empty,
+.brand-voice-loading {
+  font-size: 0.9rem;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.brand-voice-empty {
+  font-style: italic;
 }
 
 .post-text-item {
