@@ -435,6 +435,33 @@
                 No brand voices configured yet. Add them in Brand Assets.
               </div>
             </div>
+            <div class="template-notes-section">
+              <div class="template-notes-header">
+                <label for="templateNotes" class="template-notes-label">
+                  Notes/Feedback
+                </label>
+                <span v-if="isSavingTemplateNotes" class="template-notes-status">
+                  <i class="fas fa-spinner fa-spin"></i>
+                  Saving...
+                </span>
+                <span
+                  v-else-if="templateNotesDirty"
+                  class="template-notes-status unsaved"
+                >
+                  Unsaved changes
+                </span>
+              </div>
+              <textarea
+                id="templateNotes"
+                class="template-notes-textarea"
+                placeholder="Add any instructions for the AI (e.g., highlight a specific point, avoid certain topics, adjust tone, etc.)"
+                v-model="templateNotes"
+                @input="handleTemplateNotesInput"
+                @blur="saveTemplateNotes"
+                :disabled="isGeneratingText"
+              ></textarea>
+            </div>
+            <h3 class="template-text-subheading">Text</h3>
             <div v-if="isGeneratingText" class="generating-text">
               <div class="loading-spinner"></div>
               <p>Generating template text using AI...</p>
@@ -600,6 +627,9 @@ const brandVoices = ref([]);
 const selectedBrandVoiceId = ref(null);
 const isLoadingBrandVoices = ref(false);
 const isInitializingBrandVoiceSelection = ref(true);
+const templateNotes = ref("");
+const templateNotesDirty = ref(false);
+const isSavingTemplateNotes = ref(false);
 const isGeneratingText = ref(false);
 const isGeneratingImagery = ref(false);
 const generatedImages = ref([]);
@@ -706,6 +736,43 @@ const normalizeBrandVoiceEntries = (entries = []) =>
     description:
       typeof entry.description === "string" ? entry.description.trim() : "",
   }));
+
+const handleTemplateNotesInput = () => {
+  templateNotesDirty.value = true;
+};
+
+const saveTemplateNotes = async () => {
+  if (!content.value?.id) return;
+  if (!templateNotesDirty.value && !isSavingTemplateNotes.value) return;
+  if (isSavingTemplateNotes.value) return;
+
+  try {
+    isSavingTemplateNotes.value = true;
+    const updatedNotes = templateNotes.value;
+
+    const { error: updateError } = await supabase
+      .from("source_content")
+      .update({
+        template_notes: updatedNotes,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", content.value.id);
+
+    if (updateError) throw updateError;
+
+    content.value = {
+      ...content.value,
+      template_notes: updatedNotes,
+    };
+    templateNotesDirty.value = false;
+  } catch (err) {
+    console.error("Error saving template notes:", err);
+    error.value =
+      err.message || "Failed to save notes/feedback. Please try again.";
+  } finally {
+    isSavingTemplateNotes.value = false;
+  }
+};
 
 const tabLabels = [
   "Source Text",
@@ -894,6 +961,8 @@ const fetchContent = async () => {
     content.value = data;
     originalSourceText.value = data.source_content_main_text;
     selectedBrandVoiceId.value = data.selected_brand_voice_id || null;
+    templateNotes.value = data.template_notes || "";
+    templateNotesDirty.value = false;
     isInitializingBrandVoiceSelection.value = true;
     await fetchBrandVoices(data.institution_id);
 
@@ -1484,6 +1553,10 @@ const generatePostText = async () => {
       return;
     }
 
+    if (templateNotesDirty.value) {
+      await saveTemplateNotes();
+    }
+
     isGeneratingText.value = true;
     error.value = null; // Clear any previous errors
 
@@ -1500,6 +1573,7 @@ const generatePostText = async () => {
           templateId: content.value.template_id,
           institutionId: content.value.institution_id,
           brandVoiceId: selectedBrandVoiceId.value || null,
+          notes: templateNotes.value,
         }),
       }
     );
@@ -2741,6 +2815,64 @@ h1 {
 
 .brand-voice-empty {
   font-style: italic;
+}
+
+.template-notes-section {
+  margin-bottom: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.template-notes-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.template-notes-label {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #374151;
+}
+
+.template-notes-status {
+  font-size: 0.85rem;
+  color: #6b7280;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.template-notes-status.unsaved {
+  color: #d97706;
+}
+
+.template-notes-textarea {
+  width: 100%;
+  min-height: 110px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 0.75rem;
+  font-family: inherit;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  resize: vertical;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.template-notes-textarea:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.template-text-subheading {
+  margin: 1rem 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1f2937;
 }
 
 .post-text-item {

@@ -967,7 +967,8 @@ app.post("/api/generate-text", async (req, res) => {
   });
 
   try {
-    const { contentId, templateId, institutionId, brandVoiceId } = req.body;
+    const { contentId, templateId, institutionId, brandVoiceId, notes } =
+      req.body;
 
     // Fetch brand voice description
     console.log("\n[1/3] Fetching brand voice description...");
@@ -1007,7 +1008,9 @@ app.post("/api/generate-text", async (req, res) => {
     console.log("\n[3/3] Fetching source content...");
     const { data: sourceData, error: sourceError } = await supabase
       .from("source_content")
-      .select("source_content_main_text, selected_brand_voice_id")
+      .select(
+        "source_content_main_text, selected_brand_voice_id, template_notes"
+      )
       .eq("id", contentId)
       .single();
 
@@ -1045,9 +1048,19 @@ app.post("/api/generate-text", async (req, res) => {
       ? rawBrandVoices
       : "";
 
+    const creatorNotes = (notes ?? sourceData.template_notes ?? "")
+      .toString()
+      .trim();
+    const creatorNotesSection = creatorNotes
+      ? `\nCreator Notes:\n${creatorNotes}`
+      : "";
+
     // Construct the prompt
     console.log("\nConstructing OpenAI prompt...");
-    const systemPrompt = `You are a professional social media content writer. Your task is to generate engaging social media post text based on the provided source content, template requirements, and brand voice.
+    const systemPrompt = `You are a professional social media content writer. Your task is to generate engaging social media post text based on the provided source content, template requirements, and brand voice. You may also be given creator notes, which are instructions from the creator of the content, which you must prioritize.
+
+Creator Notes:
+${creatorNotesSection}
 
 Brand Voice Description:
 ${brandVoiceDescription}
