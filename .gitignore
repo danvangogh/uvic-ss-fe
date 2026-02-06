@@ -32,3 +32,6 @@ build/
 
 # Ignore build script
 build.sh
+
+# Claude context file
+claude.md
