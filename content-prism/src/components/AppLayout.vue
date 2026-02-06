@@ -54,6 +54,20 @@
             >
               Assets
             </router-link>
+            <router-link
+              to="/brand/voice"
+              class="nav-item"
+              :class="{ active: $route.name === 'brandVoice' }"
+            >
+              Voice
+            </router-link>
+            <router-link
+              to="/brand/positioning"
+              class="nav-item"
+              :class="{ active: $route.name === 'brandPositioning' }"
+            >
+              Positioning
+            </router-link>
           </div>
         </div>
 

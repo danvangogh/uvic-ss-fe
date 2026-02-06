@@ -8,6 +8,8 @@ import Onboarding from "../views/Onboarding.vue";
 import ContentCreate from "../views/ContentCreate.vue";
 import ContentDetail from "../views/ContentDetail.vue";
 import BrandAssets from "../views/BrandAssets.vue";
+import BrandVoice from "../views/BrandVoice.vue";
+import BrandPositioning from "../views/BrandPositioning.vue";
 import CheckEmail from "../views/CheckEmail.vue";
 
 const routes = [
@@ -62,6 +64,18 @@ const routes = [
     path: "/brand/assets",
     name: "brandAssets",
     component: BrandAssets,
+    meta: { requiresAuth: true, requiresProfile: true },
+  },
+  {
+    path: "/brand/voice",
+    name: "brandVoice",
+    component: BrandVoice,
+    meta: { requiresAuth: true, requiresProfile: true },
+  },
+  {
+    path: "/brand/positioning",
+    name: "brandPositioning",
+    component: BrandPositioning,
     meta: { requiresAuth: true, requiresProfile: true },
   },
   {

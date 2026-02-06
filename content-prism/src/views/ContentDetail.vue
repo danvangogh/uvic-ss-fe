@@ -435,6 +435,36 @@
                 No brand voices configured yet. Add them in Brand Assets.
               </div>
             </div>
+            <div class="positioning-selector">
+              <label for="positioningSelect">Positioning</label>
+              <div
+                v-if="positioningOptions.length && !isLoadingPositioning"
+                class="positioning-select-wrapper"
+              >
+                <select
+                  id="positioningSelect"
+                  v-model="selectedPositioningId"
+                  class="positioning-select"
+                  :disabled="isGeneratingText"
+                >
+                  <option :value="null">None (default)</option>
+                  <option
+                    v-for="option in positioningOptions"
+                    :key="option.id"
+                    :value="option.id"
+                  >
+                    {{ option.name }}
+                  </option>
+                </select>
+              </div>
+              <div v-else-if="isLoadingPositioning" class="positioning-loading">
+                <i class="fas fa-spinner fa-spin"></i>
+                Loading positioning options...
+              </div>
+              <div v-else class="positioning-empty">
+                No positioning options configured yet. Add them in Brand Positioning.
+              </div>
+            </div>
             <div class="template-notes-section">
               <div class="template-notes-header">
                 <label for="templateNotes" class="template-notes-label">
@@ -627,6 +657,10 @@ const brandVoices = ref([]);
 const selectedBrandVoiceId = ref(null);
 const isLoadingBrandVoices = ref(false);
 const isInitializingBrandVoiceSelection = ref(true);
+const positioningOptions = ref([]);
+const selectedPositioningId = ref(null);
+const isLoadingPositioning = ref(false);
+const isInitializingPositioningSelection = ref(true);
 const templateNotes = ref("");
 const templateNotesDirty = ref(false);
 const isSavingTemplateNotes = ref(false);
@@ -733,6 +767,53 @@ const normalizeBrandVoiceEntries = (entries = []) =>
       typeof entry.name === "string" && entry.name.trim()
         ? entry.name.trim()
         : `Brand Voice ${index + 1}`,
+    description:
+      typeof entry.description === "string" ? entry.description.trim() : "",
+  }));
+
+const generatePositioningId = () =>
+  typeof crypto !== "undefined" && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `positioning_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+
+const parsePositioningEntries = (rawValue) => {
+  if (!rawValue) return [];
+
+  if (Array.isArray(rawValue)) {
+    return rawValue;
+  }
+
+  if (typeof rawValue === "object" && rawValue !== null) {
+    if (Array.isArray(rawValue.entries)) {
+      return rawValue.entries;
+    }
+    return [];
+  }
+
+  if (typeof rawValue === "string") {
+    try {
+      const parsed = JSON.parse(rawValue);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+      if (parsed && Array.isArray(parsed.entries)) {
+        return parsed.entries;
+      }
+    } catch (error) {
+      return [];
+    }
+  }
+
+  return [];
+};
+
+const normalizePositioningEntries = (entries = []) =>
+  entries.map((entry, index) => ({
+    id: entry.id || generatePositioningId(),
+    name:
+      typeof entry.name === "string" && entry.name.trim()
+        ? entry.name.trim()
+        : `Positioning ${index + 1}`,
     description:
       typeof entry.description === "string" ? entry.description.trim() : "",
   }));
@@ -872,6 +953,54 @@ const fetchBrandVoices = async (institutionId) => {
   }
 };
 
+const fetchPositioningOptions = async (institutionId) => {
+  if (!institutionId) {
+    positioningOptions.value = [];
+    selectedPositioningId.value = null;
+    isInitializingPositioningSelection.value = false;
+    return;
+  }
+
+  try {
+    isLoadingPositioning.value = true;
+    const { data, error } = await supabase
+      .from("brand_assets")
+      .select("emotional_positioning")
+      .eq("institution_id", institutionId)
+      .maybeSingle();
+
+    if (error && error.code !== "PGRST116") {
+      throw error;
+    }
+
+    const entries = normalizePositioningEntries(
+      parsePositioningEntries(data?.emotional_positioning)
+    );
+
+    positioningOptions.value = entries;
+
+    const existingSelection =
+      content.value?.selected_positioning_id || selectedPositioningId.value;
+
+    if (
+      existingSelection &&
+      entries.some((option) => option.id === existingSelection)
+    ) {
+      selectedPositioningId.value = existingSelection;
+    } else {
+      // Default to null (no positioning selected)
+      selectedPositioningId.value = null;
+    }
+  } catch (err) {
+    console.error("Error fetching positioning options:", err);
+    positioningOptions.value = [];
+    selectedPositioningId.value = null;
+  } finally {
+    isLoadingPositioning.value = false;
+    isInitializingPositioningSelection.value = false;
+  }
+};
+
 const fetchCaptions = async () => {
   try {
     const { data, error: fetchError } = await supabase
@@ -961,10 +1090,13 @@ const fetchContent = async () => {
     content.value = data;
     originalSourceText.value = data.source_content_main_text;
     selectedBrandVoiceId.value = data.selected_brand_voice_id || null;
+    selectedPositioningId.value = data.selected_positioning_id || null;
     templateNotes.value = data.template_notes || "";
     templateNotesDirty.value = false;
     isInitializingBrandVoiceSelection.value = true;
+    isInitializingPositioningSelection.value = true;
     await fetchBrandVoices(data.institution_id);
+    await fetchPositioningOptions(data.institution_id);
 
     // Fetch post text data
     const { data: postTextData, error: postTextError } = await supabase
@@ -1432,6 +1564,28 @@ watch(selectedBrandVoiceId, async (newId, oldId) => {
   }
 });
 
+watch(selectedPositioningId, async (newId, oldId) => {
+  if (!content.value?.id) return;
+  if (isInitializingPositioningSelection.value) return;
+  if (newId === oldId) return;
+
+  try {
+    await supabase
+      .from("source_content")
+      .update({
+        selected_positioning_id: newId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", content.value.id);
+
+    content.value.selected_positioning_id = newId;
+  } catch (err) {
+    console.error("Error saving positioning selection:", err);
+    error.value =
+      err.message || "Failed to save positioning selection. Please try again.";
+  }
+});
+
 const toggleDropdown = () => {
   dropdownOpen.value = !dropdownOpen.value;
 };
@@ -1573,6 +1727,7 @@ const generatePostText = async () => {
           templateId: content.value.template_id,
           institutionId: content.value.institution_id,
           brandVoiceId: selectedBrandVoiceId.value || null,
+          positioningId: selectedPositioningId.value || null,
           notes: templateNotes.value,
         }),
       }
@@ -2814,6 +2969,56 @@ h1 {
 }
 
 .brand-voice-empty {
+  font-style: italic;
+}
+
+.positioning-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.positioning-selector label {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #374151;
+}
+
+.positioning-select-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.positioning-select {
+  width: 100%;
+  max-width: 320px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-family: inherit;
+  background: #fff;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.positioning-select:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.positioning-empty,
+.positioning-loading {
+  font-size: 0.9rem;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.positioning-empty {
   font-style: italic;
 }
 
