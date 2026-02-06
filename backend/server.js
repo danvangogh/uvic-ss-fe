@@ -20,6 +20,14 @@ const OpenAI = require("openai");
 const history = require("connect-history-api-fallback");
 const { randomUUID } = require("crypto");
 
+// Text generation services
+const {
+  runTextGenerationPipeline,
+  generateCaptions,
+  estimateTokenCount,
+  determineProcessingStrategy,
+} = require("./services/textGeneration");
+
 // Load environment variables from the backend .env file
 dotenv.config({ path: path.resolve(__dirname, ".env") });
 
@@ -151,6 +159,57 @@ const getBrandVoiceById = (entries, voiceId) => {
   if (!voiceId) return null;
   return entries.find((entry) => entry.id === voiceId) || null;
 };
+
+// Positioning entry parsing functions
+const generatePositioningId = () =>
+  `positioning_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+
+const parsePositioningEntries = (rawValue) => {
+  if (!rawValue) return [];
+
+  if (Array.isArray(rawValue)) {
+    return rawValue;
+  }
+
+  if (typeof rawValue === "object" && rawValue !== null) {
+    if (Array.isArray(rawValue.entries)) {
+      return rawValue.entries;
+    }
+    return [];
+  }
+
+  if (typeof rawValue === "string") {
+    try {
+      const parsed = JSON.parse(rawValue);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+      if (parsed && Array.isArray(parsed.entries)) {
+        return parsed.entries;
+      }
+    } catch (error) {
+      return [];
+    }
+  }
+
+  return [];
+};
+
+const normalizePositioningEntries = (entries) =>
+  entries
+    .filter((entry) => entry && (entry.name || entry.description))
+    .map((entry, index) => ({
+      id: entry.id || generatePositioningId(),
+      name:
+        typeof entry.name === "string" && entry.name.trim()
+          ? entry.name.trim()
+          : `Positioning ${index + 1}`,
+      description:
+        typeof entry.description === "string"
+          ? entry.description.trim()
+          : "",
+    }))
+    .filter((entry) => entry.description);
 
 // Import routes after environment variables are loaded
 const imageGenerationRoutes = require("./routes/imageGeneration");
@@ -714,25 +773,26 @@ app.post("/api/generate-text", async (req, res) => {
     templateId: req.body.templateId,
     institutionId: req.body.institutionId,
     brandVoiceId: req.body.brandVoiceId,
+    positioningId: req.body.positioningId,
   });
 
   try {
-    const { contentId, templateId, institutionId, brandVoiceId, notes } =
+    const { contentId, templateId, institutionId, brandVoiceId, positioningId, notes, forceReextract } =
       req.body;
 
-    // Fetch brand voice description
-    console.log("\n[1/3] Fetching brand voice description...");
+    // Fetch brand voice description and positioning options
+    console.log("\n[1/3] Fetching brand voice and positioning...");
     const { data: brandData, error: brandError } = await supabase
       .from("brand_assets")
-      .select("brand_voice_description")
+      .select("brand_voice_description, emotional_positioning")
       .eq("institution_id", institutionId)
       .single();
 
     if (brandError) {
-      console.error("Error fetching brand voice:", brandError);
+      console.error("Error fetching brand data:", brandError);
       throw brandError;
     }
-    console.log("✓ Brand voice fetched successfully");
+    console.log("✓ Brand voice and positioning fetched successfully");
 
     const rawBrandVoices = brandData?.brand_voice_description;
     const brandVoiceEntries = normalizeBrandVoiceEntries(
@@ -754,12 +814,12 @@ app.post("/api/generate-text", async (req, res) => {
     console.log("✓ Template details fetched successfully");
     console.log("Template schema:", templateData.template_content_schema);
 
-    // Fetch source content
+    // Fetch source content (including extracted_context if available)
     console.log("\n[3/3] Fetching source content...");
     const { data: sourceData, error: sourceError } = await supabase
       .from("source_content")
       .select(
-        "source_content_main_text, selected_brand_voice_id, template_notes"
+        "source_content_main_text, selected_brand_voice_id, selected_positioning_id, template_notes, extracted_context"
       )
       .eq("id", contentId)
       .single();
@@ -769,11 +829,15 @@ app.post("/api/generate-text", async (req, res) => {
       throw sourceError;
     }
     console.log("✓ Source content fetched successfully");
-    console.log(
-      "Source content length:",
-      sourceData.source_content_main_text?.length || 0,
-      "characters"
-    );
+
+    const sourceContentLength = sourceData.source_content_main_text?.length || 0;
+    const tokenEstimate = estimateTokenCount(sourceData.source_content_main_text || "");
+    console.log("Source content length:", sourceContentLength, "characters");
+    console.log("Estimated tokens:", tokenEstimate);
+
+    // Log processing strategy
+    const strategy = determineProcessingStrategy(sourceData.source_content_main_text || "");
+    console.log("Processing strategy:", strategy.strategy, "-", strategy.reason);
 
     const effectiveBrandVoiceId =
       brandVoiceId || sourceData.selected_brand_voice_id || null;
@@ -798,72 +862,64 @@ app.post("/api/generate-text", async (req, res) => {
       ? rawBrandVoices
       : "";
 
+    // Process emotional positioning
+    const rawPositioningOptions = brandData?.emotional_positioning;
+    const positioningEntries = normalizePositioningEntries(
+      parsePositioningEntries(rawPositioningOptions)
+    );
+
+    const effectivePositioningId =
+      positioningId || sourceData.selected_positioning_id || null;
+
+    let selectedPositioning = null;
+    if (effectivePositioningId && positioningEntries.length > 0) {
+      selectedPositioning = positioningEntries.find(
+        (entry) => entry.id === effectivePositioningId
+      );
+    }
+
+    const positioningSection = selectedPositioning
+      ? `Emotional Positioning (${selectedPositioning.name}):
+${selectedPositioning.description}
+
+IMPORTANT: Apply this emotional positioning to create content that evokes ${selectedPositioning.name.toLowerCase()} in readers. The FIRST panel/slide is the hook and should have the STRONGEST emotional impact to draw readers in. Subsequent panels should support and reinforce this emotional tone while delivering the content.`
+      : "";
+
     const creatorNotes = (notes ?? sourceData.template_notes ?? "")
       .toString()
       .trim();
-    const creatorNotesSection = creatorNotes
-      ? `\nCreator Notes:\n${creatorNotes}`
-      : "";
+    const creatorNotesSection = creatorNotes || "";
 
-    // Construct the prompt
-    console.log("\nConstructing OpenAI prompt...");
-    const systemPrompt = `You are a professional social media content writer. Your task is to generate engaging social media post text based on the provided source content, template requirements, and brand voice. You may also be given creator notes, which are instructions from the creator of the content, which you must prioritize.
-
-Creator Notes:
-${creatorNotesSection}
-
-Brand Voice Description:
-${brandVoiceDescription}
-
-Template Description:
-${templateData.template_content_description}
-
-Template Schema:
-${templateData.template_content_schema}
-
-IMPORTANT: Your response MUST be valid JSON that matches the template schema structure. Each key in the schema represents a text field that needs to be filled. Format your response as a JSON object with the exact same keys as the schema.
-
-For example, if the schema has keys "p1a" and "p1b", your response should look like:
-{
-  "p1a": "Your generated text for p1a",
-  "p1b": "Your generated text for p1b"
-}`;
-
-    const userPrompt = `Please generate text based on the following source content. Remember to format your entire response as a valid JSON object that matches the template schema structure:
-
-${sourceData.source_content_main_text}`;
-
-    console.log("System prompt length:", systemPrompt.length);
-    console.log("User prompt length:", userPrompt.length);
-
-    // Call OpenAI API
-    console.log("\nCalling OpenAI API...");
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4.1-mini",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      // temperature: 0.3,
-      response_format: { type: "json_object" }, // Force JSON response
+    // Run the text generation pipeline (handles extraction + generation)
+    console.log("\nRunning text generation pipeline...");
+    const result = await runTextGenerationPipeline({
+      openai,
+      supabase,
+      contentId,
+      sourceContent: sourceData.source_content_main_text,
+      existingExtractedContext: sourceData.extracted_context,
+      brandVoiceDescription,
+      positioningSection,
+      creatorNotesSection,
+      templateDescription: templateData.template_content_description,
+      templateSchema: templateData.template_content_schema,
+      forceReextract: forceReextract || false,
     });
 
-    // Parse the response
-    console.log("\nProcessing OpenAI response...");
-    const generatedText = completion.choices[0].message.content;
-    console.log("Generated text:", generatedText); // Log the actual response
-
-    // Validate JSON before sending
-    try {
-      const parsedJson = JSON.parse(generatedText);
-      console.log("Successfully parsed JSON response");
-
-      // Send the response
-      res.json({ success: true, text: generatedText });
-    } catch (parseError) {
-      console.error("Error parsing OpenAI response as JSON:", parseError);
-      throw new Error("Generated text is not valid JSON");
+    console.log("\n=== Text Generation Complete ===");
+    console.log("Strategy used:", result.strategy);
+    console.log("Processing time:", result.processingTime, "ms");
+    if (result.usage) {
+      console.log("Tokens used - Prompt:", result.usage.prompt_tokens, "Completion:", result.usage.completion_tokens);
     }
+
+    // Send the response
+    res.json({
+      success: true,
+      text: result.text,
+      strategy: result.strategy,
+      extractedContext: result.extractedContext ? true : false,
+    });
   } catch (error) {
     console.error("\n=== Error in Text Generation Process ===");
     console.error("Error type:", error.constructor.name);
@@ -964,6 +1020,8 @@ app.post("/api/download-file", async (req, res) => {
 // New POST endpoint /api/generate-captions
 app.post("/api/generate-captions", async (req, res) => {
   const startTime = Date.now();
+  console.log("\n=== Starting Caption Generation Process ===");
+
   try {
     const { contentId, institutionId, templateId } = req.body;
     if (!contentId || !institutionId) {
@@ -973,13 +1031,16 @@ app.post("/api/generate-captions", async (req, res) => {
       });
     }
 
-    // Fetch source_content_main_text
+    // Fetch source_content_main_text and extracted_context
     const { data: sourceData, error: sourceError } = await supabase
       .from("source_content")
-      .select("source_content_main_text")
+      .select("source_content_main_text, extracted_context")
       .eq("id", contentId)
       .single();
     if (sourceError) throw sourceError;
+
+    console.log("Source content length:", sourceData.source_content_main_text?.length || 0, "characters");
+    console.log("Has extracted context:", !!sourceData.extracted_context);
 
     // Fetch all post_text fields
     const { data: postTextData, error: postTextError } = await supabase
@@ -989,45 +1050,15 @@ app.post("/api/generate-captions", async (req, res) => {
       .maybeSingle();
     if (postTextError) throw postTextError;
 
-    // Construct the OpenAI prompt
-    const systemPrompt = `You are an expert social media copywriter, and excel at writing engaging, curiosity-filled hooks and content. You will be writing captions for Bluesky, LinkedIn, Instagram, and Facebook. You will receive a social media post, and the original content on which it is based. Your job is to write an engaging caption to post along with the social media post. 
-You are writing on behalf of the Faculty of Social Sciences at the University of Victoria, in British Columbia Canada. Your audience is a mix of academics and general public. The language you use must be widely accessible and comprehensible, not designed for academics. You are more like a reporter, not a marketer.`;
-
-    const rulesSystemPrompt = `IMPORTANT RULES FOR ALL CAPTIONS:
-- For the Bluesky version, the length of each caption that you write must be under the 300 character limit. The length of the Bluesky post must be less than 300 characters.
-- Your goal is to get the reader to click on the original article, but you must not be click-baitey or spammy.
-- Do NOT include any emojis in any caption.
-- Do NOT include any call to action like "read more" or "Curious to learn more".
-- Avoid generic sayings like "Explore how..." and "Discover what...".
-- Don't just ask a question like "How effective was it?". Instead, phrase it like "This article answers the question, how effective was it?" or "Researchers Costa and Circo explore solutions to the crisis by...". In other words, you must frame the question properly, rather than just asking a question.`;
-
-    // Combine all text fields into a single JSON object
-    const userPromptObj = {
-      source_content_main_text: sourceData.source_content_main_text,
-      post_text: postTextData || {},
-    };
-    const userPrompt = `Here is the source content and post text fields as JSON:\n\n${JSON.stringify(userPromptObj, null, 2)}\n\nPlease return your response as a JSON object with the following keys: bluesky_caption, linkedin_caption, facebook_caption, instagram_caption. Each value should be the caption for that platform.`;
-
-    // Call OpenAI API
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4.1-mini",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "system", content: rulesSystemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      // temperature: 0.3,
-      response_format: { type: "json_object" },
+    // Use the new caption generation service
+    const result = await generateCaptions({
+      openai,
+      sourceContent: sourceData.source_content_main_text,
+      extractedContext: sourceData.extracted_context,
+      postText: postTextData || {},
     });
 
-    const generatedText = completion.choices[0].message.content;
-    let captions;
-    try {
-      captions = JSON.parse(generatedText);
-    } catch (parseError) {
-      console.error("Error parsing OpenAI response as JSON:", parseError);
-      throw new Error("Generated captions are not valid JSON");
-    }
+    const captions = result.captions;
 
     // Update the social_captions table
     const { error: updateError } = await supabase
@@ -1041,6 +1072,12 @@ You are writing on behalf of the Faculty of Social Sciences at the University of
       })
       .eq("id", contentId);
     if (updateError) throw updateError;
+
+    const processingTime = Date.now() - startTime;
+    console.log("Caption generation completed in", processingTime, "ms");
+    if (result.usage) {
+      console.log("Tokens used - Prompt:", result.usage.prompt_tokens, "Completion:", result.usage.completion_tokens);
+    }
 
     res.json({ success: true, captions });
   } catch (error) {
